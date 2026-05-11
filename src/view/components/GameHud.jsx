@@ -3,11 +3,11 @@ import { UI_TEXT } from "../../data/uiText";
 export function GameHud({
   conditions,
   height,
+  items,
   movement,
   onDynoEnd,
   onDynoStart,
-  onUsePrimaryItem,
-  primaryItem,
+  onUseItem,
   staminaRatio,
   tutorialVisible,
 }) {
@@ -96,9 +96,17 @@ export function GameHud({
             </div>
           </div>
           <div className="hud-actions">
-            <button className="hud-button primary-item-button" type="button" onClick={onUsePrimaryItem} disabled={primaryItem?.disabled}>
-              {primaryItem ? `${primaryItem.label} (${primaryItem.count})` : UI_TEXT.chalkLabel}
-            </button>
+            {items.map((item) => (
+              <button
+                key={item.id}
+                className={`hud-button item-button item-button--${item.id}${item.active ? " is-active" : ""}`}
+                type="button"
+                onClick={() => onUseItem(item.id)}
+                disabled={item.disabled}
+              >
+                {`${item.label} (${item.count})`}
+              </button>
+            ))}
             <button
               className={`hud-button dyno-button${dynoState?.charging ? " is-charging" : ""}${dynoState?.active ? " is-active" : ""}`}
               type="button"

@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { ITEM_CATALOG, PRIMARY_ITEM_ID } from "../../data/itemCatalog.js";
+import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { GAME_OVER_TEXT } from "../../data/uiText.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
@@ -87,6 +87,10 @@ function setGameOver(state, reason) {
     };
   }
 
+  if (state.itemState) {
+    state.itemState.channel = null;
+  }
+
   state.endMessage = {
     title: GAME_OVER_TEXT[reason].title,
     description: GAME_OVER_TEXT[reason].description,
@@ -134,6 +138,33 @@ function createInitialConditionState() {
       bloodiedHoldCount: 0,
     },
   };
+}
+
+function createInitialItemState() {
+  return {
+    checkpoint: null,
+    channel: null,
+  };
+}
+
+function getAttachedLimbs(state) {
+  return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1);
+}
+
+function getAttachedHands(state) {
+  return getAttachedLimbs(state).filter((limb) => limb.isHand);
+}
+
+function isSingleHandHang(state) {
+  return getAttachedHands(state).length === 1 && getAttachedLimbs(state).length >= 2;
+}
+
+function applyStaminaDelta(state, delta) {
+  state.stamina = clamp(state.stamina + delta, 0, state.staminaCap);
+}
+
+function restoreStamina(state, amount) {
+  state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
 }
 
 function getRawDynoChargeRatio(state) {
@@ -342,6 +373,14 @@ function createInitialInventory() {
   }, {});
 }
 
+function isCheckpointActive(state, itemId) {
+  return state.itemState.checkpoint?.itemId === itemId;
+}
+
+function isChannelActive(state, itemId) {
+  return state.itemState.channel?.itemId === itemId;
+}
+
 function isEffectActiveForItem(state, itemId) {
   return state.activeEffects.some((effect) => effect.sourceItemId === itemId);
 }
@@ -350,21 +389,86 @@ function getInventoryCount(state, itemId) {
   return state.inventory[itemId]?.count ?? 0;
 }
 
+function getItemActiveState(state, itemDefinition) {
+  const activationType = itemDefinition.activation?.type;
+
+  if (activationType === "checkpoint") {
+    return isCheckpointActive(state, itemDefinition.id);
+  }
+
+  if (activationType === "channel") {
+    return isChannelActive(state, itemDefinition.id);
+  }
+
+  return isEffectActiveForItem(state, itemDefinition.id);
+}
+
+function getItemDisplayLabel(state, itemDefinition, active) {
+  if (itemDefinition.activation?.type === "channel" && active) {
+    const channelState = state.itemState.channel;
+    const progressRatio = 1 - channelState.remainingFrames / channelState.totalFrames;
+    return `${itemDefinition.activeLabel} ${Math.round(progressRatio * 100)}%`;
+  }
+
+  if (active) {
+    return itemDefinition.activeLabel;
+  }
+
+  return itemDefinition.label;
+}
+
+function canUseItem(state, itemDefinition) {
+  if (!state.isPlaying) {
+    return false;
+  }
+
+  if (state.itemState.channel && state.itemState.channel.itemId !== itemDefinition.id) {
+    return false;
+  }
+
+  const itemCount = getInventoryCount(state, itemDefinition.id);
+  const itemActive = getItemActiveState(state, itemDefinition);
+
+  if (itemCount <= 0 || (itemActive && !itemDefinition.canUseWhileActive)) {
+    return false;
+  }
+
+  const activation = itemDefinition.activation;
+
+  if (!activation) {
+    return true;
+  }
+
+  if (activation.type === "checkpoint") {
+    return getAttachedLimbs(state).length >= activation.requiresAttachedLimbsMin;
+  }
+
+  if (activation.type === "channel") {
+    return !state.itemState.channel && (!activation.requiresSingleHandHang || isSingleHandHang(state));
+  }
+
+  return true;
+}
+
 function getItemUiState(state, itemId) {
   const itemDefinition = ITEM_CATALOG[itemId];
-  const active = isEffectActiveForItem(state, itemId);
+  const active = getItemActiveState(state, itemDefinition);
   const count = getInventoryCount(state, itemId);
 
   return {
     id: itemDefinition.id,
-    label: active ? itemDefinition.activeLabel : itemDefinition.label,
+    label: getItemDisplayLabel(state, itemDefinition, active),
     count,
     active,
     purpose: itemDefinition.purpose,
     persistence: itemDefinition.persistence,
     acquisition: itemDefinition.acquisition,
-    disabled: count <= 0 || (active && !itemDefinition.canUseWhileActive),
+    disabled: !canUseItem(state, itemDefinition),
   };
+}
+
+function getInventoryUiState(state) {
+  return ITEM_ORDER.map((itemId) => getItemUiState(state, itemId)).filter(Boolean);
 }
 
 function getEffectValue(state, effectType) {
@@ -424,7 +528,96 @@ function emitItemFeedback(state, itemDefinition) {
         );
       }
     });
+    return;
   }
+
+  if (itemDefinition.feedback.target === "playerCore") {
+    pushParticles(
+      state,
+      state.player.com.x,
+      state.player.com.y - state.cameraY,
+      itemDefinition.feedback.particleCount,
+      itemDefinition.feedback.particleColor,
+    );
+  }
+}
+
+function captureCheckpoint(state, itemDefinition) {
+  state.itemState.checkpoint = {
+    itemId: itemDefinition.id,
+    limbs: state.player.limbs.map((limb) => ({
+      attachedHoldIndex: limb.attachedHoldIndex,
+      x: limb.x,
+      y: limb.y,
+    })),
+    com: { ...state.player.com },
+    cameraY: state.cameraY,
+    maxHeightReached: state.maxHeightReached,
+  };
+}
+
+function restoreCheckpoint(state) {
+  const checkpoint = state.itemState.checkpoint;
+
+  if (!checkpoint) {
+    return false;
+  }
+
+  const itemDefinition = ITEM_CATALOG[checkpoint.itemId];
+  const activation = itemDefinition.activation;
+
+  state.player.com = { ...checkpoint.com };
+  state.player.limbs.forEach((limb, index) => {
+    const checkpointLimb = checkpoint.limbs[index];
+    limb.attachedHoldIndex = checkpointLimb.attachedHoldIndex;
+    limb.x = checkpointLimb.x;
+    limb.y = checkpointLimb.y;
+  });
+  state.cameraY = checkpoint.cameraY;
+  state.draggedLimbIndex = -1;
+  state.isPlaying = true;
+  state.endMessage = null;
+  state.itemState.channel = null;
+  state.itemState.checkpoint = null;
+  state.activeEffects = [];
+  state.movementState = createInitialMovementState();
+  state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
+  state.stamina = Math.min(state.staminaCap, state.staminaCap * activation.restoreStaminaRatio);
+  emitItemFeedback(state, itemDefinition);
+  return true;
+}
+
+function resolveFailure(state, reason) {
+  if (restoreCheckpoint(state)) {
+    return;
+  }
+
+  setGameOver(state, reason);
+}
+
+function tickChannelItem(state) {
+  const channelState = state.itemState.channel;
+
+  if (!channelState) {
+    return;
+  }
+
+  const itemDefinition = ITEM_CATALOG[channelState.itemId];
+
+  if (itemDefinition.activation.requiresSingleHandHang && !isSingleHandHang(state)) {
+    state.itemState.channel = null;
+    return;
+  }
+
+  channelState.remainingFrames -= 1;
+
+  if (channelState.remainingFrames > 0) {
+    return;
+  }
+
+  restoreStamina(state, itemDefinition.activation.restoreStamina);
+  emitItemFeedback(state, itemDefinition);
+  state.itemState.channel = null;
 }
 
 function clampRouteX(viewportWidth, value) {
@@ -621,6 +814,7 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
   return {
     isPlaying: true,
     stamina: GAME_CONFIG.maxStamina,
+    staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
     maxHeightReached: 0,
     holds,
@@ -634,6 +828,7 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
     particles: [],
     inventory: createInitialInventory(),
     activeEffects: [],
+    itemState: createInitialItemState(),
     movementState: createInitialMovementState(),
     conditionState: createInitialConditionState(),
     tutorialVisible: true,
@@ -646,9 +841,10 @@ export function getUiSnapshot(state, frame) {
     frame,
     isPlaying: state.isPlaying,
     stamina: state.stamina,
-    staminaRatio: state.stamina / GAME_CONFIG.maxStamina,
+    staminaRatio: state.stamina / state.staminaCap,
+    staminaCap: state.staminaCap,
     height: state.maxHeightReached,
-    primaryItem: getItemUiState(state, PRIMARY_ITEM_ID),
+    items: getInventoryUiState(state),
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
@@ -751,7 +947,7 @@ export function releaseDynoCharge(state) {
   const dynoCost =
     GAME_CONFIG.movement.dyno.releaseStaminaCostMin +
     (GAME_CONFIG.movement.dyno.releaseStaminaCostMax - GAME_CONFIG.movement.dyno.releaseStaminaCostMin) * effectiveChargeRatio;
-  state.stamina = clamp(state.stamina - dynoCost, 0, GAME_CONFIG.maxStamina);
+  state.stamina = clamp(state.stamina - dynoCost, 0, state.staminaCap);
   return true;
 }
 
@@ -779,20 +975,30 @@ export function releaseDrag(state) {
 export function useItem(state, itemId) {
   const itemDefinition = ITEM_CATALOG[itemId];
 
-  if (!state.isPlaying || !itemDefinition) {
-    return;
-  }
-
-  const itemCount = getInventoryCount(state, itemDefinition.id);
-  const itemActive = isEffectActiveForItem(state, itemDefinition.id);
-
-  if (itemCount <= 0 || (itemActive && !itemDefinition.canUseWhileActive)) {
-    return;
+  if (!itemDefinition || !canUseItem(state, itemDefinition)) {
+    return false;
   }
 
   state.inventory[itemDefinition.id].count -= 1;
+
+  if (itemDefinition.activation?.type === "checkpoint") {
+    captureCheckpoint(state, itemDefinition);
+    emitItemFeedback(state, itemDefinition);
+    return true;
+  }
+
+  if (itemDefinition.activation?.type === "channel") {
+    state.itemState.channel = {
+      itemId: itemDefinition.id,
+      remainingFrames: itemDefinition.activation.channelFrames,
+      totalFrames: itemDefinition.activation.channelFrames,
+    };
+    return true;
+  }
+
   applyItemEffects(state, itemDefinition);
   emitItemFeedback(state, itemDefinition);
+  return true;
 }
 
 function updateParticles(state) {
@@ -831,7 +1037,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   });
 
   if (attachedLimbs.length < 2) {
-    setGameOver(state, "balance");
+    resolveFailure(state, "balance");
     return;
   }
 
@@ -916,10 +1122,11 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickActiveEffects(state);
   decayDynoState(state);
 
-  state.stamina = clamp(state.stamina + staminaChange, 0, GAME_CONFIG.maxStamina);
+  applyStaminaDelta(state, staminaChange);
+  tickChannelItem(state);
 
   if (state.stamina <= 0) {
-    setGameOver(state, "exhaustion");
+    resolveFailure(state, "exhaustion");
     return;
   }
 

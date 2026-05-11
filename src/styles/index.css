@@ -111,6 +111,25 @@ select {
   opacity: 0.45;
 }
 
+.item-button.is-active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.item-button--chalk.is-active {
+  color: #00ffcc;
+  border-color: #00ffcc;
+}
+
+.item-button--protectionCam.is-active {
+  color: #9ae6b4;
+  border-color: #9ae6b4;
+}
+
+.item-button--energyGel.is-active {
+  color: #f39c12;
+  border-color: #f39c12;
+}
+
 .dyno-button.is-charging {
   color: #f0d58a;
   border-color: #f0d58a;

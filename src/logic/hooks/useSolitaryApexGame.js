@@ -10,7 +10,6 @@ import {
   updateFrame,
   updatePointer,
 } from "../engine/gameEngine.js";
-import { PRIMARY_ITEM_ID } from "../../data/itemCatalog.js";
 
 const getViewport = () => ({
   width: window.innerWidth,
@@ -29,7 +28,7 @@ export function useSolitaryApexGame() {
     stamina: 100,
     staminaRatio: 1,
     height: 0,
-    primaryItem: null,
+    items: [],
     movement: {
       dyno: {
         charging: false,
@@ -214,12 +213,12 @@ export function useSolitaryApexGame() {
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
   };
 
-  const usePrimaryItem = () => {
+  const useInventoryItem = (itemId) => {
     if (!gameStateRef.current) {
       return;
     }
 
-    useItem(gameStateRef.current, PRIMARY_ITEM_ID);
+    useItem(gameStateRef.current, itemId);
     commitUiState();
   };
 
@@ -251,7 +250,7 @@ export function useSolitaryApexGame() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
-    usePrimaryItem,
+    useInventoryItem,
     startDyno,
     endDyno,
   };

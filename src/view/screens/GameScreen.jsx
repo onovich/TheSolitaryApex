@@ -16,7 +16,7 @@ export function GameScreen() {
     restartGame,
     endDyno,
     startDyno,
-    usePrimaryItem,
+    useInventoryItem,
   } = useSolitaryApexGame();
 
   const vignetteOpacity = uiState.stamina < 40 ? (1 - uiState.stamina / 40) * 0.85 : 0;
@@ -37,11 +37,11 @@ export function GameScreen() {
       <GameHud
         conditions={uiState.conditions}
         height={uiState.height}
+        items={uiState.items}
         movement={uiState.movement}
         onDynoEnd={endDyno}
         onDynoStart={startDyno}
-        onUsePrimaryItem={usePrimaryItem}
-        primaryItem={uiState.primaryItem}
+        onUseItem={useInventoryItem}
         staminaRatio={uiState.staminaRatio}
         tutorialVisible={uiState.tutorialVisible}
       />
