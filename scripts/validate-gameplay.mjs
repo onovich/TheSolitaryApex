@@ -226,9 +226,43 @@ function validateItems() {
   return { gelDelta };
 }
 
+function validateFootDragFeel() {
+  const state = createStableState();
+  const footIndex = 2;
+  const foot = state.player.limbs[footIndex];
+  const targetHoldIndex = state.holds.length - 1;
+  const targetHold = state.holds[targetHoldIndex];
+  const rootX = state.player.com.x + foot.reachProfile.rootOffset.x;
+  const rootY = state.player.com.y + foot.reachProfile.rootOffset.y;
+
+  targetHold.x = rootX;
+  targetHold.y = rootY - 100;
+
+  beginDrag(state, foot.x, foot.y - state.cameraY);
+  updatePointer(state, targetHold.x, targetHold.y - state.cameraY);
+
+  for (let index = 0; index < 12; index += 1) {
+    updateFrame(state, 1280, 720);
+    updatePointer(state, targetHold.x, targetHold.y - state.cameraY);
+  }
+
+  releaseDrag(state);
+
+  if (state.player.limbs[footIndex].attachedHoldIndex !== targetHoldIndex) {
+    throw new Error(`Foot failed to attach to reachable hold: ${state.player.limbs[footIndex].attachedHoldIndex}`);
+  }
+
+  if ((state.feedbackState.dragRejectFrames ?? 0) > 0) {
+    throw new Error(`Foot drag ended with reject feedback: ${state.feedbackState.dragRejectFrames}`);
+  }
+
+  return { footHoldIndex: targetHoldIndex };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
+const footResult = validateFootDragFeel();
 
 console.log(
   [
@@ -239,5 +273,6 @@ console.log(
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
+    `footHold=${footResult.footHoldIndex}`,
   ].join(" "),
 );

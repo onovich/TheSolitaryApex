@@ -108,10 +108,23 @@ function drawPlayer(ctx, state, viewportHeight) {
     return GAME_CONFIG.movement.dyno.reachBonusMax * dynoRatio;
   };
 
-  const getLimbRootScreenPosition = (limb, bodyY) => ({
-    x: state.player.com.x + limb.reachProfile.rootOffset.x,
-    y: bodyY + limb.reachProfile.rootOffset.y,
-  });
+  const getLimbRootScreenPosition = (limb, bodyY, index) => {
+    if (
+      state.feedbackState?.dragSnapshotActive &&
+      state.feedbackState.dragSnapshotLimbIndex === index &&
+      state.draggedLimbIndex === index
+    ) {
+      return {
+        x: state.feedbackState.dragRootX,
+        y: state.feedbackState.dragRootY - state.cameraY,
+      };
+    }
+
+    return {
+      x: state.player.com.x + limb.reachProfile.rootOffset.x,
+      y: bodyY + limb.reachProfile.rootOffset.y,
+    };
+  };
   const rejectAlpha = getRejectFlashAlpha(state);
   const rejectLimbIndex = state.feedbackState?.limbIndex ?? -1;
   const dynoState = state.movementState?.dyno;
@@ -120,22 +133,30 @@ function drawPlayer(ctx, state, viewportHeight) {
     dynoState?.active ? dynoState.reachBonusRatio ?? 0 : 0,
   );
 
-  const drawReachEnvelope = (limb, bodyY) => {
-    const root = getLimbRootScreenPosition(limb, bodyY);
+  const drawReachEnvelope = (limb, bodyY, index) => {
+    const root = getLimbRootScreenPosition(limb, bodyY, index);
     const envelopeReject = state.feedbackState?.dragRejectFrames > 0 && state.player.limbs[rejectLimbIndex] === limb;
+    const maxReach =
+      state.feedbackState?.dragSnapshotActive && state.feedbackState.dragSnapshotLimbIndex === index
+        ? state.feedbackState.dragMaxReach
+        : limb.reachProfile.maxReach + getDynoReachBonus(limb);
+    const minReach =
+      state.feedbackState?.dragSnapshotActive && state.feedbackState.dragSnapshotLimbIndex === index
+        ? state.feedbackState.dragMinReach
+        : limb.reachProfile.minReach;
 
     ctx.save();
     ctx.setLineDash([6, 6]);
     ctx.beginPath();
-    ctx.arc(root.x, root.y, limb.reachProfile.maxReach + getDynoReachBonus(limb), 0, Math.PI * 2);
+    ctx.arc(root.x, root.y, maxReach, 0, Math.PI * 2);
     ctx.strokeStyle = envelopeReject
       ? `rgba(255, 100, 100, ${0.2 + rejectAlpha * 0.55})`
       : "rgba(255, 255, 255, 0.12)";
     ctx.stroke();
 
-    if (limb.reachProfile.minReach > 0) {
+    if (minReach > 0) {
       ctx.beginPath();
-      ctx.arc(root.x, root.y, limb.reachProfile.minReach, 0, Math.PI * 2);
+      ctx.arc(root.x, root.y, minReach, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
       ctx.stroke();
     }
@@ -180,7 +201,7 @@ function drawPlayer(ctx, state, viewportHeight) {
     if (state.draggedLimbIndex === index) {
       ctx.fillStyle = limbRejected ? `rgba(255, 100, 100, ${0.6 + rejectAlpha * 0.4})` : "rgba(255, 255, 255, 0.8)";
       ctx.fill();
-      drawReachEnvelope(limb, bodyScreenY);
+      drawReachEnvelope(limb, bodyScreenY, index);
       return;
     }
 

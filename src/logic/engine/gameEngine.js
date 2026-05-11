@@ -98,6 +98,7 @@ function setGameOver(state, reason) {
 
   if (state.feedbackState) {
     state.feedbackState.dragRejectFrames = 0;
+    clearDragConstraintSnapshot(state);
   }
 
   if (state.recoveryState) {
@@ -190,6 +191,12 @@ function createInitialFeedbackState() {
     holdIndex: -1,
     targetX: 0,
     targetY: 0,
+    dragSnapshotActive: false,
+    dragSnapshotLimbIndex: -1,
+    dragRootX: 0,
+    dragRootY: 0,
+    dragMinReach: 0,
+    dragMaxReach: 0,
   };
 }
 
@@ -266,6 +273,23 @@ function setDragRejectFeedback(state, limbIndex, targetX, targetY, holdIndex = -
   state.feedbackState.targetY = targetY;
 }
 
+function setDragConstraintSnapshot(state, limbIndex, limb) {
+  const rootPosition = getLimbRootPosition(state.player, limb);
+  const reachProfile = getDynamicReachProfile(state, limb);
+
+  state.feedbackState.dragSnapshotActive = true;
+  state.feedbackState.dragSnapshotLimbIndex = limbIndex;
+  state.feedbackState.dragRootX = rootPosition.x;
+  state.feedbackState.dragRootY = rootPosition.y;
+  state.feedbackState.dragMinReach = reachProfile.minReach;
+  state.feedbackState.dragMaxReach = reachProfile.maxReach;
+}
+
+function clearDragConstraintSnapshot(state) {
+  state.feedbackState.dragSnapshotActive = false;
+  state.feedbackState.dragSnapshotLimbIndex = -1;
+}
+
 function clearDragRejectFeedback(state) {
   state.feedbackState.dragRejectFrames = 0;
   state.feedbackState.limbIndex = -1;
@@ -300,6 +324,30 @@ function getClosestHoldIndex(state, targetX, targetY, snapRadius = GAME_CONFIG.h
   return closestHoldIndex;
 }
 
+function getReachConstraintState(state, limb) {
+  if (
+    state.feedbackState.dragSnapshotActive &&
+    state.draggedLimbIndex === state.feedbackState.dragSnapshotLimbIndex &&
+    state.player.limbs[state.draggedLimbIndex] === limb
+  ) {
+    return {
+      rootPosition: {
+        x: state.feedbackState.dragRootX,
+        y: state.feedbackState.dragRootY,
+      },
+      reachProfile: {
+        minReach: state.feedbackState.dragMinReach,
+        maxReach: state.feedbackState.dragMaxReach,
+      },
+    };
+  }
+
+  return {
+    rootPosition: getLimbRootPosition(state.player, limb),
+    reachProfile: getDynamicReachProfile(state, limb),
+  };
+}
+
 function updateDragConstraintFeedback(state, targetX, targetY) {
   if (state.draggedLimbIndex === -1) {
     return;
@@ -307,11 +355,6 @@ function updateDragConstraintFeedback(state, targetX, targetY) {
 
   const draggedLimb = state.player.limbs[state.draggedLimbIndex];
   const closestHoldIndex = getClosestHoldIndex(state, targetX, targetY);
-
-  if (!canLimbReachTarget(state, draggedLimb, targetX, targetY)) {
-    setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, closestHoldIndex);
-    return;
-  }
 
   if (closestHoldIndex !== -1) {
     const hold = state.holds[closestHoldIndex];
@@ -1238,21 +1281,10 @@ function updateRouteState(state) {
 }
 
 function canLimbReachTarget(state, limb, targetX, targetY) {
-  const rootPosition = getLimbRootPosition(state.player, limb);
-  const relativeX = targetX - rootPosition.x;
-  const relativeY = targetY - rootPosition.y;
-  const distance = Math.hypot(relativeX, relativeY);
-  const reachProfile = getDynamicReachProfile(state, limb);
+  const { rootPosition, reachProfile } = getReachConstraintState(state, limb);
+  const distance = Math.hypot(targetX - rootPosition.x, targetY - rootPosition.y);
 
   if (distance < reachProfile.minReach || distance > reachProfile.maxReach) {
-    return false;
-  }
-
-  if (relativeX < reachProfile.minHorizontalOffset || relativeX > reachProfile.maxHorizontalOffset) {
-    return false;
-  }
-
-  if (relativeY < reachProfile.minVerticalOffset || relativeY > reachProfile.maxVerticalOffset) {
     return false;
   }
 
@@ -1262,10 +1294,6 @@ function canLimbReachTarget(state, limb, targetX, targetY) {
 function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   let snapRadius = GAME_CONFIG.holdSnapRadius;
   let closestHoldIndex = -1;
-
-  if (!canLimbReachTarget(state, draggedLimb, targetX, targetY)) {
-    return -1;
-  }
 
   state.holds.forEach((hold, index) => {
     const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
@@ -1389,6 +1417,7 @@ export function beginDrag(state, screenX, screenY) {
       state.draggedLimbIndex = index;
       limb.attachedHoldIndex = -1;
       state.tutorialVisible = false;
+      setDragConstraintSnapshot(state, index, limb);
       updateDragConstraintFeedback(state, screenX, screenY + state.cameraY);
       return true;
     }
@@ -1509,6 +1538,7 @@ export function releaseDrag(state) {
     setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, nearestHoldIndex);
   }
 
+  clearDragConstraintSnapshot(state);
   state.draggedLimbIndex = -1;
 }
 
