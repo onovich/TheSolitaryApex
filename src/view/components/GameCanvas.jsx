@@ -110,6 +110,7 @@ function drawPlayer(ctx, state, viewportHeight) {
   });
   const rejectAlpha = getRejectFlashAlpha(state);
   const rejectLimbIndex = state.feedbackState?.limbIndex ?? -1;
+  const dynoState = state.movementState?.dyno;
   const dynoVisualRatio = Math.max(
     dynoState?.charging ? Math.pow(Math.max(0, Math.min(1, (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames)), GAME_CONFIG.movement.dyno.chargeEasePower) : 0,
     dynoState?.active ? dynoState.reachBonusRatio ?? 0 : 0,
