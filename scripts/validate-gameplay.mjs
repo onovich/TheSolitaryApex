@@ -19,6 +19,34 @@ function createStableState() {
   return state;
 }
 
+function attachAnyCheckpointHold(state, candidateHoldIndices) {
+  for (let limbIndex = 0; limbIndex < state.player.limbs.length; limbIndex += 1) {
+    const limb = state.player.limbs[limbIndex];
+
+    if (limb.attachedHoldIndex !== -1) {
+      continue;
+    }
+
+    for (const holdIndex of candidateHoldIndices) {
+      const hold = state.holds[holdIndex];
+
+      if (!hold) {
+        continue;
+      }
+
+      beginDrag(state, limb.x, limb.y - state.cameraY);
+      updatePointer(state, hold.x, hold.y - state.cameraY);
+      releaseDrag(state);
+
+      if (state.player.limbs[limbIndex].attachedHoldIndex === holdIndex) {
+        return { limbIndex, holdIndex };
+      }
+    }
+  }
+
+  return null;
+}
+
 function validateRouteContent() {
   const state = createStableState();
   const zoneKeys = [...new Set(state.routeSegments.map((segment) => segment.zoneKey))];
@@ -101,12 +129,44 @@ function validateDragDynoAndFalls() {
 
   beginBodyAction(state, state.player.com.x, state.player.com.y - state.cameraY);
 
-  for (let index = 0; index < 160 && state.fallState.active; index += 1) {
+  for (let index = 0; index < 160 && state.fallState.mode === "hanging"; index += 1) {
     updateFrame(state, 1280, 720);
   }
 
+  if (!state.fallState.active || state.fallState.mode !== "hanging") {
+    throw new Error("Reeling should keep the player hanging on the rope");
+  }
+
+  const checkpoint = state.itemState.checkpoint;
+
+  if (!checkpoint) {
+    throw new Error("Checkpoint state missing after rope catch");
+  }
+
+  const anchoredHoldIndices = checkpoint.limbs.map((limb) => limb.attachedHoldIndex).filter((holdIndex) => holdIndex !== -1);
+
+  if (anchoredHoldIndices.length < 2) {
+    throw new Error(`Checkpoint should retain at least two anchored holds, got ${anchoredHoldIndices.length}`);
+  }
+
+  const firstAttach = attachAnyCheckpointHold(state, anchoredHoldIndices);
+
+  if (!firstAttach) {
+    throw new Error("Expected at least one successful re-attachment while hanging");
+  }
+
+  if (!state.fallState.active || state.fallState.mode !== "hanging") {
+    throw new Error("Attaching one limb should still keep the player hanging");
+  }
+
+  const secondAttach = attachAnyCheckpointHold(state, anchoredHoldIndices);
+
+  if (!secondAttach) {
+    throw new Error("Expected a second successful re-attachment while hanging");
+  }
+
   if (state.fallState.active) {
-    throw new Error("Reeling did not complete rescue");
+    throw new Error("Attaching two limbs should exit hanging state");
   }
 
   const deathState = createStableState();

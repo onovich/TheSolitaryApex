@@ -451,6 +451,24 @@ function updateDetachedLimbs(state, stiffness = 0.16) {
   });
 }
 
+function updateSuspendedLimbs(state, stiffness = 0.16) {
+  state.player.limbs.forEach((limb) => {
+    if (limb.attachedHoldIndex !== -1) {
+      const hold = state.holds[limb.attachedHoldIndex];
+
+      if (hold) {
+        limb.x = hold.x;
+        limb.y = hold.y;
+      }
+
+      return;
+    }
+
+    limb.x += (state.player.com.x - limb.x) * stiffness;
+    limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
+  });
+}
+
 function updateFallState(state, viewportWidth, viewportHeight) {
   const fallState = state.fallState;
 
@@ -519,14 +537,18 @@ function updateFallState(state, viewportWidth, viewportHeight) {
   if (fallState.mode === "hanging") {
     const windSway = state.conditionState.weather.windForce * 40 * GAME_CONFIG.recoveryLoop.ropeSwayStrength;
     const targetX = anchorPosition.x + windSway;
+    const checkpointBodyDistance = checkpoint
+      ? Math.hypot(checkpoint.com.x - anchorPosition.x, checkpoint.com.y - anchorPosition.y)
+      : GAME_CONFIG.recoveryLoop.ropeReelThreshold;
+    const reelStopLength = Math.max(28, Math.min(fallState.catchLength, checkpointBodyDistance));
 
     if (fallState.reeling) {
-      fallState.ropeLength = Math.max(GAME_CONFIG.recoveryLoop.ropeReelThreshold, fallState.ropeLength - GAME_CONFIG.recoveryLoop.ropeReelSpeed);
+      fallState.ropeLength = Math.max(reelStopLength, fallState.ropeLength - GAME_CONFIG.recoveryLoop.ropeReelSpeed);
     }
 
     state.player.com.x += (targetX - state.player.com.x) * 0.1;
     state.player.com.y += (anchorPosition.y + fallState.ropeLength - state.player.com.y) * 0.2;
-    updateDetachedLimbs(state, 0.18);
+    updateSuspendedLimbs(state, 0.18);
     restoreStamina(
       state,
       fallState.reeling
@@ -537,8 +559,11 @@ function updateFallState(state, viewportWidth, viewportHeight) {
     const ropeCameraTargetY = Math.min(anchorPosition.y - viewportHeight * 0.35, state.player.com.y - viewportHeight * 0.58);
     state.cameraY += (ropeCameraTargetY - state.cameraY) * 0.08;
 
-    if (fallState.reeling && checkpoint && fallState.ropeLength <= GAME_CONFIG.recoveryLoop.ropeReelThreshold + 0.5) {
-      restoreCheckpointPose(state);
+    if (getAttachedLimbs(state).length >= 2) {
+      state.fallState = createInitialFallState();
+      state.movementState.bodyVelocity = { x: 0, y: 0 };
+      state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+      state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
       return true;
     }
 
@@ -583,7 +608,6 @@ function getDynamicReachProfile(state, limb) {
     minHorizontalOffset: limb.reachProfile.minHorizontalOffset - GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio,
     maxHorizontalOffset: limb.reachProfile.maxHorizontalOffset + GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio,
     minVerticalOffset: limb.reachProfile.minVerticalOffset - GAME_CONFIG.movement.dyno.verticalBonusMax * dynoRatio,
-    minDirectionalDot: limb.reachProfile.minDirectionalDot - GAME_CONFIG.movement.dyno.directionalRelaxation * dynoRatio,
   };
 }
 
@@ -1232,11 +1256,7 @@ function canLimbReachTarget(state, limb, targetX, targetY) {
     return false;
   }
 
-  const directionalDot =
-    (relativeX * reachProfile.preferredDirection.x + relativeY * reachProfile.preferredDirection.y) /
-    distance;
-
-  return directionalDot >= reachProfile.minDirectionalDot;
+  return true;
 }
 
 function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
@@ -1354,7 +1374,7 @@ export function updatePointer(state, screenX, screenY) {
 }
 
 export function beginDrag(state, screenX, screenY) {
-  if (!state.isPlaying || state.fallState?.active) {
+  if (!state.isPlaying || (state.fallState?.active && state.fallState.mode !== "hanging")) {
     return false;
   }
 
@@ -1461,7 +1481,7 @@ export function releaseDynoCharge(state) {
 }
 
 export function releaseDrag(state) {
-  if (!state.isPlaying || state.fallState?.active || state.draggedLimbIndex === -1) {
+  if (!state.isPlaying || (state.fallState?.active && state.fallState.mode !== "hanging") || state.draggedLimbIndex === -1) {
     return;
   }
 
@@ -1478,6 +1498,13 @@ export function releaseDrag(state) {
     draggedLimb.y = hold.y;
     pushParticles(state, draggedLimb.x, draggedLimb.y - state.cameraY, GAME_CONFIG.gripParticleCount, "#ffffff");
     clearDragRejectFeedback(state);
+
+    if (state.fallState?.active && state.fallState.mode === "hanging" && getAttachedLimbs(state).length >= 2) {
+      state.fallState = createInitialFallState();
+      state.movementState.bodyVelocity = { x: 0, y: 0 };
+      state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+      state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+    }
   } else if (!canLimbReachTarget(state, draggedLimb, targetX, targetY) || nearestHoldIndex !== -1) {
     setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, nearestHoldIndex);
   }

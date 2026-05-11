@@ -36,7 +36,11 @@ function getCheckpointAnchor(state) {
 }
 
 function drawCheckpointRope(ctx, state) {
-  const anchor = state.fallState?.active ? { x: state.fallState.anchorX, y: state.fallState.anchorY } : getCheckpointAnchor(state);
+  const anchor = state.fallState?.active
+    ? state.fallState.anchorHoldIndex !== -1
+      ? { x: state.fallState.anchorX, y: state.fallState.anchorY }
+      : null
+    : getCheckpointAnchor(state);
 
   if (!anchor) {
     return;
