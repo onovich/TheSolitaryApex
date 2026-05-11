@@ -92,6 +92,14 @@ function setGameOver(state, reason) {
     state.itemState.channel = null;
   }
 
+  if (state.fallState) {
+    state.fallState = createInitialFallState();
+  }
+
+  if (state.feedbackState) {
+    state.feedbackState.dragRejectFrames = 0;
+  }
+
   if (state.recoveryState) {
     state.recoveryState.rescueWindowFrames = 0;
     state.recoveryState.rescueWindowTotalFrames = 0;
@@ -158,6 +166,33 @@ function createInitialRecoveryState() {
   };
 }
 
+function createInitialFallState() {
+  return {
+    active: false,
+    mode: "none",
+    reason: null,
+    anchorHoldIndex: -1,
+    anchorX: 0,
+    anchorY: 0,
+    ropeLength: 0,
+    catchLength: 0,
+    velocityX: 0,
+    velocityY: 0,
+    reeling: false,
+    deathThresholdY: 0,
+  };
+}
+
+function createInitialFeedbackState() {
+  return {
+    dragRejectFrames: 0,
+    limbIndex: -1,
+    holdIndex: -1,
+    targetX: 0,
+    targetY: 0,
+  };
+}
+
 function createInitialItemState() {
   return {
     checkpoint: null,
@@ -183,6 +218,111 @@ function applyStaminaDelta(state, delta) {
 
 function restoreStamina(state, amount) {
   state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
+}
+
+function getCheckpointAnchorHoldIndex(state) {
+  const attachedHoldIndices = getAttachedLimbs(state)
+    .map((limb) => limb.attachedHoldIndex)
+    .filter((holdIndex) => holdIndex !== -1);
+
+  if (attachedHoldIndices.length === 0) {
+    return -1;
+  }
+
+  return attachedHoldIndices.sort((leftIndex, rightIndex) => state.holds[leftIndex].y - state.holds[rightIndex].y)[0];
+}
+
+function getCheckpointAnchorPosition(state, checkpoint = state.itemState.checkpoint) {
+  if (!checkpoint) {
+    return null;
+  }
+
+  if (checkpoint.anchorHoldIndex !== -1) {
+    const anchorHold = state.holds[checkpoint.anchorHoldIndex];
+
+    if (anchorHold) {
+      return {
+        x: anchorHold.x,
+        y: anchorHold.y,
+      };
+    }
+  }
+
+  if (typeof checkpoint.anchorX === "number" && typeof checkpoint.anchorY === "number") {
+    return {
+      x: checkpoint.anchorX,
+      y: checkpoint.anchorY,
+    };
+  }
+
+  return null;
+}
+
+function setDragRejectFeedback(state, limbIndex, targetX, targetY, holdIndex = -1) {
+  state.feedbackState.dragRejectFrames = GAME_CONFIG.feedback.dragRejectFrames;
+  state.feedbackState.limbIndex = limbIndex;
+  state.feedbackState.holdIndex = holdIndex;
+  state.feedbackState.targetX = targetX;
+  state.feedbackState.targetY = targetY;
+}
+
+function clearDragRejectFeedback(state) {
+  state.feedbackState.dragRejectFrames = 0;
+  state.feedbackState.limbIndex = -1;
+  state.feedbackState.holdIndex = -1;
+}
+
+function tickFeedbackState(state) {
+  if (state.feedbackState.dragRejectFrames <= 0) {
+    return;
+  }
+
+  state.feedbackState.dragRejectFrames -= 1;
+
+  if (state.feedbackState.dragRejectFrames === 0) {
+    clearDragRejectFeedback(state);
+  }
+}
+
+function getClosestHoldIndex(state, targetX, targetY, snapRadius = GAME_CONFIG.holdSnapRadius) {
+  let closestHoldIndex = -1;
+  let closestDistance = snapRadius;
+
+  state.holds.forEach((hold, index) => {
+    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestHoldIndex = index;
+    }
+  });
+
+  return closestHoldIndex;
+}
+
+function updateDragConstraintFeedback(state, targetX, targetY) {
+  if (state.draggedLimbIndex === -1) {
+    return;
+  }
+
+  const draggedLimb = state.player.limbs[state.draggedLimbIndex];
+  const closestHoldIndex = getClosestHoldIndex(state, targetX, targetY);
+
+  if (!canLimbReachTarget(state, draggedLimb, targetX, targetY)) {
+    setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, closestHoldIndex);
+    return;
+  }
+
+  if (closestHoldIndex !== -1) {
+    const hold = state.holds[closestHoldIndex];
+
+    if (!canLimbReachTarget(state, draggedLimb, hold.x, hold.y)) {
+      setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, closestHoldIndex);
+      return;
+    }
+  }
+
+  clearDragRejectFeedback(state);
 }
 
 function getRecoveryWindowRatio(state) {
@@ -213,6 +353,199 @@ function tickRecoveryState(state) {
   }
 
   state.recoveryState.rescueWindowFrames -= 1;
+}
+
+function beginFall(state, reason, viewportHeight) {
+  const checkpoint = state.itemState.checkpoint;
+  const anchorPosition = getCheckpointAnchorPosition(state, checkpoint);
+
+  state.draggedLimbIndex = -1;
+  state.itemState.channel = null;
+  state.activeEffects = [];
+  state.movementState.dyno.charging = false;
+  state.movementState.dyno.chargeFrames = 0;
+  state.movementState.dyno.activeFrames = 0;
+  state.movementState.dyno.reachBonusRatio = 0;
+  state.movementState.dyno.cooldownFrames = 0;
+  state.movementState.restPose = {
+    ...state.movementState.restPose,
+    active: false,
+    mode: "none",
+    stabilityFrames: 0,
+  };
+  state.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+  });
+  clearDragRejectFeedback(state);
+  state.recoveryState.lastFailureReason = reason;
+
+  if (checkpoint && anchorPosition) {
+    const itemDefinition = ITEM_CATALOG[checkpoint.itemId];
+    const activation = itemDefinition.activation;
+    const currentDistance = Math.hypot(state.player.com.x - anchorPosition.x, state.player.com.y - anchorPosition.y);
+
+    state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
+    state.stamina = Math.min(state.stamina, state.staminaCap);
+    state.recoveryState.rescuesUsed += 1;
+    state.fallState = {
+      active: true,
+      mode: "rope-fall",
+      reason,
+      anchorHoldIndex: checkpoint.anchorHoldIndex,
+      anchorX: anchorPosition.x,
+      anchorY: anchorPosition.y,
+      ropeLength: currentDistance + GAME_CONFIG.recoveryLoop.ropeCatchSlack,
+      catchLength: currentDistance + GAME_CONFIG.recoveryLoop.ropeCatchSlack,
+      velocityX: state.movementState.bodyVelocity.x * 0.5,
+      velocityY: Math.max(6, state.movementState.bodyVelocity.y + 6),
+      reeling: false,
+      deathThresholdY: state.cameraY + viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding,
+    };
+    return;
+  }
+
+  state.fallState = {
+    active: true,
+    mode: "death-fall",
+    reason,
+    anchorHoldIndex: -1,
+    anchorX: 0,
+    anchorY: 0,
+    ropeLength: 0,
+    catchLength: 0,
+    velocityX: state.movementState.bodyVelocity.x * 0.35,
+    velocityY: Math.max(6, state.movementState.bodyVelocity.y + 6),
+    reeling: false,
+    deathThresholdY: state.cameraY + viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding,
+  };
+}
+
+function restoreCheckpointPose(state) {
+  const checkpoint = state.itemState.checkpoint;
+
+  if (!checkpoint) {
+    return false;
+  }
+
+  state.player.com = { ...checkpoint.com };
+  state.player.limbs.forEach((limb, index) => {
+    const checkpointLimb = checkpoint.limbs[index];
+    limb.attachedHoldIndex = checkpointLimb.attachedHoldIndex;
+    limb.x = checkpointLimb.x;
+    limb.y = checkpointLimb.y;
+  });
+  state.cameraY = checkpoint.cameraY;
+  state.draggedLimbIndex = -1;
+  state.fallState = createInitialFallState();
+  state.movementState = createInitialMovementState();
+  state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+  state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+  return true;
+}
+
+function updateDetachedLimbs(state, stiffness = 0.16) {
+  state.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+    limb.x += (state.player.com.x - limb.x) * stiffness;
+    limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
+  });
+}
+
+function updateFallState(state, viewportWidth, viewportHeight) {
+  const fallState = state.fallState;
+
+  if (!fallState.active) {
+    return false;
+  }
+
+  const gravity = GAME_CONFIG.recoveryLoop.ropeGravity;
+  const maxFallSpeed = GAME_CONFIG.recoveryLoop.ropeMaxFallSpeed;
+  const checkpoint = state.itemState.checkpoint;
+
+  if (fallState.mode === "death-fall") {
+    fallState.velocityY = Math.min(fallState.velocityY + gravity, maxFallSpeed);
+    state.player.com.x += fallState.velocityX;
+    state.player.com.y += fallState.velocityY;
+    fallState.velocityX *= 0.98;
+    updateDetachedLimbs(state, 0.14);
+
+    if (state.player.com.y - state.cameraY > viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding) {
+      setGameOver(state, fallState.reason);
+    }
+
+    return true;
+  }
+
+  const anchorPosition = getCheckpointAnchorPosition(state, checkpoint) ?? {
+    x: fallState.anchorX,
+    y: fallState.anchorY,
+  };
+  fallState.anchorX = anchorPosition.x;
+  fallState.anchorY = anchorPosition.y;
+
+  if (fallState.mode === "rope-fall") {
+    fallState.velocityY = Math.min(fallState.velocityY + gravity, maxFallSpeed);
+    state.player.com.x += fallState.velocityX;
+    state.player.com.y += fallState.velocityY;
+    fallState.velocityX *= 0.99;
+    updateDetachedLimbs(state, 0.12);
+
+    const deltaX = state.player.com.x - anchorPosition.x;
+    const deltaY = state.player.com.y - anchorPosition.y;
+    const distance = Math.max(1, Math.hypot(deltaX, deltaY));
+
+    if (distance >= fallState.catchLength) {
+      const ratio = fallState.catchLength / distance;
+      state.player.com.x = anchorPosition.x + deltaX * ratio;
+      state.player.com.y = anchorPosition.y + deltaY * ratio;
+      fallState.mode = "hanging";
+      fallState.ropeLength = fallState.catchLength;
+      fallState.velocityX = 0;
+      fallState.velocityY = 0;
+      pushParticles(
+        state,
+        state.player.com.x,
+        state.player.com.y - state.cameraY,
+        18,
+        GAME_CONFIG.palette.ropeActive,
+      );
+    }
+
+    const ropeCameraTargetY = Math.min(anchorPosition.y - viewportHeight * 0.35, state.player.com.y - viewportHeight * 0.58);
+    state.cameraY += (ropeCameraTargetY - state.cameraY) * 0.08;
+    return true;
+  }
+
+  if (fallState.mode === "hanging") {
+    const windSway = state.conditionState.weather.windForce * 40 * GAME_CONFIG.recoveryLoop.ropeSwayStrength;
+    const targetX = anchorPosition.x + windSway;
+
+    if (fallState.reeling) {
+      fallState.ropeLength = Math.max(GAME_CONFIG.recoveryLoop.ropeReelThreshold, fallState.ropeLength - GAME_CONFIG.recoveryLoop.ropeReelSpeed);
+    }
+
+    state.player.com.x += (targetX - state.player.com.x) * 0.1;
+    state.player.com.y += (anchorPosition.y + fallState.ropeLength - state.player.com.y) * 0.2;
+    updateDetachedLimbs(state, 0.18);
+    restoreStamina(
+      state,
+      fallState.reeling
+        ? GAME_CONFIG.recoveryLoop.ropeReelRecoveryBonus
+        : GAME_CONFIG.recoveryLoop.ropeHangRecoveryBonus,
+    );
+
+    const ropeCameraTargetY = Math.min(anchorPosition.y - viewportHeight * 0.35, state.player.com.y - viewportHeight * 0.58);
+    state.cameraY += (ropeCameraTargetY - state.cameraY) * 0.08;
+
+    if (fallState.reeling && checkpoint && fallState.ropeLength <= GAME_CONFIG.recoveryLoop.ropeReelThreshold + 0.5) {
+      restoreCheckpointPose(state);
+      return true;
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
 function getRawDynoChargeRatio(state) {
@@ -591,8 +924,20 @@ function emitItemFeedback(state, itemDefinition) {
 }
 
 function captureCheckpoint(state, itemDefinition) {
+  const anchorHoldIndex = getCheckpointAnchorHoldIndex(state);
+  const anchorPosition =
+    anchorHoldIndex !== -1
+      ? {
+          x: state.holds[anchorHoldIndex].x,
+          y: state.holds[anchorHoldIndex].y,
+        }
+      : { ...state.player.com };
+
   state.itemState.checkpoint = {
     itemId: itemDefinition.id,
+    anchorHoldIndex,
+    anchorX: anchorPosition.x,
+    anchorY: anchorPosition.y,
     limbs: state.player.limbs.map((limb) => ({
       attachedHoldIndex: limb.attachedHoldIndex,
       x: limb.x,
@@ -604,47 +949,8 @@ function captureCheckpoint(state, itemDefinition) {
   };
 }
 
-function restoreCheckpoint(state, reason) {
-  const checkpoint = state.itemState.checkpoint;
-
-  if (!checkpoint) {
-    return false;
-  }
-
-  const itemDefinition = ITEM_CATALOG[checkpoint.itemId];
-  const activation = itemDefinition.activation;
-
-  state.player.com = { ...checkpoint.com };
-  state.player.limbs.forEach((limb, index) => {
-    const checkpointLimb = checkpoint.limbs[index];
-    limb.attachedHoldIndex = checkpointLimb.attachedHoldIndex;
-    limb.x = checkpointLimb.x;
-    limb.y = checkpointLimb.y;
-  });
-  state.cameraY = checkpoint.cameraY;
-  state.draggedLimbIndex = -1;
-  state.isPlaying = true;
-  state.endMessage = null;
-  state.itemState.channel = null;
-  state.itemState.checkpoint = null;
-  state.activeEffects = [];
-  state.movementState = createInitialMovementState();
-  state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
-  state.stamina = Math.min(state.staminaCap, state.staminaCap * activation.restoreStaminaRatio);
-  state.recoveryState.rescuesUsed += 1;
-  state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-  state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-  state.recoveryState.lastFailureReason = reason;
-  emitItemFeedback(state, itemDefinition);
-  return true;
-}
-
-function resolveFailure(state, reason) {
-  if (restoreCheckpoint(state, reason)) {
-    return;
-  }
-
-  setGameOver(state, reason);
+function resolveFailure(state, reason, viewportHeight) {
+  beginFall(state, reason, viewportHeight);
 }
 
 function tickChannelItem(state) {
@@ -978,6 +1284,8 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
     movementState: createInitialMovementState(),
     conditionState: createInitialConditionState(),
     recoveryState: createInitialRecoveryState(),
+    fallState: createInitialFallState(),
+    feedbackState: createInitialFeedbackState(),
     routeState: createInitialRouteState(routeSegments),
     tutorialVisible: true,
     endMessage: null,
@@ -1004,6 +1312,17 @@ export function getUiSnapshot(state, frame) {
       rescueWindowRatio: getRecoveryWindowRatio(state),
       lastFailureReason: state.recoveryState.lastFailureReason,
     },
+    fall: {
+      active: state.fallState.active,
+      mode: state.fallState.mode,
+      reeling: state.fallState.reeling,
+      anchorHoldIndex: state.fallState.anchorHoldIndex,
+    },
+    feedback: {
+      dragRejectFrames: state.feedbackState.dragRejectFrames,
+      limbIndex: state.feedbackState.limbIndex,
+      holdIndex: state.feedbackState.holdIndex,
+    },
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
@@ -1028,10 +1347,14 @@ export function getUiSnapshot(state, frame) {
 export function updatePointer(state, screenX, screenY) {
   state.pointer.x = screenX;
   state.pointer.y = screenY;
+
+  if (state.draggedLimbIndex !== -1) {
+    updateDragConstraintFeedback(state, screenX, screenY + state.cameraY);
+  }
 }
 
 export function beginDrag(state, screenX, screenY) {
-  if (!state.isPlaying) {
+  if (!state.isPlaying || state.fallState?.active) {
     return false;
   }
 
@@ -1046,6 +1369,7 @@ export function beginDrag(state, screenX, screenY) {
       state.draggedLimbIndex = index;
       limb.attachedHoldIndex = -1;
       state.tutorialVisible = false;
+      updateDragConstraintFeedback(state, screenX, screenY + state.cameraY);
       return true;
     }
   }
@@ -1053,8 +1377,34 @@ export function beginDrag(state, screenX, screenY) {
   return false;
 }
 
+export function beginBodyAction(state, screenX, screenY) {
+  if (!state.isPlaying || !state.fallState?.active || state.fallState.mode !== "hanging") {
+    return false;
+  }
+
+  const bodyScreenY = state.player.com.y - state.cameraY;
+  const distance = Math.hypot(state.player.com.x - screenX, bodyScreenY - screenY);
+
+  if (distance > GAME_CONFIG.limbHitRadius * 1.4) {
+    return false;
+  }
+
+  state.fallState.reeling = true;
+  state.tutorialVisible = false;
+  return true;
+}
+
+export function endBodyAction(state) {
+  if (!state.fallState?.active) {
+    return false;
+  }
+
+  state.fallState.reeling = false;
+  return true;
+}
+
 export function beginDynoCharge(state) {
-  if (!state.isPlaying) {
+  if (!state.isPlaying || state.fallState?.active) {
     return false;
   }
 
@@ -1076,7 +1426,7 @@ export function beginDynoCharge(state) {
 }
 
 export function releaseDynoCharge(state) {
-  if (!state.isPlaying || !state.movementState.dyno.charging) {
+  if (!state.isPlaying || state.fallState?.active || !state.movementState.dyno.charging) {
     return false;
   }
 
@@ -1111,21 +1461,25 @@ export function releaseDynoCharge(state) {
 }
 
 export function releaseDrag(state) {
-  if (!state.isPlaying || state.draggedLimbIndex === -1) {
+  if (!state.isPlaying || state.fallState?.active || state.draggedLimbIndex === -1) {
     return;
   }
 
   const draggedLimb = state.player.limbs[state.draggedLimbIndex];
   const targetX = state.pointer.x;
   const targetY = state.pointer.y + state.cameraY;
-  const closestHoldIndex = findClosestReachableHold(state, draggedLimb, targetX, targetY);
+  const nearestHoldIndex = getClosestHoldIndex(state, targetX, targetY);
+  const closestReachableHoldIndex = findClosestReachableHold(state, draggedLimb, targetX, targetY);
 
-  if (closestHoldIndex !== -1) {
-    const hold = state.holds[closestHoldIndex];
-    draggedLimb.attachedHoldIndex = closestHoldIndex;
+  if (closestReachableHoldIndex !== -1) {
+    const hold = state.holds[closestReachableHoldIndex];
+    draggedLimb.attachedHoldIndex = closestReachableHoldIndex;
     draggedLimb.x = hold.x;
     draggedLimb.y = hold.y;
     pushParticles(state, draggedLimb.x, draggedLimb.y - state.cameraY, GAME_CONFIG.gripParticleCount, "#ffffff");
+    clearDragRejectFeedback(state);
+  } else if (!canLimbReachTarget(state, draggedLimb, targetX, targetY) || nearestHoldIndex !== -1) {
+    setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, nearestHoldIndex);
   }
 
   state.draggedLimbIndex = -1;
@@ -1134,7 +1488,7 @@ export function releaseDrag(state) {
 export function useItem(state, itemId) {
   const itemDefinition = ITEM_CATALOG[itemId];
 
-  if (!itemDefinition || !canUseItem(state, itemDefinition)) {
+  if (!itemDefinition || state.fallState?.active || !canUseItem(state, itemDefinition)) {
     return false;
   }
 
@@ -1176,6 +1530,7 @@ function updateParticles(state) {
 
 export function updateFrame(state, viewportWidth, viewportHeight) {
   updateParticles(state);
+  tickFeedbackState(state);
 
   if (!state.isPlaying) {
     return;
@@ -1183,6 +1538,12 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   advanceDynoCharge(state);
   updateWeatherState(state);
+
+  if (state.fallState.active) {
+    updateFallState(state, viewportWidth, viewportHeight);
+    return;
+  }
+
   const currentRouteSegment = updateRouteState(state);
 
   const attachedLimbs = [];
@@ -1196,8 +1557,13 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     }
   });
 
+  if (state.stamina <= 0) {
+    resolveFailure(state, "exhaustion", viewportHeight);
+    return;
+  }
+
   if (attachedLimbs.length < 2) {
-    resolveFailure(state, "balance");
+    resolveFailure(state, "balance", viewportHeight);
     return;
   }
 
@@ -1293,7 +1659,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickRecoveryState(state);
 
   if (state.stamina <= 0) {
-    resolveFailure(state, "exhaustion");
+    resolveFailure(state, "exhaustion", viewportHeight);
     return;
   }
 

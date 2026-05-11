@@ -42,6 +42,7 @@ export function GameScreen() {
         onDynoEnd={endDyno}
         onDynoStart={startDyno}
         onUseItem={useInventoryItem}
+        fall={uiState.fall}
         recovery={uiState.recovery}
         route={uiState.route}
         staminaRatio={uiState.staminaRatio}

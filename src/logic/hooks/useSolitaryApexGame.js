@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  beginBodyAction,
   beginDynoCharge,
   beginDrag,
   createInitialGameState,
+  endBodyAction,
   getUiSnapshot,
   releaseDynoCharge,
   releaseDrag,
@@ -39,6 +41,12 @@ export function useSolitaryApexGame() {
       rescueWindowFrames: 0,
       rescueWindowRatio: 0,
       lastFailureReason: null,
+    },
+    fall: {
+      active: false,
+      mode: "none",
+      reeling: false,
+      anchorHoldIndex: -1,
     },
     movement: {
       dyno: {
@@ -109,6 +117,7 @@ export function useSolitaryApexGame() {
         return;
       }
 
+      endBodyAction(gameStateRef.current);
       releaseDynoCharge(gameStateRef.current);
       setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
     };
@@ -177,7 +186,12 @@ export function useSolitaryApexGame() {
     event.preventDefault();
     canvasRef.current.setPointerCapture?.(event.pointerId);
     const position = toCanvasPosition(event);
-    beginDrag(gameStateRef.current, position.x, position.y);
+    const startedDrag = beginDrag(gameStateRef.current, position.x, position.y);
+
+    if (!startedDrag) {
+      beginBodyAction(gameStateRef.current, position.x, position.y);
+    }
+
     commitUiState();
   };
 
@@ -202,6 +216,7 @@ export function useSolitaryApexGame() {
     const position = toCanvasPosition(event);
     updatePointer(gameStateRef.current, position.x, position.y);
     releaseDrag(gameStateRef.current);
+    endBodyAction(gameStateRef.current);
     commitUiState();
   };
 
@@ -215,6 +230,7 @@ export function useSolitaryApexGame() {
     }
 
     releaseDrag(gameStateRef.current);
+    endBodyAction(gameStateRef.current);
     commitUiState();
   };
 

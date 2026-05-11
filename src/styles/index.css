@@ -167,6 +167,11 @@ select {
   border-color: #4f7a60;
 }
 
+.status-pill.is-falling {
+  color: #f3b67b;
+  border-color: #8a5a34;
+}
+
 .route-pill--recovery {
   color: #a8d8b9;
   border-color: #4f7a60;

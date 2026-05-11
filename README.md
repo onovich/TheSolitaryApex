@@ -56,6 +56,12 @@ npm install
 npm run dev
 ```
 
+For a quick gameplay regression check:
+
+```bash
+npm run validate
+```
+
 To create a production build:
 
 ```bash

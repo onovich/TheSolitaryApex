@@ -2,6 +2,7 @@ import { UI_TEXT } from "../../data/uiText";
 
 export function GameHud({
   conditions,
+  fall,
   height,
   items,
   movement,
@@ -65,6 +66,12 @@ export function GameHud({
     exhaustion: UI_TEXT.recoveryExhaustionLabel,
   };
   const recoveryLabel = recoveryLabels[recovery?.lastFailureReason] ?? UI_TEXT.recoveryLabel;
+  const fallLabels = {
+    "death-fall": UI_TEXT.fallDeathLabel,
+    "rope-fall": UI_TEXT.fallRopeLabel,
+    hanging: fall?.reeling ? UI_TEXT.fallReelLabel : UI_TEXT.fallHangLabel,
+  };
+  const fallLabel = fallLabels[fall?.mode] ?? UI_TEXT.fallLabel;
 
   const windForce = weatherState?.windForce ?? 0;
   const windDirection = windForce >= 0 ? "→" : "←";
@@ -125,7 +132,7 @@ export function GameHud({
             <button
               className={`hud-button dyno-button${dynoState?.charging ? " is-charging" : ""}${dynoState?.active ? " is-active" : ""}`}
               type="button"
-              disabled={!dynoState?.charging && (dynoState?.cooldownFrames ?? 0) > 0}
+              disabled={fall?.active || (!dynoState?.charging && (dynoState?.cooldownFrames ?? 0) > 0)}
               onPointerDown={handleDynoPointerDown}
               onPointerUp={handleDynoPointerUp}
               onPointerCancel={handleDynoPointerCancel}
@@ -139,6 +146,7 @@ export function GameHud({
           <div className={`status-pill route-pill route-pill--${route?.zoneKey ?? "reading"}`}>
             {UI_TEXT.routeLabel}: {routeLabel}
           </div>
+          {fall?.active ? <div className="status-pill is-falling">{UI_TEXT.fallLabel}: {fallLabel}</div> : null}
           {recovery?.active ? (
             <div className="status-pill is-recovering">
               {UI_TEXT.recoveryWindowLabel}: {recoveryLabel} {recovery.rescueWindowFrames}
