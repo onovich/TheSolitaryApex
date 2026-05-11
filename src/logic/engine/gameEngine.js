@@ -73,19 +73,30 @@ function pushParticles(state, x, y, count, color) {
   }
 }
 
+function resetDynoState(dynoState) {
+  dynoState.charging = false;
+  dynoState.chargeFrames = 0;
+  dynoState.activeFrames = 0;
+  dynoState.cooldownFrames = 0;
+  dynoState.reachBonusRatio = 0;
+  dynoState.launchVector = {
+    x: 0,
+    y: -1,
+  };
+  dynoState.pointerActive = false;
+  dynoState.holdFrames = 0;
+  dynoState.pullDistance = 0;
+  dynoState.flightActive = false;
+  dynoState.originalLimbPositions = [];
+}
+
 function setGameOver(state, reason) {
   state.isPlaying = false;
   state.draggedLimbIndex = -1;
 
   if (state.movementState) {
     state.movementState.bodyVelocity = { x: 0, y: 0 };
-    state.movementState.dyno = {
-      ...state.movementState.dyno,
-      charging: false,
-      chargeFrames: 0,
-      activeFrames: 0,
-      reachBonusRatio: 0,
-    };
+    resetDynoState(state.movementState.dyno);
   }
 
   if (state.itemState) {
@@ -132,6 +143,11 @@ function createInitialMovementState() {
         x: 0,
         y: -1,
       },
+      pointerActive: false,
+      holdFrames: 0,
+      pullDistance: 0,
+      flightActive: false,
+      originalLimbPositions: [],
     },
     restPose: {
       active: false,
@@ -227,6 +243,10 @@ function restoreStamina(state, amount) {
   state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
 }
 
+function getDynoStaminaCost(state) {
+  return state.staminaCap * GAME_CONFIG.movement.dyno.staminaCostRatio;
+}
+
 function getCheckpointAnchorHoldIndex(state) {
   const attachedHoldIndices = getAttachedLimbs(state)
     .map((limb) => limb.attachedHoldIndex)
@@ -294,6 +314,34 @@ function clearDragRejectFeedback(state) {
   state.feedbackState.dragRejectFrames = 0;
   state.feedbackState.limbIndex = -1;
   state.feedbackState.holdIndex = -1;
+}
+
+function cancelDynoPreparation(state) {
+  const dynoState = state.movementState.dyno;
+
+  dynoState.pointerActive = false;
+  dynoState.holdFrames = 0;
+  dynoState.pullDistance = 0;
+  dynoState.charging = false;
+  dynoState.chargeFrames = 0;
+  dynoState.launchVector = {
+    x: 0,
+    y: -1,
+  };
+}
+
+function finishDynoFlight(state) {
+  const dynoState = state.movementState.dyno;
+
+  dynoState.flightActive = false;
+  dynoState.reachBonusRatio = 0;
+  dynoState.pullDistance = 0;
+  dynoState.activeFrames = 0;
+  dynoState.originalLimbPositions = [];
+  dynoState.launchVector = {
+    x: 0,
+    y: -1,
+  };
 }
 
 function tickFeedbackState(state) {
@@ -368,6 +416,48 @@ function updateDragConstraintFeedback(state, targetX, targetY) {
   clearDragRejectFeedback(state);
 }
 
+function getDynoAvailabilityReason(state) {
+  const dynoState = state.movementState.dyno;
+
+  if (!state.isPlaying) {
+    return "disabled";
+  }
+
+  if (dynoState.flightActive) {
+    return "airborne";
+  }
+
+  if (state.fallState?.active) {
+    return state.fallState.mode === "hanging" ? "hanging" : "falling";
+  }
+
+  if (dynoState.pointerActive) {
+    return dynoState.charging ? "charging" : "priming";
+  }
+
+  if (!state.itemState.checkpoint) {
+    return "checkpoint";
+  }
+
+  if (state.stamina < getDynoStaminaCost(state)) {
+    return "stamina";
+  }
+
+  if (dynoState.cooldownFrames > 0) {
+    return "cooldown";
+  }
+
+  if (getAttachedLimbs(state).length < GAME_CONFIG.movement.dyno.minAttachedLimbs) {
+    return "support";
+  }
+
+  return "ready";
+}
+
+function canStartDyno(state) {
+  return getDynoAvailabilityReason(state) === "ready";
+}
+
 function getRecoveryWindowRatio(state) {
   if (!state.recoveryState || state.recoveryState.rescueWindowTotalFrames <= 0) {
     return 0;
@@ -405,11 +495,7 @@ function beginFall(state, reason, viewportHeight) {
   state.draggedLimbIndex = -1;
   state.itemState.channel = null;
   state.activeEffects = [];
-  state.movementState.dyno.charging = false;
-  state.movementState.dyno.chargeFrames = 0;
-  state.movementState.dyno.activeFrames = 0;
-  state.movementState.dyno.reachBonusRatio = 0;
-  state.movementState.dyno.cooldownFrames = 0;
+  resetDynoState(state.movementState.dyno);
   state.movementState.restPose = {
     ...state.movementState.restPose,
     active: false,
@@ -635,6 +721,10 @@ function getDynoReachRatio(state) {
     return getDynoChargeRatio(state);
   }
 
+  if (dynoState.flightActive) {
+    return dynoState.reachBonusRatio;
+  }
+
   if (dynoState.activeFrames > 0) {
     return dynoState.reachBonusRatio;
   }
@@ -783,19 +873,63 @@ function applyBodyVelocity(state) {
   }
 }
 
+function getDynoPullVector(state) {
+  const bodyScreenY = state.player.com.y - state.cameraY;
+  const pullX = state.player.com.x - state.pointer.x;
+  const pullY = bodyScreenY - state.pointer.y;
+
+  return {
+    pullX,
+    pullY,
+    pullDistance: Math.hypot(pullX, pullY),
+  };
+}
+
 function advanceDynoCharge(state) {
-  if (state.movementState.dyno.charging) {
-    state.movementState.dyno.chargeFrames = Math.min(
-      state.movementState.dyno.chargeFrames + 1,
-      GAME_CONFIG.movement.dyno.chargeMaxFrames,
-    );
+  const dynoState = state.movementState.dyno;
+
+  if (!dynoState.pointerActive) {
+    return;
   }
+
+  dynoState.holdFrames += 1;
+
+  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
+  dynoState.pullDistance = pullDistance;
+
+  if (
+    dynoState.holdFrames < GAME_CONFIG.movement.dyno.holdFramesRequired ||
+    pullDistance < GAME_CONFIG.movement.dyno.pullMinDistance
+  ) {
+    dynoState.charging = false;
+    dynoState.chargeFrames = 0;
+    return;
+  }
+
+  const pullRatio = clamp(
+    (pullDistance - GAME_CONFIG.movement.dyno.pullMinDistance) /
+      Math.max(1, GAME_CONFIG.movement.dyno.pullMaxDistance - GAME_CONFIG.movement.dyno.pullMinDistance),
+    0,
+    1,
+  );
+
+  dynoState.charging = true;
+  dynoState.chargeFrames = Math.round(
+    GAME_CONFIG.movement.dyno.minChargeFrames +
+      (GAME_CONFIG.movement.dyno.chargeMaxFrames - GAME_CONFIG.movement.dyno.minChargeFrames) * pullRatio,
+  );
+
+  const pullLength = Math.max(1, pullDistance);
+  dynoState.launchVector = {
+    x: pullX / pullLength,
+    y: pullY / pullLength,
+  };
 }
 
 function decayDynoState(state) {
   const dynoState = state.movementState.dyno;
 
-  if (!dynoState.charging && dynoState.activeFrames > 0) {
+  if (!dynoState.charging && !dynoState.flightActive && dynoState.activeFrames > 0) {
     dynoState.activeFrames -= 1;
 
     if (dynoState.activeFrames === 0) {
@@ -1307,6 +1441,26 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   return closestHoldIndex;
 }
 
+function findClosestReachableHoldToOrigin(state, limb, originX, originY) {
+  let closestHoldIndex = -1;
+  let closestDistance = Infinity;
+
+  state.holds.forEach((hold, index) => {
+    if (!canLimbReachTarget(state, limb, hold.x, hold.y)) {
+      return;
+    }
+
+    const distance = Math.hypot(hold.x - originX, hold.y - originY);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestHoldIndex = index;
+    }
+  });
+
+  return closestHoldIndex;
+}
+
 export function createInitialGameState(viewportWidth, viewportHeight) {
   const { holds, goldenPath, routeSegments } = generateWall(viewportWidth, viewportHeight);
 
@@ -1341,6 +1495,8 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
 }
 
 export function getUiSnapshot(state, frame) {
+  const dynoAvailability = getDynoAvailabilityReason(state);
+
   return {
     frame,
     isPlaying: state.isPlaying,
@@ -1374,10 +1530,14 @@ export function getUiSnapshot(state, frame) {
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
-        active: state.movementState.dyno.activeFrames > 0,
+        active: state.movementState.dyno.flightActive,
+        preparing: state.movementState.dyno.pointerActive && !state.movementState.dyno.charging,
         chargeRatio: getDynoChargeRatio(state),
         cooldownFrames: state.movementState.dyno.cooldownFrames,
         reachBonusRatio: getDynoReachRatio(state),
+        available: dynoAvailability === "ready",
+        availability: dynoAvailability,
+        staminaCost: getDynoStaminaCost(state),
       },
       restPose: { ...state.movementState.restPose },
     },
@@ -1427,10 +1587,6 @@ export function beginDrag(state, screenX, screenY) {
 }
 
 export function beginBodyAction(state, screenX, screenY) {
-  if (!state.isPlaying || !state.fallState?.active || state.fallState.mode !== "hanging") {
-    return false;
-  }
-
   const bodyScreenY = state.player.com.y - state.cameraY;
   const distance = Math.hypot(state.player.com.x - screenX, bodyScreenY - screenY);
 
@@ -1438,74 +1594,116 @@ export function beginBodyAction(state, screenX, screenY) {
     return false;
   }
 
-  state.fallState.reeling = true;
-  state.tutorialVisible = false;
-  return true;
+  if (!state.isPlaying) {
+    return false;
+  }
+
+  if (state.fallState?.active && state.fallState.mode === "hanging") {
+    state.fallState.reeling = true;
+    state.tutorialVisible = false;
+    return true;
+  }
+
+  if (state.fallState?.active) {
+    return false;
+  }
+
+  return beginDynoCharge(state, screenX, screenY);
 }
 
 export function endBodyAction(state) {
-  if (!state.fallState?.active) {
-    return false;
+  if (state.fallState?.active && state.fallState.mode === "hanging") {
+    state.fallState.reeling = false;
+    return true;
   }
 
-  state.fallState.reeling = false;
-  return true;
+  return releaseDynoCharge(state);
 }
 
-export function beginDynoCharge(state) {
-  if (!state.isPlaying || state.fallState?.active) {
+export function cancelBodyAction(state) {
+  let handled = false;
+
+  if (state.fallState?.active && state.fallState.mode === "hanging" && state.fallState.reeling) {
+    state.fallState.reeling = false;
+    handled = true;
+  }
+
+  if (state.movementState?.dyno?.pointerActive || state.movementState?.dyno?.charging) {
+    cancelDynoPreparation(state);
+    handled = true;
+  }
+
+  return handled;
+}
+
+export function beginDynoCharge(state, screenX = state.pointer.x, screenY = state.pointer.y) {
+  if (!state.isPlaying || state.fallState?.active || !canStartDyno(state)) {
     return false;
   }
 
-  const attachedCount = state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1).length;
-
-  if (
-    attachedCount < GAME_CONFIG.movement.dyno.minAttachedLimbs ||
-    state.movementState.dyno.charging ||
-    state.movementState.dyno.activeFrames > 0 ||
-    state.movementState.dyno.cooldownFrames > 0
-  ) {
-    return false;
-  }
-
-  state.movementState.dyno.charging = true;
+  updatePointer(state, screenX, screenY);
+  state.movementState.bodyVelocity = { x: 0, y: 0 };
+  state.movementState.dyno.pointerActive = true;
+  state.movementState.dyno.holdFrames = 0;
+  state.movementState.dyno.pullDistance = 0;
+  state.movementState.dyno.charging = false;
   state.movementState.dyno.chargeFrames = 0;
   state.tutorialVisible = false;
   return true;
 }
 
 export function releaseDynoCharge(state) {
-  if (!state.isPlaying || state.fallState?.active || !state.movementState.dyno.charging) {
+  if (!state.isPlaying || state.fallState?.active) {
     return false;
   }
 
   const dynoState = state.movementState.dyno;
+
+  if (!dynoState.pointerActive || dynoState.flightActive) {
+    return false;
+  }
+
+  if (!dynoState.charging) {
+    cancelDynoPreparation(state);
+    return false;
+  }
+
   const minimumRatio = GAME_CONFIG.movement.dyno.minChargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames;
   const chargeRatio = clamp(Math.max(getRawDynoChargeRatio(state), minimumRatio), 0, 1);
   const effectiveChargeRatio = getDynoChargeRatioFromRaw(chargeRatio);
-  const playerScreenY = state.player.com.y - state.cameraY;
-  const directionX = state.pointer.x - state.player.com.x;
-  const directionY = state.pointer.y - playerScreenY;
-  const directionLength = Math.max(1, Math.hypot(directionX, directionY));
-  const normalizedDirectionX = directionX / directionLength;
-  const normalizedDirectionY = directionY / directionLength;
+  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
+  const directionLength = Math.max(1, pullDistance);
+  const normalizedDirectionX = pullX / directionLength;
+  const normalizedDirectionY = pullY / directionLength;
 
-  dynoState.charging = false;
-  dynoState.activeFrames = Math.max(8, Math.round(GAME_CONFIG.movement.dyno.windowFrames * effectiveChargeRatio));
+  cancelDynoPreparation(state);
+  dynoState.flightActive = true;
+  dynoState.activeFrames = 0;
   dynoState.cooldownFrames = GAME_CONFIG.movement.dyno.cooldownFrames;
   dynoState.reachBonusRatio = effectiveChargeRatio;
+  dynoState.originalLimbPositions = state.player.limbs.map((limb) => ({ x: limb.x, y: limb.y }));
   dynoState.launchVector = {
     x: normalizedDirectionX,
     y: normalizedDirectionY,
   };
-  dynoState.chargeFrames = 0;
 
-  state.movementState.bodyVelocity.x += normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio;
-  state.movementState.bodyVelocity.y += Math.min(normalizedDirectionY, -0.2) * GAME_CONFIG.movement.dyno.launchVelocity.y * effectiveChargeRatio;
-  const dynoCost =
-    GAME_CONFIG.movement.dyno.releaseStaminaCostMin +
-    (GAME_CONFIG.movement.dyno.releaseStaminaCostMax - GAME_CONFIG.movement.dyno.releaseStaminaCostMin) * effectiveChargeRatio;
-  state.stamina = clamp(state.stamina - dynoCost, 0, state.staminaCap);
+  state.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+  });
+
+  state.movementState.bodyVelocity.x = normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio;
+  state.movementState.bodyVelocity.y = Math.min(normalizedDirectionY, -0.35) * GAME_CONFIG.movement.dyno.launchVelocity.y * effectiveChargeRatio;
+  state.stamina = clamp(state.stamina - getDynoStaminaCost(state), 0, state.staminaCap);
+  pushParticles(state, state.player.com.x, state.player.com.y - state.cameraY, 14, "#f0d58a");
+  return true;
+}
+
+export function cancelDynoCharge(state) {
+  if (!state.isPlaying || !state.movementState?.dyno?.pointerActive) {
+    return false;
+  }
+
+  cancelDynoPreparation(state);
   return true;
 }
 
@@ -1585,6 +1783,68 @@ function updateParticles(state) {
   }
 }
 
+function attemptDynoAutoAttach(state, viewportHeight) {
+  const dynoState = state.movementState.dyno;
+  let attachedCount = 0;
+
+  state.player.limbs.forEach((limb, index) => {
+    const origin = dynoState.originalLimbPositions[index] ?? { x: limb.x, y: limb.y };
+    const holdIndex = findClosestReachableHoldToOrigin(state, limb, origin.x, origin.y);
+
+    if (holdIndex === -1) {
+      limb.attachedHoldIndex = -1;
+      return;
+    }
+
+    const hold = state.holds[holdIndex];
+    limb.attachedHoldIndex = holdIndex;
+    limb.x = hold.x;
+    limb.y = hold.y;
+    attachedCount += 1;
+    pushParticles(state, limb.x, limb.y - state.cameraY, 3, "#ffffff");
+  });
+
+  finishDynoFlight(state);
+  state.movementState.bodyVelocity = { x: 0, y: 0 };
+
+  if (attachedCount < GAME_CONFIG.movement.dyno.minAttachedLimbs) {
+    resolveFailure(state, "balance", viewportHeight);
+    return false;
+  }
+
+  return true;
+}
+
+function updateDynoFlightState(state, currentRouteSegment, viewportHeight) {
+  const previousVelocityY = state.movementState.bodyVelocity.y;
+  const windForce = state.conditionState.weather.windForce * currentRouteSegment.windMultiplier;
+
+  state.movementState.bodyVelocity.x += windForce * GAME_CONFIG.movement.dyno.airborneWindInfluence;
+  state.movementState.bodyVelocity.y = Math.min(
+    state.movementState.bodyVelocity.y + GAME_CONFIG.movement.dyno.flightGravity,
+    GAME_CONFIG.movement.dyno.maxFallSpeed,
+  );
+  state.player.com.x += state.movementState.bodyVelocity.x;
+  state.player.com.y += state.movementState.bodyVelocity.y;
+  state.movementState.bodyVelocity.x *= GAME_CONFIG.movement.dyno.airDrag;
+  updateDetachedLimbs(state, GAME_CONFIG.movement.dyno.airborneLimbStiffness);
+
+  if (previousVelocityY < 0 && state.movementState.bodyVelocity.y >= 0) {
+    attemptDynoAutoAttach(state, viewportHeight);
+  }
+}
+
+function updateHeightAndCamera(state, viewportHeight) {
+  const currentHeight = Math.max(0, Math.floor((viewportHeight - state.player.com.y) / GAME_CONFIG.heightScale));
+
+  if (currentHeight > state.maxHeightReached) {
+    state.maxHeightReached = currentHeight;
+  }
+
+  const targetCameraY = state.player.com.y - viewportHeight * 0.6;
+  state.cameraY += (targetCameraY - state.cameraY) * GAME_CONFIG.cameraLerp;
+}
+
 export function updateFrame(state, viewportWidth, viewportHeight) {
   updateParticles(state);
   tickFeedbackState(state);
@@ -1602,6 +1862,16 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   }
 
   const currentRouteSegment = updateRouteState(state);
+
+  if (state.movementState.dyno.flightActive) {
+    updateDynoFlightState(state, currentRouteSegment, viewportHeight);
+    tickActiveEffects(state);
+    decayDynoState(state);
+    tickChannelItem(state);
+    tickRecoveryState(state);
+    updateHeightAndCamera(state, viewportHeight);
+    return;
+  }
 
   const attachedLimbs = [];
   const detachedLimbs = [];
@@ -1664,50 +1934,50 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   let staminaChange = 0;
   const restPoseMode = state.movementState.restPose.mode;
+  const dynoPriming = state.movementState.dyno.pointerActive;
 
-  if (restPoseMode === "perfect") {
-    staminaChange += GAME_CONFIG.movement.restPose.perfectRecoveryBonus;
-  } else if (restPoseMode === "locking" && attachedLimbs.length <= 2) {
-    staminaChange -= GAME_CONFIG.baseStaminaDrain * GAME_CONFIG.movement.restPose.lockingDrainMultiplier;
-  } else {
-    if (attachedLimbs.length === 4) {
-      staminaChange += 0.1;
-    } else if (attachedLimbs.length === 3) {
-      staminaChange -= GAME_CONFIG.baseStaminaDrain;
-    } else if (attachedLimbs.length === 2) {
-      staminaChange -= GAME_CONFIG.baseStaminaDrain * 8;
+  if (!dynoPriming) {
+    if (restPoseMode === "perfect") {
+      staminaChange += GAME_CONFIG.movement.restPose.perfectRecoveryBonus;
+    } else if (restPoseMode === "locking" && attachedLimbs.length <= 2) {
+      staminaChange -= GAME_CONFIG.baseStaminaDrain * GAME_CONFIG.movement.restPose.lockingDrainMultiplier;
+    } else {
+      if (attachedLimbs.length === 4) {
+        staminaChange += 0.1;
+      } else if (attachedLimbs.length === 3) {
+        staminaChange -= GAME_CONFIG.baseStaminaDrain;
+      } else if (attachedLimbs.length === 2) {
+        staminaChange -= GAME_CONFIG.baseStaminaDrain * 8;
+      }
     }
-  }
 
-  attachedLimbs.forEach((limb) => {
-    const hold = state.holds[limb.attachedHoldIndex];
-    staminaChange -= GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0;
+    attachedLimbs.forEach((limb) => {
+      const hold = state.holds[limb.attachedHoldIndex];
+      staminaChange -= GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0;
 
-    if (limb.isHand && hold.bloodied) {
-      staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty;
+      if (limb.isHand && hold.bloodied) {
+        staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty;
+      }
+    });
+
+    if (restPoseMode === "supported") {
+      staminaChange += GAME_CONFIG.movement.restPose.supportedRecoveryBonus;
     }
-  });
 
-  if (state.movementState.dyno.charging) {
-    staminaChange -= GAME_CONFIG.movement.dyno.staminaDrainPerFrame;
+    staminaChange -=
+      Math.abs(effectiveWindForce) *
+      GAME_CONFIG.conditions.weather.staminaPenaltyScale *
+      Math.max(0, 4 - attachedLimbs.length);
+
+    if (state.conditionState.injury.severity === "severe") {
+      staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
+    }
+
+    staminaChange += currentRouteSegment.staminaModifier;
+    staminaChange += getRecoveryStaminaBonus(state);
+    staminaChange += getEffectValue(state, "staminaRecoveryBonus");
   }
 
-  if (restPoseMode === "supported") {
-    staminaChange += GAME_CONFIG.movement.restPose.supportedRecoveryBonus;
-  }
-
-  staminaChange -=
-    Math.abs(effectiveWindForce) *
-    GAME_CONFIG.conditions.weather.staminaPenaltyScale *
-    Math.max(0, 4 - attachedLimbs.length);
-
-  if (state.conditionState.injury.severity === "severe") {
-    staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
-  }
-
-  staminaChange += currentRouteSegment.staminaModifier;
-  staminaChange += getRecoveryStaminaBonus(state);
-  staminaChange += getEffectValue(state, "staminaRecoveryBonus");
   tickActiveEffects(state);
   decayDynoState(state);
 
@@ -1720,12 +1990,5 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     return;
   }
 
-  const currentHeight = Math.max(0, Math.floor((viewportHeight - state.player.com.y) / GAME_CONFIG.heightScale));
-
-  if (currentHeight > state.maxHeightReached) {
-    state.maxHeightReached = currentHeight;
-  }
-
-  const targetCameraY = state.player.com.y - viewportHeight * 0.6;
-  state.cameraY += (targetCameraY - state.cameraY) * GAME_CONFIG.cameraLerp;
+  updateHeightAndCamera(state, viewportHeight);
 }

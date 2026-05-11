@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   beginBodyAction,
-  beginDynoCharge,
   beginDrag,
+  cancelBodyAction,
   createInitialGameState,
   endBodyAction,
   getUiSnapshot,
-  releaseDynoCharge,
   releaseDrag,
   useItem,
   updateFrame,
@@ -92,43 +91,18 @@ export function useSolitaryApexGame() {
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.code !== "Space" || event.repeat || !gameStateRef.current) {
-        return;
-      }
-
-      event.preventDefault();
-      beginDynoCharge(gameStateRef.current);
-      setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
-    };
-
-    const handleKeyUp = (event) => {
-      if (event.code !== "Space" || !gameStateRef.current) {
-        return;
-      }
-
-      event.preventDefault();
-      releaseDynoCharge(gameStateRef.current);
-      setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
-    };
-
     const handleBlur = () => {
       if (!gameStateRef.current) {
         return;
       }
 
-      endBodyAction(gameStateRef.current);
-      releaseDynoCharge(gameStateRef.current);
+      cancelBodyAction(gameStateRef.current);
       setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
     window.addEventListener("blur", handleBlur);
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleBlur);
     };
   }, []);
@@ -230,7 +204,7 @@ export function useSolitaryApexGame() {
     }
 
     releaseDrag(gameStateRef.current);
-    endBodyAction(gameStateRef.current);
+    cancelBodyAction(gameStateRef.current);
     commitUiState();
   };
 
@@ -249,24 +223,6 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
-  const startDyno = () => {
-    if (!gameStateRef.current) {
-      return;
-    }
-
-    beginDynoCharge(gameStateRef.current);
-    commitUiState();
-  };
-
-  const endDyno = () => {
-    if (!gameStateRef.current) {
-      return;
-    }
-
-    releaseDynoCharge(gameStateRef.current);
-    commitUiState();
-  };
-
   return {
     canvasRef,
     gameStateRef,
@@ -278,7 +234,5 @@ export function useSolitaryApexGame() {
     handlePointerCancel,
     restartGame,
     useInventoryItem,
-    startDyno,
-    endDyno,
   };
 }

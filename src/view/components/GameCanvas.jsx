@@ -75,6 +75,44 @@ function drawCheckpointRope(ctx, state) {
   ctx.restore();
 }
 
+function drawDynoSling(ctx, state) {
+  const dynoState = state.movementState?.dyno;
+
+  if (!dynoState?.pointerActive) {
+    return;
+  }
+
+  const bodyX = state.player.com.x;
+  const bodyY = state.player.com.y - state.cameraY;
+  const chargeRatio = dynoState.charging
+    ? Math.pow(
+        Math.max(0, Math.min(1, (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames)),
+        GAME_CONFIG.movement.dyno.chargeEasePower,
+      )
+    : 0;
+
+  ctx.save();
+  ctx.lineWidth = 2 + chargeRatio * 4;
+  ctx.strokeStyle = `rgba(240, 213, 138, ${0.35 + chargeRatio * 0.55})`;
+  ctx.setLineDash([10, 6]);
+  ctx.beginPath();
+  ctx.moveTo(bodyX, bodyY);
+  ctx.lineTo(state.pointer.x, state.pointer.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = `rgba(240, 213, 138, ${0.22 + chargeRatio * 0.4})`;
+  ctx.beginPath();
+  ctx.arc(bodyX, bodyY, 14 + chargeRatio * 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(255, 255, 255, ${0.25 + chargeRatio * 0.4})`;
+  ctx.beginPath();
+  ctx.arc(state.pointer.x, state.pointer.y, 10 + chargeRatio * 10, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawParticles(ctx, particles) {
   particles.forEach((particle) => {
     ctx.globalAlpha = particle.life;
@@ -129,8 +167,12 @@ function drawPlayer(ctx, state, viewportHeight) {
   const rejectLimbIndex = state.feedbackState?.limbIndex ?? -1;
   const dynoState = state.movementState?.dyno;
   const dynoVisualRatio = Math.max(
-    dynoState?.charging ? Math.pow(Math.max(0, Math.min(1, (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames)), GAME_CONFIG.movement.dyno.chargeEasePower) : 0,
-    dynoState?.active ? dynoState.reachBonusRatio ?? 0 : 0,
+    dynoState?.charging
+      ? Math.pow(Math.max(0, Math.min(1, (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames)), GAME_CONFIG.movement.dyno.chargeEasePower)
+      : dynoState?.pointerActive
+        ? 0.12
+        : 0,
+    dynoState?.flightActive ? dynoState.reachBonusRatio ?? 0 : 0,
   );
 
   const drawReachEnvelope = (limb, bodyY, index) => {
@@ -284,6 +326,7 @@ function drawScene(canvas, state, viewport) {
   });
 
   drawCheckpointRope(ctx, state);
+  drawDynoSling(ctx, state);
   drawPlayer(ctx, state, viewport.height);
   drawParticles(ctx, state.particles);
 }

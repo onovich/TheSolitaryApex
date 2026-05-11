@@ -14,8 +14,6 @@ export function GameScreen() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
-    endDyno,
-    startDyno,
     useInventoryItem,
   } = useSolitaryApexGame();
 
@@ -39,8 +37,6 @@ export function GameScreen() {
         height={uiState.height}
         items={uiState.items}
         movement={uiState.movement}
-        onDynoEnd={endDyno}
-        onDynoStart={startDyno}
         onUseItem={useInventoryItem}
         fall={uiState.fall}
         recovery={uiState.recovery}

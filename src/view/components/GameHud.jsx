@@ -6,8 +6,6 @@ export function GameHud({
   height,
   items,
   movement,
-  onDynoEnd,
-  onDynoStart,
   onUseItem,
   recovery,
   route,
@@ -28,14 +26,33 @@ export function GameHud({
     staminaColor = "#f39c12";
   }
 
-  let dynoLabel = UI_TEXT.dynoReadyLabel;
+  let launchLabel = UI_TEXT.launchDisabledLabel;
+  let launchClassName = "status-pill is-launch-blocked";
 
-  if (dynoState?.charging) {
-    dynoLabel = `${UI_TEXT.dynoChargingLabel} ${Math.round(dynoState.chargeRatio * 100)}%`;
-  } else if (dynoState?.active) {
-    dynoLabel = UI_TEXT.dynoWindowLabel;
-  } else if ((dynoState?.cooldownFrames ?? 0) > 0) {
-    dynoLabel = `${UI_TEXT.dynoCooldownLabel} ${dynoState.cooldownFrames}`;
+  if (dynoState?.availability === "ready") {
+    launchLabel = UI_TEXT.launchReadyLabel;
+    launchClassName = "status-pill is-launch-ready";
+  } else if (dynoState?.availability === "priming") {
+    launchLabel = UI_TEXT.launchPrimingLabel;
+    launchClassName = "status-pill is-launch-priming";
+  } else if (dynoState?.availability === "charging") {
+    launchLabel = `${UI_TEXT.launchChargingLabel} ${Math.round((dynoState?.chargeRatio ?? 0) * 100)}%`;
+    launchClassName = "status-pill is-launch-charging";
+  } else if (dynoState?.availability === "airborne") {
+    launchLabel = UI_TEXT.launchActiveLabel;
+    launchClassName = "status-pill is-launch-active";
+  } else if (dynoState?.availability === "cooldown") {
+    launchLabel = `${UI_TEXT.launchCooldownLabel} ${dynoState?.cooldownFrames ?? 0}`;
+  } else if (dynoState?.availability === "checkpoint") {
+    launchLabel = UI_TEXT.launchCheckpointLabel;
+  } else if (dynoState?.availability === "stamina") {
+    launchLabel = `${UI_TEXT.launchStaminaLabel} < ${Math.ceil((dynoState?.staminaCost ?? 0) * 100) / 100}`;
+  } else if (dynoState?.availability === "hanging") {
+    launchLabel = UI_TEXT.launchHangLabel;
+  } else if (dynoState?.availability === "falling") {
+    launchLabel = UI_TEXT.launchFallLabel;
+  } else if (dynoState?.availability === "support") {
+    launchLabel = UI_TEXT.launchSupportLabel;
   }
 
   let restLabel = UI_TEXT.restLabel;
@@ -77,32 +94,6 @@ export function GameHud({
   const windDirection = windForce >= 0 ? "→" : "←";
   const windStrength = Math.round(Math.abs(windForce) * 100);
 
-  const handleDynoPointerDown = (event) => {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    onDynoStart();
-  };
-
-  const handleDynoPointerUp = (event) => {
-    event.preventDefault();
-
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    onDynoEnd();
-  };
-
-  const handleDynoPointerCancel = (event) => {
-    event.preventDefault();
-
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    onDynoEnd();
-  };
-
   return (
     <div className="ui-layer">
       <div>
@@ -129,17 +120,6 @@ export function GameHud({
                 {`${item.label} (${item.count})`}
               </button>
             ))}
-            <button
-              className={`hud-button dyno-button${dynoState?.charging ? " is-charging" : ""}${dynoState?.active ? " is-active" : ""}`}
-              type="button"
-              disabled={fall?.active || (!dynoState?.charging && (dynoState?.cooldownFrames ?? 0) > 0)}
-              onPointerDown={handleDynoPointerDown}
-              onPointerUp={handleDynoPointerUp}
-              onPointerCancel={handleDynoPointerCancel}
-              onLostPointerCapture={onDynoEnd}
-            >
-              {dynoLabel}
-            </button>
           </div>
         </div>
         <div className="status-row">
@@ -158,6 +138,9 @@ export function GameHud({
           </div>
           <div className={`status-pill${injuryState?.severity !== "stable" ? " is-injured" : ""}`}>
             {UI_TEXT.injuryLabel}: {injuryLabel}
+          </div>
+          <div className={launchClassName}>
+            {UI_TEXT.launchLabel}: {launchLabel}
           </div>
         </div>
       </div>

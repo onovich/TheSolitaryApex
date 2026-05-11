@@ -1,7 +1,9 @@
 import { GAME_CONFIG } from "../src/data/gameConfig.js";
 import {
   beginBodyAction,
+  beginDynoCharge,
   beginDrag,
+  cancelDynoCharge,
   createInitialGameState,
   getUiSnapshot,
   releaseDynoCharge,
@@ -95,10 +97,25 @@ function validateDragDynoAndFalls() {
     throw new Error("Drag reject feedback did not activate");
   }
 
-  state.pointer.x = state.player.com.x;
-  state.pointer.y = state.player.com.y - state.cameraY - 220;
-  state.movementState.dyno.charging = true;
-  state.movementState.dyno.chargeFrames = GAME_CONFIG.movement.dyno.chargeMaxFrames;
+  if (beginDynoCharge(state, state.player.com.x, state.player.com.y - state.cameraY)) {
+    throw new Error("Dyno should require an active checkpoint before charging");
+  }
+
+  if (!useItem(state, "protectionCam")) {
+    throw new Error("Protection placement failed");
+  }
+
+  if (!beginDynoCharge(state, state.player.com.x, state.player.com.y - state.cameraY)) {
+    throw new Error("Dyno charge did not start from body hold");
+  }
+
+  updatePointer(state, state.player.com.x, state.player.com.y - state.cameraY + 210);
+
+  for (let index = 0; index < GAME_CONFIG.movement.dyno.holdFramesRequired + 2; index += 1) {
+    updateFrame(state, 1280, 720);
+    updatePointer(state, state.player.com.x, state.player.com.y - state.cameraY + 210);
+  }
+
   releaseDynoCharge(state);
   const dynoVelocityY = state.movementState.bodyVelocity.y;
 
@@ -106,8 +123,26 @@ function validateDragDynoAndFalls() {
     throw new Error(`Dyno launch too weak: ${dynoVelocityY}`);
   }
 
-  if (!useItem(state, "protectionCam")) {
-    throw new Error("Protection placement failed");
+  if (!state.movementState.dyno.flightActive) {
+    throw new Error("Dyno release should enter airborne state");
+  }
+
+  if (state.player.limbs.some((limb) => limb.attachedHoldIndex !== -1)) {
+    throw new Error("Dyno launch should detach all limbs");
+  }
+
+  const expectedStamina = GAME_CONFIG.maxStamina - GAME_CONFIG.maxStamina * GAME_CONFIG.movement.dyno.staminaCostRatio;
+
+  if (Math.abs(state.stamina - expectedStamina) > 0.001) {
+    throw new Error(`Dyno stamina cost mismatch: ${state.stamina}`);
+  }
+
+  for (let index = 0; index < 120 && state.movementState.dyno.flightActive; index += 1) {
+    updateFrame(state, 1280, 720);
+  }
+
+  if (state.movementState.dyno.flightActive) {
+    throw new Error("Dyno flight never resolved at the apex");
   }
 
   state.player.limbs.forEach((limb) => {

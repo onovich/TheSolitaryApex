@@ -130,16 +130,6 @@ select {
   border-color: #f39c12;
 }
 
-.dyno-button.is-charging {
-  color: #f0d58a;
-  border-color: #f0d58a;
-}
-
-.dyno-button.is-active {
-  color: #9ae6b4;
-  border-color: #9ae6b4;
-}
-
 .status-row {
   display: flex;
   flex-wrap: wrap;
@@ -200,6 +190,31 @@ select {
 .status-pill.is-injured {
   color: #db8d93;
   border-color: #7f4248;
+}
+
+.status-pill.is-launch-ready {
+  color: #f0d58a;
+  border-color: #8e7840;
+}
+
+.status-pill.is-launch-priming {
+  color: #e8d7a4;
+  border-color: #7a6942;
+}
+
+.status-pill.is-launch-charging {
+  color: #ffd27d;
+  border-color: #9a6e2c;
+}
+
+.status-pill.is-launch-active {
+  color: #9ae6b4;
+  border-color: #4f7a60;
+}
+
+.status-pill.is-launch-blocked {
+  color: #b9a7a0;
+  border-color: #5e4d48;
 }
 
 .tutorial {
