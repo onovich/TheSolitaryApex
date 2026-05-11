@@ -14,7 +14,9 @@ export function GameScreen() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
-    useChalk,
+    endDyno,
+    startDyno,
+    usePrimaryItem,
   } = useSolitaryApexGame();
 
   const vignetteOpacity = uiState.stamina < 40 ? (1 - uiState.stamina / 40) * 0.85 : 0;
@@ -33,10 +35,13 @@ export function GameScreen() {
       />
       <div className="vignette" style={{ opacity: vignetteOpacity }} />
       <GameHud
-        chalkActive={uiState.chalkActive}
-        chalks={uiState.chalks}
+        conditions={uiState.conditions}
         height={uiState.height}
-        onUseChalk={useChalk}
+        movement={uiState.movement}
+        onDynoEnd={endDyno}
+        onDynoStart={startDyno}
+        onUsePrimaryItem={usePrimaryItem}
+        primaryItem={uiState.primaryItem}
         staminaRatio={uiState.staminaRatio}
         tutorialVisible={uiState.tutorialVisible}
       />

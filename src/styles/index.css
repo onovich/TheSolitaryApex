@@ -54,6 +54,13 @@ select {
   padding: 20px;
 }
 
+.hud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 .stamina-container {
   width: min(240px, calc(100vw - 140px));
 }
@@ -77,7 +84,7 @@ select {
   color: #888888;
 }
 
-.chalk-button {
+.hud-button {
   pointer-events: auto;
   min-width: 148px;
   padding: 10px 20px;
@@ -90,13 +97,60 @@ select {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
-.chalk-button:hover {
+.hud-button:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 
-.chalk-button:active {
+.hud-button:active {
   background: #ffffff;
   color: #000000;
+}
+
+.hud-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.dyno-button.is-charging {
+  color: #f0d58a;
+  border-color: #f0d58a;
+}
+
+.dyno-button.is-active {
+  color: #9ae6b4;
+  border-color: #9ae6b4;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0 20px 8px;
+}
+
+.status-pill {
+  border: 1px solid #3f3f3f;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 10px;
+  color: #8c8c8c;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.status-pill.is-resting {
+  color: #d7d0a1;
+  border-color: #6a6447;
+}
+
+.status-pill.is-windy {
+  color: #9cc4da;
+  border-color: #486677;
+}
+
+.status-pill.is-injured {
+  color: #db8d93;
+  border-color: #7f4248;
 }
 
 .tutorial {
@@ -161,14 +215,28 @@ select {
     gap: 12px;
   }
 
+  .hud-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
   .stamina-container {
     width: min(180px, calc(100vw - 128px));
   }
 
-  .chalk-button {
+  .hud-button {
     min-width: 104px;
     padding: 10px 12px;
     letter-spacing: 1px;
+  }
+
+  .status-row {
+    gap: 8px;
+    padding: 0 16px 8px;
+  }
+
+  .status-pill {
+    font-size: 0.72rem;
   }
 
   .tutorial {

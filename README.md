@@ -17,8 +17,13 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 ## Core Features
 
 - Independent control for both hands and both feet
+- Golden-path wall generation with readable trap holds around a guaranteed route
+- Limb-specific reach constraints with asymmetric hand and foot movement envelopes
 - Stamina pressure that turns small mistakes into fatal ones
 - Limited chalk uses that create short recovery windows
+- Charge-and-release dyno window for committing to longer moves
+- Rest pose detection for wide foot locks and hands-off recovery windows
+- Wind pressure and hand injury systems that steadily destabilize bad decisions
 - Two clear failure states: losing balance or climbing to exhaustion
 - Minimal, oppressive presentation focused on isolation and height
 
@@ -34,6 +39,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 
 - Mouse or touch: drag each limb ring to a new hold
 - Click or tap the chalk button: consume one chalk charge
+- Hold the dyno button or press Space: charge a longer explosive move, then release to commit
 - Restart after a fall to begin another ascent
 
 ## Why It Feels Different
@@ -58,3 +64,5 @@ npm run build
 ## Status
 
 The current repository contains the playable web prototype of The Solitary Apex.
+
+The current web build now includes guaranteed-solvable route generation, limb-specific reach rules, a reusable item/effect framework, a first-pass dyno action, rest pose recovery, wind pressure, and hand injury escalation.

@@ -18,6 +18,49 @@ function drawPlayer(ctx, state, viewportHeight) {
     return;
   }
 
+  const getDynoReachBonus = (limb) => {
+    if (!limb.isHand) {
+      return 0;
+    }
+
+    const dynoState = state.movementState?.dyno;
+    const dynoRatio = dynoState?.charging
+      ? (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames
+      : (dynoState?.reachBonusRatio ?? 0);
+
+    return GAME_CONFIG.movement.dyno.reachBonusMax * dynoRatio;
+  };
+
+  const getLimbRootScreenPosition = (limb, bodyY) => ({
+    x: state.player.com.x + limb.reachProfile.rootOffset.x,
+    y: bodyY + limb.reachProfile.rootOffset.y,
+  });
+
+  const drawReachEnvelope = (limb, bodyY) => {
+    const root = getLimbRootScreenPosition(limb, bodyY);
+
+    ctx.save();
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(root.x, root.y, limb.reachProfile.maxReach + getDynoReachBonus(limb), 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+    ctx.stroke();
+
+    if (limb.reachProfile.minReach > 0) {
+      ctx.beginPath();
+      ctx.arc(root.x, root.y, limb.reachProfile.minReach, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.beginPath();
+    ctx.arc(root.x, root.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  };
+
   const attachedCount = state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1).length;
   let bodyScreenY = state.player.com.y - state.cameraY;
 
@@ -47,10 +90,7 @@ function drawPlayer(ctx, state, viewportHeight) {
     if (state.draggedLimbIndex === index) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
       ctx.fill();
-      ctx.beginPath();
-      ctx.arc(state.player.com.x, bodyScreenY, GAME_CONFIG.maxReach, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-      ctx.stroke();
+      drawReachEnvelope(limb, bodyScreenY);
       return;
     }
 
@@ -109,9 +149,9 @@ function drawScene(canvas, state, viewport) {
 
     ctx.beginPath();
     ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
-    ctx.fillStyle = GAME_CONFIG.palette.holdFillByType[hold.type];
+    ctx.fillStyle = hold.bloodied ? "#7b242a" : GAME_CONFIG.palette.holdFillByType[hold.type];
     ctx.fill();
-    ctx.strokeStyle = GAME_CONFIG.palette.holdStroke;
+    ctx.strokeStyle = hold.bloodied ? "#b5555d" : GAME_CONFIG.palette.holdStroke;
     ctx.lineWidth = 1;
     ctx.stroke();
   });

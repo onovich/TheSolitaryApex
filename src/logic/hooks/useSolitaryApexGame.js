@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  activateChalk,
+  beginDynoCharge,
   beginDrag,
   createInitialGameState,
   getUiSnapshot,
+  releaseDynoCharge,
   releaseDrag,
+  useItem,
   updateFrame,
   updatePointer,
-} from "../engine/gameEngine";
+} from "../engine/gameEngine.js";
+import { PRIMARY_ITEM_ID } from "../../data/itemCatalog.js";
 
 const getViewport = () => ({
   width: window.innerWidth,
@@ -26,8 +29,32 @@ export function useSolitaryApexGame() {
     stamina: 100,
     staminaRatio: 1,
     height: 0,
-    chalks: 3,
-    chalkActive: false,
+    primaryItem: null,
+    movement: {
+      dyno: {
+        charging: false,
+        active: false,
+        chargeRatio: 0,
+        cooldownFrames: 0,
+        reachBonusRatio: 0,
+      },
+      restPose: {
+        active: false,
+        mode: "none",
+        footSpan: 0,
+        handsDetached: false,
+      },
+    },
+    conditions: {
+      weather: {
+        windForce: 0,
+      },
+      injury: {
+        handStrain: 0,
+        severity: "stable",
+        bloodiedHoldCount: 0,
+      },
+    },
     tutorialVisible: true,
     endMessage: null,
   }));
@@ -43,6 +70,47 @@ export function useSolitaryApexGame() {
 
     return () => {
       window.removeEventListener("resize", syncViewport);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.code !== "Space" || event.repeat || !gameStateRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      beginDynoCharge(gameStateRef.current);
+      setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
+    };
+
+    const handleKeyUp = (event) => {
+      if (event.code !== "Space" || !gameStateRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      releaseDynoCharge(gameStateRef.current);
+      setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
+    };
+
+    const handleBlur = () => {
+      if (!gameStateRef.current) {
+        return;
+      }
+
+      releaseDynoCharge(gameStateRef.current);
+      setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
     };
   }, []);
 
@@ -146,12 +214,30 @@ export function useSolitaryApexGame() {
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
   };
 
-  const useChalk = () => {
+  const usePrimaryItem = () => {
     if (!gameStateRef.current) {
       return;
     }
 
-    activateChalk(gameStateRef.current);
+    useItem(gameStateRef.current, PRIMARY_ITEM_ID);
+    commitUiState();
+  };
+
+  const startDyno = () => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    beginDynoCharge(gameStateRef.current);
+    commitUiState();
+  };
+
+  const endDyno = () => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    releaseDynoCharge(gameStateRef.current);
     commitUiState();
   };
 
@@ -165,6 +251,8 @@ export function useSolitaryApexGame() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
-    useChalk,
+    usePrimaryItem,
+    startDyno,
+    endDyno,
   };
 }
