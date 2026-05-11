@@ -1,0 +1,178 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: #050505;
+  color: #dddddd;
+  font-family: "Courier New", Courier, monospace;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.game-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 40%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 35%),
+    #050505;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.ui-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hud-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px;
+}
+
+.stamina-container {
+  width: min(240px, calc(100vw - 140px));
+}
+
+.stamina-bar-bg {
+  width: 100%;
+  height: 10px;
+  margin-top: 5px;
+  background: #333333;
+  border: 1px solid #666666;
+}
+
+.stamina-bar-fill {
+  height: 100%;
+  transition: width 0.1s linear, background-color 0.2s ease;
+}
+
+.height-label {
+  margin-top: 5px;
+  font-size: 0.8rem;
+  color: #888888;
+}
+
+.chalk-button {
+  pointer-events: auto;
+  min-width: 148px;
+  padding: 10px 20px;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid currentColor;
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.chalk-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.chalk-button:active {
+  background: #ffffff;
+  color: #000000;
+}
+
+.tutorial {
+  align-self: center;
+  margin-bottom: 20px;
+  color: #666666;
+  font-size: 0.9rem;
+  text-align: center;
+  white-space: pre-line;
+}
+
+.message-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: min(360px, calc(100vw - 40px));
+  padding: 40px 32px;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid #444444;
+  text-align: center;
+}
+
+.message-box h1 {
+  margin: 0 0 16px;
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+}
+
+.message-box p {
+  margin: 0 0 28px;
+  color: #888888;
+  line-height: 1.6;
+}
+
+.restart-button {
+  padding: 10px 30px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, transparent 50%, rgba(0, 0, 0, 0.92) 100%);
+  transition: opacity 0.2s ease;
+}
+
+@media (max-width: 640px) {
+  .hud-top {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .stamina-container {
+    width: min(180px, calc(100vw - 128px));
+  }
+
+  .chalk-button {
+    min-width: 104px;
+    padding: 10px 12px;
+    letter-spacing: 1px;
+  }
+
+  .tutorial {
+    width: calc(100vw - 32px);
+    margin-bottom: 16px;
+  }
+}

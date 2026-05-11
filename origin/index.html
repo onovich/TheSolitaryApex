@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>孤崖 (The Solitary Apex)</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #050505;
+            color: #ddd;
+            font-family: "Courier New", Courier, monospace;
+            overflow: hidden;
+            touch-action: none; /* 防止移动端滚动 */
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #uiLayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .hud-top {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .stamina-container {
+            width: 200px;
+        }
+        .stamina-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: #333;
+            border: 1px solid #666;
+            margin-top: 5px;
+        }
+        #staminaBar {
+            width: 100%;
+            height: 100%;
+            background: white;
+            transition: width 0.1s linear, background-color 0.2s;
+        }
+        .chalk-btn {
+            pointer-events: auto;
+            background: transparent;
+            color: white;
+            border: 1px solid white;
+            padding: 10px 20px;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+        .chalk-btn:hover { background: rgba(255,255,255,0.2); }
+        .chalk-btn:active { background: white; color: black; }
+        
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.8);
+            padding: 40px;
+            border: 1px solid #444;
+            display: none;
+        }
+        #messageBox h1 { margin-top: 0; font-size: 2rem; font-weight: normal; letter-spacing: 5px; text-transform: uppercase; }
+        #messageBox p { font-size: 1rem; color: #888; margin-bottom: 30px; }
+        #restartBtn {
+            background: white;
+            color: black;
+            border: none;
+            padding: 10px 30px;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        /* 幻觉/泵感 滤镜层 */
+        #vignette {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, transparent 50%, rgba(0,0,0,0.9) 100%);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .tutorial {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="vignette"></div>
+
+    <div id="uiLayer">
+        <div class="hud-top">
+            <div class="stamina-container">
+                <div>耐力 (PUMP)</div>
+                <div class="stamina-bar-bg">
+                    <div id="staminaBar"></div>
+                </div>
+                <div style="margin-top:5px; font-size:0.8em; color:#888;">海拔: <span id="heightScore">0</span>m</div>
+            </div>
+            <div>
+                <button class="chalk-btn" id="chalkBtn" onclick="useChalk()">打镁粉 (<span id="chalkCount">3</span>)</button>
+            </div>
+        </div>
+        <div class="tutorial" id="tutorialText">
+            拖拽手脚的圆环移动到上方岩点。<br>保持三点接触。耐力耗尽即坠落。
+        </div>
+    </div>
+
+    <div id="messageBox">
+        <h1 id="msgTitle">坠落</h1>
+        <p id="msgDesc">力竭于岩壁之上。</p>
+        <button id="restartBtn" onclick="initGame()">重新攀登</button>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const staminaBar = document.getElementById('staminaBar');
+    const heightScore = document.getElementById('heightScore');
+    const chalkCountSpan = document.getElementById('chalkCount');
+    const vignette = document.getElementById('vignette');
+    const messageBox = document.getElementById('messageBox');
+    const tutorialText = document.getElementById('tutorialText');
+
+    let width, height;
+    
+    // --- 游戏核心参数 ---
+    const MAX_STAMINA = 100;
+    const MAX_REACH = 180; // 肢体最大触及距离
+    const WALL_HEIGHT = 10000; // 岩壁总高度
+    const CAMERA_LERP = 0.05;
+    
+    let state = {
+        isPlaying: false,
+        stamina: MAX_STAMINA,
+        chalks: 3,
+        chalkActiveTimer: 0,
+        cameraY: 0,
+        maxHeightReached: 0,
+        holds: [],
+        player: null,
+        draggedLimb: null,
+        mouseX: 0,
+        mouseY: 0
+    };
+
+    // 岩点类
+    class Hold {
+        constructor(x, y, type) {
+            this.x = x;
+            this.y = y;
+            this.type = type; // 0: Jug(好抓), 1: Crimp(差), 2: Sloper(最差)
+            this.radius = type === 0 ? 8 : (type === 1 ? 5 : 10);
+        }
+        
+        draw(camY) {
+            const screenY = this.y - camY;
+            if (screenY < -50 || screenY > height + 50) return; // 视椎体外剔除
+            
+            ctx.beginPath();
+            ctx.arc(this.x, screenY, this.radius, 0, Math.PI * 2);
+            
+            if (this.type === 0) {
+                ctx.fillStyle = '#888';
+            } else if (this.type === 1) {
+                ctx.fillStyle = '#555';
+            } else {
+                ctx.fillStyle = '#444';
+            }
+            ctx.fill();
+            
+            // 岩石纹理表现
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+    }
+
+    // 肢体类
+    class Limb {
+        constructor(name, isHand, x, y, holdIndex) {
+            this.name = name;
+            this.isHand = isHand; // true: 手, false: 脚
+            this.x = x;
+            this.y = y;
+            this.attachedHoldIndex = holdIndex; // 绑定的岩点索引
+        }
+    }
+
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+
+    // --- 关卡生成 ---
+    function generateWall() {
+        state.holds = [];
+        const centerX = width / 2;
+        const holdSpacingY = 80; // 垂直间距
+        
+        // 初始底部四个岩点 (供四肢初始停靠)
+        state.holds.push(new Hold(centerX - 40, height - 100, 0)); // 左手 0
+        state.holds.push(new Hold(centerX + 40, height - 120, 0)); // 右手 1
+        state.holds.push(new Hold(centerX - 50, height - 10, 0));  // 左脚 2
+        state.holds.push(new Hold(centerX + 50, height - 10, 0));  // 右脚 3
+
+        // 向上生成岩壁
+        let currentY = height - 200;
+        while (currentY > -WALL_HEIGHT) {
+            // 每行生成 1-3 个岩点
+            let numHolds = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < numHolds; i++) {
+                // X 坐标在屏幕中间区域随机波动
+                let offsetX = (Math.random() - 0.5) * (width * 0.8);
+                let hType = Math.random();
+                let type = 0;
+                if (hType > 0.6) type = 1;
+                if (hType > 0.85) type = 2; // 越往上可以难度越高，这里简单处理
+                
+                state.holds.push(new Hold(centerX + offsetX, currentY + (Math.random() * 40 - 20), type));
+            }
+            currentY -= holdSpacingY;
+        }
+    }
+
+    // --- 游戏初始化 ---
+    function initGame() {
+        resize();
+        generateWall();
+        
+        state.stamina = MAX_STAMINA;
+        state.chalks = 3;
+        state.chalkActiveTimer = 0;
+        state.maxHeightReached = 0;
+        state.cameraY = height - window.innerHeight; // 初始相机在底部
+        
+        // 初始化玩家四肢
+        state.player = {
+            limbs: [
+                new Limb("左手", true, state.holds[0].x, state.holds[0].y, 0),
+                new Limb("右手", true, state.holds[1].x, state.holds[1].y, 1),
+                new Limb("左脚", false, state.holds[2].x, state.holds[2].y, 2),
+                new Limb("右脚", false, state.holds[3].x, state.holds[3].y, 3)
+            ],
+            com: {x: width/2, y: height - 60} // Center of Mass (重心)
+        };
+        
+        state.draggedLimb = null;
+        state.isPlaying = true;
+        messageBox.style.display = 'none';
+        tutorialText.style.display = 'block';
+        updateUI();
+        
+        requestAnimationFrame(gameLoop);
+    }
+
+    // --- 交互控制 ---
+    function getPointerPos(e) {
+        if (e.touches) {
+            return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        }
+        return { x: e.clientX, y: e.clientY };
+    }
+
+    function handleDown(e) {
+        if (!state.isPlaying) return;
+        const pos = getPointerPos(e);
+        state.mouseX = pos.x;
+        state.mouseY = pos.y;
+        
+        // 检查是否点击了某个肢体末端
+        for (let i = 0; i < state.player.limbs.length; i++) {
+            let limb = state.player.limbs[i];
+            let screenY = limb.y - state.cameraY;
+            let dist = Math.hypot(limb.x - pos.x, screenY - pos.y);
+            
+            if (dist < 30) { // 命中判定范围
+                state.draggedLimb = limb;
+                limb.attachedHoldIndex = -1; // 解除抓握
+                tutorialText.style.display = 'none'; // 隐藏教程
+                break;
+            }
+        }
+    }
+
+    function handleMove(e) {
+        if (!state.isPlaying) return;
+        const pos = getPointerPos(e);
+        state.mouseX = pos.x;
+        state.mouseY = pos.y;
+        
+        if (state.draggedLimb) {
+            e.preventDefault(); // 防止滚动
+        }
+    }
+
+    function handleUp(e) {
+        if (!state.isPlaying || !state.draggedLimb) return;
+        
+        // 尝试吸附到最近的岩点
+        let closestHold = -1;
+        let minDist = 40; // 吸附半径
+        
+        let targetX = state.mouseX;
+        let targetY = state.mouseY + state.cameraY;
+
+        // 检查最大到达距离限制 (基于其他三个固定点的重心)
+        let attachedCount = 0;
+        let avgX = 0, avgY = 0;
+        state.player.limbs.forEach(l => {
+            if(l !== state.draggedLimb && l.attachedHoldIndex !== -1) {
+                avgX += l.x;
+                avgY += l.y;
+                attachedCount++;
+            }
+        });
+        
+        if (attachedCount > 0) {
+            avgX /= attachedCount;
+            avgY /= attachedCount;
+            let distToCom = Math.hypot(targetX - avgX, targetY - avgY);
+            if (distToCom > MAX_REACH) {
+                // 超出距离，吸附失败
+                minDist = -1; 
+            }
+        }
+
+        if (minDist > 0) {
+            for (let i = 0; i < state.holds.length; i++) {
+                let hold = state.holds[i];
+                let dist = Math.hypot(hold.x - targetX, hold.y - targetY);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestHold = i;
+                }
+            }
+        }
+
+        if (closestHold !== -1) {
+            // 抓握成功
+            state.draggedLimb.attachedHoldIndex = closestHold;
+            state.draggedLimb.x = state.holds[closestHold].x;
+            state.draggedLimb.y = state.holds[closestHold].y;
+            
+            // 产生一点粉尘特效(简略)
+            createParticles(state.draggedLimb.x, state.draggedLimb.y - state.cameraY, 5, '#fff');
+            
+        } else {
+            // 抓握失败，肢体悬空掉落
+            // 这里我们保持 detached 状态
+        }
+        
+        state.draggedLimb = null;
+    }
+
+    // 绑定事件
+    canvas.addEventListener('mousedown', handleDown);
+    canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    canvas.addEventListener('touchstart', handleDown, {passive: false});
+    canvas.addEventListener('touchmove', handleMove, {passive: false});
+    window.addEventListener('touchend', handleUp);
+
+    // --- 机制与逻辑 ---
+    
+    function useChalk() {
+        if (!state.isPlaying || state.chalks <= 0 || state.chalkActiveTimer > 0) return;
+        state.chalks--;
+        state.chalkActiveTimer = 300; // 维持 300 帧 (约5秒)
+        updateUI();
+        
+        // 视觉反馈
+        let attachedCount = 0;
+        let avgX = 0, avgY = 0;
+        state.player.limbs.forEach(l => {
+            if(l.attachedHoldIndex !== -1 && l.isHand) {
+                createParticles(l.x, l.y - state.cameraY, 20, 'rgba(255,255,255,0.8)');
+            }
+        });
+    }
+
+    function calculatePhysics() {
+        if (!state.isPlaying) return;
+
+        let attachedLimbs = [];
+        let detachedLimbs = [];
+        
+        state.player.limbs.forEach(l => {
+            if (l.attachedHoldIndex !== -1) attachedLimbs.push(l);
+            else detachedLimbs.push(l);
+        });
+
+        // 1. 坠落判定
+        if (attachedLimbs.length < 2) {
+            gameOver("冲坠", "由于支撑点不足，你失去了平衡。");
+            return;
+        }
+
+        // 2. 更新重心 (COM)
+        let sumX = 0, sumY = 0;
+        attachedLimbs.forEach(l => {
+            sumX += l.x;
+            sumY += l.y;
+        });
+        let targetComX = sumX / attachedLimbs.length;
+        let targetComY = sumY / attachedLimbs.length + 30; // 重心偏下
+        
+        state.player.com.x += (targetComX - state.player.com.x) * 0.2;
+        state.player.com.y += (targetComY - state.player.com.y) * 0.2;
+
+        // 更新拖拽中/悬空肢体的位置
+        detachedLimbs.forEach(l => {
+            if (state.draggedLimb === l) {
+                l.x = state.mouseX;
+                l.y = state.mouseY + state.cameraY;
+            } else {
+                // 自由下垂
+                l.x += (state.player.com.x - l.x) * 0.1;
+                l.y += ((state.player.com.y + 50) - l.y) * 0.1;
+            }
+        });
+
+        // 3. 耐力(泵感)计算
+        let staminaDrain = 0;
+        let baseDrain = 0.05; // 基础流失(重力做功)
+        
+        if (attachedLimbs.length === 4) {
+            staminaDrain = -0.1; // 四点支撑，恢复体力
+        } else if (attachedLimbs.length === 3) {
+            staminaDrain = baseDrain; // 三点支撑，缓慢流失
+        } else if (attachedLimbs.length === 2) {
+            staminaDrain = baseDrain * 8; // 两点支撑，剧烈流失
+        }
+
+        // 岩点质量惩罚
+        attachedLimbs.forEach(l => {
+            let hold = state.holds[l.attachedHoldIndex];
+            if (hold.type === 1) staminaDrain += 0.02; // Crimp
+            if (hold.type === 2) staminaDrain += 0.05; // Sloper
+        });
+
+        // 镁粉增益
+        if (state.chalkActiveTimer > 0) {
+            staminaDrain -= 0.1; // 大幅减缓流失或加速恢复
+            state.chalkActiveTimer--;
+        }
+
+        // 应用耐力变化
+        state.stamina -= staminaDrain;
+        if (state.stamina > MAX_STAMINA) state.stamina = MAX_STAMINA;
+        
+        if (state.stamina <= 0) {
+            state.stamina = 0;
+            gameOver("力竭", "肌肉被泵感吞噬，你再也抓不住任何东西。");
+            return;
+        }
+
+        // 4. 更新高度与相机
+        let currentHeight = Math.floor((height - state.player.com.y) / 10);
+        if (currentHeight > state.maxHeightReached) {
+            state.maxHeightReached = currentHeight;
+        }
+        
+        let targetCamY = state.player.com.y - height * 0.6;
+        state.cameraY += (targetCamY - state.cameraY) * CAMERA_LERP;
+    }
+
+    function gameOver(title, desc) {
+        state.isPlaying = false;
+        document.getElementById('msgTitle').innerText = title;
+        document.getElementById('msgDesc').innerText = desc + `\n\n最终到达高度: ${state.maxHeightReached}m`;
+        messageBox.style.display = 'block';
+    }
+
+    function updateUI() {
+        let pct = (state.stamina / MAX_STAMINA) * 100;
+        staminaBar.style.width = pct + '%';
+        
+        // 变色逻辑
+        if (pct > 60) staminaBar.style.backgroundColor = 'white';
+        else if (pct > 30) staminaBar.style.backgroundColor = '#f39c12';
+        else staminaBar.style.backgroundColor = '#e74c3c';
+
+        heightScore.innerText = state.maxHeightReached;
+        chalkCountSpan.innerText = state.chalks;
+
+        // 幻觉/视觉压力反馈
+        if (state.stamina < 40) {
+            let opacity = 1 - (state.stamina / 40);
+            vignette.style.opacity = opacity * 0.8 + (Math.random() * 0.2); // 心跳闪烁感
+        } else {
+            vignette.style.opacity = 0;
+        }
+        
+        // 镁粉按钮视觉
+        const chalkBtn = document.getElementById('chalkBtn');
+        if (state.chalkActiveTimer > 0) {
+            chalkBtn.style.color = '#00ffcc';
+            chalkBtn.style.borderColor = '#00ffcc';
+            chalkBtn.innerText = "镁粉生效中...";
+        } else {
+            chalkBtn.style.color = 'white';
+            chalkBtn.style.borderColor = 'white';
+            chalkBtn.innerHTML = `打镁粉 (<span id="chalkCount">${state.chalks}</span>)`;
+        }
+    }
+
+    // --- 渲染系统 ---
+    
+    // 简单粒子系统
+    let particles = [];
+    function createParticles(x, y, count, color) {
+        for(let i=0; i<count; i++){
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 4,
+                vy: (Math.random() - 0.5) * 4 - 2,
+                life: 1,
+                color: color
+            });
+        }
+    }
+    
+    function drawParticles() {
+        for(let i=particles.length-1; i>=0; i--){
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1; // 重力
+            p.life -= 0.05;
+            
+            if(p.life <= 0){
+                particles.splice(i, 1);
+                continue;
+            }
+            
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    function render() {
+        // 清屏
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, width, height);
+        
+        // 绘制岩壁纹理(极简线条)
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 1;
+        for(let i=0; i<width; i+=100) {
+            ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, height);
+            ctx.stroke();
+        }
+
+        // 绘制岩点
+        state.holds.forEach(h => h.draw(state.cameraY));
+
+        // 绘制玩家
+        if (state.player) {
+            let p = state.player;
+            let comScreenY = p.com.y - state.cameraY;
+            
+            // 如果玩家坠落，画面表现
+            if (!state.isPlaying && state.stamina <= 0 || state.player.limbs.filter(l=>l.attachedHoldIndex!==-1).length < 2) {
+                 comScreenY += (height - comScreenY) * 0.1; // 身体下坠
+            }
+
+            // 连线 (四肢到重心)
+            ctx.lineWidth = 2;
+            p.limbs.forEach(l => {
+                let screenY = l.y - state.cameraY;
+                
+                // 肌肉紧张度表现在颜色上
+                if (state.stamina < 30) {
+                    ctx.strokeStyle = `rgb(255, ${Math.random()*100}, ${Math.random()*100})`;
+                } else {
+                    ctx.strokeStyle = l.isHand ? '#ccc' : '#777';
+                }
+                
+                ctx.beginPath();
+                ctx.moveTo(p.com.x, comScreenY);
+                ctx.lineTo(l.x, screenY);
+                ctx.stroke();
+                
+                // 绘制末端圆环 (抓握点)
+                ctx.beginPath();
+                ctx.arc(l.x, screenY, 8, 0, Math.PI * 2);
+                if (l === state.draggedLimb) {
+                    // 拖拽中
+                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                    ctx.fill();
+                    
+                    // 绘制触及范围提示
+                    ctx.beginPath();
+                    ctx.arc(p.com.x, comScreenY, MAX_REACH, 0, Math.PI*2);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                    ctx.stroke();
+                    
+                } else if (l.attachedHoldIndex !== -1) {
+                    // 已附着
+                    ctx.fillStyle = l.isHand ? '#fff' : '#aaa';
+                    ctx.fill();
+                } else {
+                    // 悬空
+                    ctx.strokeStyle = '#fff';
+                    ctx.stroke();
+                }
+            });
+
+            // 绘制重心/躯干
+            ctx.fillStyle = state.stamina < 30 ? '#e74c3c' : '#fff';
+            ctx.beginPath();
+            ctx.arc(p.com.x, comScreenY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 呼吸膨胀效果
+            if (state.stamina < 50 && state.isPlaying) {
+                let pulse = Math.sin(Date.now() / 150) * 5;
+                ctx.beginPath();
+                ctx.arc(p.com.x, comScreenY, 8 + pulse, 0, Math.PI * 2);
+                ctx.strokeStyle = 'rgba(231, 76, 60, 0.5)';
+                ctx.stroke();
+            }
+        }
+        
+        drawParticles();
+    }
+
+    function gameLoop() {
+        calculatePhysics();
+        render();
+        
+        if (state.isPlaying) {
+            updateUI();
+        }
+        
+        requestAnimationFrame(gameLoop);
+    }
+
+    // 启动
+    window.onload = initGame;
+
+</script>
+</body>
+</html>
