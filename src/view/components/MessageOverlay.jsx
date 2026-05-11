@@ -13,6 +13,10 @@ export function MessageOverlay({ endMessage, onRestart }) {
         <br />
         <br />
         最终到达高度: {endMessage.finalHeight}m
+        <br />
+        {UI_TEXT.rescueCountLabel}: {endMessage.rescueCount} 次
+        <br />
+        {UI_TEXT.staminaCapLabel}: {endMessage.staminaCap}
       </p>
       <button className="restart-button" type="button" onClick={onRestart}>
         {UI_TEXT.restart}

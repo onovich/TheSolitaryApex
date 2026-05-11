@@ -189,6 +189,11 @@ export const GAME_CONFIG = {
       severePenalty: 0.025,
     },
   },
+  recoveryLoop: {
+    rescueWindowFrames: 96,
+    rescueRecoveryBonus: 0.085,
+    rescueWindMultiplier: 0.42,
+  },
   holdPenaltyByType: {
     1: 0.02,
     2: 0.05,

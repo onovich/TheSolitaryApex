@@ -33,6 +33,13 @@ export function useSolitaryApexGame() {
       zoneKey: "recovery",
       stanceIndex: 0,
     },
+    recovery: {
+      rescuesUsed: 0,
+      active: false,
+      rescueWindowFrames: 0,
+      rescueWindowRatio: 0,
+      lastFailureReason: null,
+    },
     movement: {
       dyno: {
         charging: false,

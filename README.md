@@ -66,4 +66,4 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery, energy gel channeling, a dyno action, rest pose recovery, wind pressure, and hand injury escalation.
+The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, and hand injury escalation.

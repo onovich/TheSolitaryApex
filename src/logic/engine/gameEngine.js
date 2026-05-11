@@ -92,10 +92,18 @@ function setGameOver(state, reason) {
     state.itemState.channel = null;
   }
 
+  if (state.recoveryState) {
+    state.recoveryState.rescueWindowFrames = 0;
+    state.recoveryState.rescueWindowTotalFrames = 0;
+    state.recoveryState.lastFailureReason = reason;
+  }
+
   state.endMessage = {
     title: GAME_OVER_TEXT[reason].title,
     description: GAME_OVER_TEXT[reason].description,
     finalHeight: state.maxHeightReached,
+    rescueCount: state.recoveryState?.rescuesUsed ?? 0,
+    staminaCap: state.staminaCap,
   };
 }
 
@@ -141,6 +149,15 @@ function createInitialConditionState() {
   };
 }
 
+function createInitialRecoveryState() {
+  return {
+    rescuesUsed: 0,
+    rescueWindowFrames: 0,
+    rescueWindowTotalFrames: 0,
+    lastFailureReason: null,
+  };
+}
+
 function createInitialItemState() {
   return {
     checkpoint: null,
@@ -166,6 +183,36 @@ function applyStaminaDelta(state, delta) {
 
 function restoreStamina(state, amount) {
   state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
+}
+
+function getRecoveryWindowRatio(state) {
+  if (!state.recoveryState || state.recoveryState.rescueWindowTotalFrames <= 0) {
+    return 0;
+  }
+
+  return clamp(state.recoveryState.rescueWindowFrames / state.recoveryState.rescueWindowTotalFrames, 0, 1);
+}
+
+function getRecoveryStaminaBonus(state) {
+  return GAME_CONFIG.recoveryLoop.rescueRecoveryBonus * getRecoveryWindowRatio(state);
+}
+
+function getRecoveryWindMultiplier(state) {
+  const recoveryRatio = getRecoveryWindowRatio(state);
+
+  if (recoveryRatio <= 0) {
+    return 1;
+  }
+
+  return 1 - (1 - GAME_CONFIG.recoveryLoop.rescueWindMultiplier) * recoveryRatio;
+}
+
+function tickRecoveryState(state) {
+  if (!state.recoveryState || state.recoveryState.rescueWindowFrames <= 0) {
+    return;
+  }
+
+  state.recoveryState.rescueWindowFrames -= 1;
 }
 
 function getRawDynoChargeRatio(state) {
@@ -557,7 +604,7 @@ function captureCheckpoint(state, itemDefinition) {
   };
 }
 
-function restoreCheckpoint(state) {
+function restoreCheckpoint(state, reason) {
   const checkpoint = state.itemState.checkpoint;
 
   if (!checkpoint) {
@@ -584,12 +631,16 @@ function restoreCheckpoint(state) {
   state.movementState = createInitialMovementState();
   state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
   state.stamina = Math.min(state.staminaCap, state.staminaCap * activation.restoreStaminaRatio);
+  state.recoveryState.rescuesUsed += 1;
+  state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+  state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
+  state.recoveryState.lastFailureReason = reason;
   emitItemFeedback(state, itemDefinition);
   return true;
 }
 
 function resolveFailure(state, reason) {
-  if (restoreCheckpoint(state)) {
+  if (restoreCheckpoint(state, reason)) {
     return;
   }
 
@@ -926,6 +977,7 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
     itemState: createInitialItemState(),
     movementState: createInitialMovementState(),
     conditionState: createInitialConditionState(),
+    recoveryState: createInitialRecoveryState(),
     routeState: createInitialRouteState(routeSegments),
     tutorialVisible: true,
     endMessage: null,
@@ -944,6 +996,13 @@ export function getUiSnapshot(state, frame) {
     route: {
       zoneKey: state.routeState.currentZoneKey,
       stanceIndex: state.routeState.currentStanceIndex,
+    },
+    recovery: {
+      rescuesUsed: state.recoveryState.rescuesUsed,
+      active: state.recoveryState.rescueWindowFrames > 0,
+      rescueWindowFrames: state.recoveryState.rescueWindowFrames,
+      rescueWindowRatio: getRecoveryWindowRatio(state),
+      lastFailureReason: state.recoveryState.lastFailureReason,
     },
     movement: {
       dyno: {
@@ -1146,7 +1205,11 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   state.movementState.restPose = getRestPoseState(state);
   updateInjuryState(state, attachedLimbs);
   const windResistance = state.movementState.restPose.active ? GAME_CONFIG.conditions.weather.restResistance : 1;
-  const effectiveWindForce = state.conditionState.weather.windForce * windResistance * currentRouteSegment.windMultiplier;
+  const effectiveWindForce =
+    state.conditionState.weather.windForce *
+    windResistance *
+    currentRouteSegment.windMultiplier *
+    getRecoveryWindMultiplier(state);
 
   let totalX = 0;
   let totalY = 0;
@@ -1220,12 +1283,14 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   }
 
   staminaChange += currentRouteSegment.staminaModifier;
+  staminaChange += getRecoveryStaminaBonus(state);
   staminaChange += getEffectValue(state, "staminaRecoveryBonus");
   tickActiveEffects(state);
   decayDynoState(state);
 
   applyStaminaDelta(state, staminaChange);
   tickChannelItem(state);
+  tickRecoveryState(state);
 
   if (state.stamina <= 0) {
     resolveFailure(state, "exhaustion");

@@ -162,6 +162,11 @@ select {
   border-color: #6a6447;
 }
 
+.status-pill.is-recovering {
+  color: #9ae6b4;
+  border-color: #4f7a60;
+}
+
 .route-pill--recovery {
   color: #a8d8b9;
   border-color: #4f7a60;
