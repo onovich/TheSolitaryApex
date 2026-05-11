@@ -116,6 +116,7 @@ function createInitialMovementState() {
       mode: "none",
       footSpan: 0,
       handsDetached: false,
+      stabilityFrames: 0,
     },
   };
 }
@@ -124,6 +125,7 @@ function createInitialConditionState() {
   return {
     weather: {
       windPhase: randomBetween(0, Math.PI * 2),
+      targetWindForce: 0,
       windForce: 0,
     },
     injury: {
@@ -134,8 +136,16 @@ function createInitialConditionState() {
   };
 }
 
-function getDynoChargeRatio(state) {
+function getRawDynoChargeRatio(state) {
   return clamp(state.movementState.dyno.chargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames, 0, 1);
+}
+
+function getDynoChargeRatioFromRaw(rawChargeRatio) {
+  return Math.pow(clamp(rawChargeRatio, 0, 1), GAME_CONFIG.movement.dyno.chargeEasePower);
+}
+
+function getDynoChargeRatio(state) {
+  return getDynoChargeRatioFromRaw(getRawDynoChargeRatio(state));
 }
 
 function getDynoReachRatio(state) {
@@ -166,6 +176,7 @@ function getDynamicReachProfile(state, limb) {
 }
 
 function getRestPoseState(state) {
+  const previousRestPose = state.movementState.restPose;
   const leftFoot = state.player.limbs.find((limb) => limb.profileKey === "leftFoot");
   const rightFoot = state.player.limbs.find((limb) => limb.profileKey === "rightFoot");
 
@@ -175,6 +186,7 @@ function getRestPoseState(state) {
       mode: "none",
       footSpan: 0,
       handsDetached: false,
+      stabilityFrames: Math.max(0, previousRestPose.stabilityFrames - GAME_CONFIG.movement.restPose.stabilityFramesDecay),
     };
   }
 
@@ -193,37 +205,61 @@ function getRestPoseState(state) {
       mode: "none",
       footSpan,
       handsDetached: false,
+      stabilityFrames: Math.max(0, previousRestPose.stabilityFrames - GAME_CONFIG.movement.restPose.stabilityFramesDecay),
     };
   }
 
   const handsDetached = state.player.limbs.filter((limb) => limb.isHand).every((limb) => limb.attachedHoldIndex === -1);
+  const stabilityFrames = Math.min(
+    previousRestPose.stabilityFrames + 1,
+    GAME_CONFIG.movement.restPose.stabilityFramesRequired,
+  );
+  const active = stabilityFrames >= GAME_CONFIG.movement.restPose.stabilityFramesRequired;
 
   return {
-    active: true,
-    mode: handsDetached ? "perfect" : "supported",
+    active,
+    mode: active ? (handsDetached ? "perfect" : "supported") : "locking",
     footSpan,
     handsDetached,
+    stabilityFrames,
   };
 }
 
 function updateWeatherState(state) {
   const weatherState = state.conditionState.weather;
   weatherState.windPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed;
-  weatherState.windForce =
+  weatherState.targetWindForce =
     Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
     Math.sin(weatherState.windPhase * 2.2) * GAME_CONFIG.conditions.weather.gustForce;
+
+  weatherState.windForce += (weatherState.targetWindForce - weatherState.windForce) * GAME_CONFIG.conditions.weather.smoothing;
+
+  if (Math.abs(weatherState.windForce) < GAME_CONFIG.conditions.weather.deadzone) {
+    weatherState.windForce = 0;
+  }
 }
 
 function updateInjuryState(state, attachedLimbs) {
   const injuryState = state.conditionState.injury;
+  const attachedHandLimbs = attachedLimbs.filter((limb) => limb.isHand);
+  const supportMultiplier =
+    attachedLimbs.length <= 2
+      ? GAME_CONFIG.conditions.injury.lowSupportMultiplier
+      : attachedLimbs.length === 4
+        ? GAME_CONFIG.conditions.injury.fullSupportMultiplier
+        : 1;
+  const sharedHoldMultiplier =
+    new Set(attachedHandLimbs.map((limb) => limb.attachedHoldIndex)).size < attachedHandLimbs.length
+      ? GAME_CONFIG.conditions.injury.sharedHoldMultiplier
+      : 1;
 
-  attachedLimbs.forEach((limb) => {
-    if (!limb.isHand) {
-      return;
-    }
-
+  attachedHandLimbs.forEach((limb) => {
     const hold = state.holds[limb.attachedHoldIndex];
-    injuryState.handStrain += GAME_CONFIG.conditions.injury.strainByHoldType[hold.type] ?? 0;
+    injuryState.handStrain += (GAME_CONFIG.conditions.injury.strainByHoldType[hold.type] ?? 0) * supportMultiplier * sharedHoldMultiplier;
+
+    if (hold.bloodied) {
+      injuryState.handStrain += GAME_CONFIG.conditions.injury.bloodiedRegripStrain;
+    }
 
     if (injuryState.handStrain >= GAME_CONFIG.conditions.injury.bloodiedThreshold && hold.type >= 1) {
       hold.bloodied = true;
@@ -231,8 +267,10 @@ function updateInjuryState(state, attachedLimbs) {
   });
 
   if (state.movementState.restPose.active) {
-    const multiplier = state.movementState.restPose.mode === "perfect" ? 2 : 1;
-    injuryState.handStrain -= GAME_CONFIG.movement.restPose.injuryRecoveryBonus * multiplier;
+    injuryState.handStrain -=
+      state.movementState.restPose.mode === "perfect"
+        ? GAME_CONFIG.movement.restPose.perfectInjuryRecoveryBonus
+        : GAME_CONFIG.movement.restPose.supportedInjuryRecoveryBonus;
   } else {
     injuryState.handStrain -= GAME_CONFIG.conditions.injury.passiveRecovery;
   }
@@ -689,7 +727,8 @@ export function releaseDynoCharge(state) {
 
   const dynoState = state.movementState.dyno;
   const minimumRatio = GAME_CONFIG.movement.dyno.minChargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames;
-  const chargeRatio = clamp(Math.max(getDynoChargeRatio(state), minimumRatio), 0, 1);
+  const chargeRatio = clamp(Math.max(getRawDynoChargeRatio(state), minimumRatio), 0, 1);
+  const effectiveChargeRatio = getDynoChargeRatioFromRaw(chargeRatio);
   const playerScreenY = state.player.com.y - state.cameraY;
   const directionX = state.pointer.x - state.player.com.x;
   const directionY = state.pointer.y - playerScreenY;
@@ -698,18 +737,21 @@ export function releaseDynoCharge(state) {
   const normalizedDirectionY = directionY / directionLength;
 
   dynoState.charging = false;
-  dynoState.activeFrames = Math.max(8, Math.round(GAME_CONFIG.movement.dyno.windowFrames * chargeRatio));
+  dynoState.activeFrames = Math.max(8, Math.round(GAME_CONFIG.movement.dyno.windowFrames * effectiveChargeRatio));
   dynoState.cooldownFrames = GAME_CONFIG.movement.dyno.cooldownFrames;
-  dynoState.reachBonusRatio = chargeRatio;
+  dynoState.reachBonusRatio = effectiveChargeRatio;
   dynoState.launchVector = {
     x: normalizedDirectionX,
     y: normalizedDirectionY,
   };
   dynoState.chargeFrames = 0;
 
-  state.movementState.bodyVelocity.x += normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * chargeRatio;
-  state.movementState.bodyVelocity.y += Math.min(normalizedDirectionY, -0.2) * GAME_CONFIG.movement.dyno.launchVelocity.y * chargeRatio;
-  state.stamina = clamp(state.stamina - GAME_CONFIG.movement.dyno.releaseStaminaCost * chargeRatio, 0, GAME_CONFIG.maxStamina);
+  state.movementState.bodyVelocity.x += normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio;
+  state.movementState.bodyVelocity.y += Math.min(normalizedDirectionY, -0.2) * GAME_CONFIG.movement.dyno.launchVelocity.y * effectiveChargeRatio;
+  const dynoCost =
+    GAME_CONFIG.movement.dyno.releaseStaminaCostMin +
+    (GAME_CONFIG.movement.dyno.releaseStaminaCostMax - GAME_CONFIG.movement.dyno.releaseStaminaCostMin) * effectiveChargeRatio;
+  state.stamina = clamp(state.stamina - dynoCost, 0, GAME_CONFIG.maxStamina);
   return true;
 }
 
@@ -796,6 +838,8 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   applyBodyVelocity(state);
   state.movementState.restPose = getRestPoseState(state);
   updateInjuryState(state, attachedLimbs);
+  const windResistance = state.movementState.restPose.active ? GAME_CONFIG.conditions.weather.restResistance : 1;
+  const effectiveWindForce = state.conditionState.weather.windForce * windResistance;
 
   let totalX = 0;
   let totalY = 0;
@@ -807,7 +851,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   const targetComX =
     totalX / attachedLimbs.length +
-    state.conditionState.weather.windForce * GAME_CONFIG.conditions.weather.swayStrength * (5 - attachedLimbs.length);
+    effectiveWindForce * GAME_CONFIG.conditions.weather.swayStrength * (5 - attachedLimbs.length);
   const targetComY = totalY / attachedLimbs.length + GAME_CONFIG.bodyOffsetY;
   state.player.com.x += (targetComX - state.player.com.x) * 0.2;
   state.player.com.y += (targetComY - state.player.com.y) * 0.2;
@@ -821,7 +865,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
       return;
     }
 
-    limb.x += (state.player.com.x - limb.x) * 0.1 + state.conditionState.weather.windForce * 2.8;
+    limb.x += (state.player.com.x - limb.x) * 0.1 + effectiveWindForce * GAME_CONFIG.conditions.weather.suspendedLimbPush;
     limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.1;
   });
 
@@ -830,6 +874,8 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   if (restPoseMode === "perfect") {
     staminaChange += GAME_CONFIG.movement.restPose.perfectRecoveryBonus;
+  } else if (restPoseMode === "locking" && attachedLimbs.length <= 2) {
+    staminaChange -= GAME_CONFIG.baseStaminaDrain * GAME_CONFIG.movement.restPose.lockingDrainMultiplier;
   } else {
     if (attachedLimbs.length === 4) {
       staminaChange += 0.1;
@@ -858,7 +904,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   }
 
   staminaChange -=
-    Math.abs(state.conditionState.weather.windForce) *
+    Math.abs(effectiveWindForce) *
     GAME_CONFIG.conditions.weather.staminaPenaltyScale *
     Math.max(0, 4 - attachedLimbs.length);
 

@@ -24,9 +24,12 @@ function drawPlayer(ctx, state, viewportHeight) {
     }
 
     const dynoState = state.movementState?.dyno;
-    const dynoRatio = dynoState?.charging
+    const rawDynoRatio = dynoState?.charging
       ? (dynoState.chargeFrames ?? 0) / GAME_CONFIG.movement.dyno.chargeMaxFrames
       : (dynoState?.reachBonusRatio ?? 0);
+    const dynoRatio = dynoState?.charging
+      ? Math.pow(Math.max(0, Math.min(1, rawDynoRatio)), GAME_CONFIG.movement.dyno.chargeEasePower)
+      : rawDynoRatio;
 
     return GAME_CONFIG.movement.dyno.reachBonusMax * dynoRatio;
   };
