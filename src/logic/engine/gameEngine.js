@@ -5,6 +5,7 @@ import { GAME_OVER_TEXT } from "../../data/uiText.js";
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
 const ROUTE_HOLD_TYPES = [0, 0, 0, 0, 1, 1];
 const NOISE_HOLD_TYPES = [0, 1, 1, 2, 2];
+const ROUTE_ZONE_SEQUENCE = ["recovery", "reading", "exposure", "crux"];
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -626,41 +627,47 @@ function clampRouteX(viewportWidth, value) {
 
 function createSpawnHolds(centerX, viewportHeight) {
   return [
-    createHold(centerX - 40, viewportHeight - 100, 0, { routeRole: "spawn", stanceIndex: -1 }),
-    createHold(centerX + 40, viewportHeight - 120, 0, { routeRole: "spawn", stanceIndex: -1 }),
-    createHold(centerX - 50, viewportHeight - 10, 0, { routeRole: "spawn", stanceIndex: -1 }),
-    createHold(centerX + 50, viewportHeight - 10, 0, { routeRole: "spawn", stanceIndex: -1 }),
+    createHold(centerX - 40, viewportHeight - 100, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
+    createHold(centerX + 40, viewportHeight - 120, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
+    createHold(centerX - 50, viewportHeight - 10, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
+    createHold(centerX + 50, viewportHeight - 10, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
   ];
 }
 
-function createGoldenStance(centerX, baseY, stanceIndex) {
+function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile) {
   const handSpread = randomBetween(GAME_CONFIG.goldenPath.handSpreadMin, GAME_CONFIG.goldenPath.handSpreadMax);
   const footSpread = randomBetween(GAME_CONFIG.goldenPath.footSpreadMin, GAME_CONFIG.goldenPath.footSpreadMax);
   const handOffsetY = randomBetween(GAME_CONFIG.goldenPath.handOffsetYMin, GAME_CONFIG.goldenPath.handOffsetYMax);
   const footOffsetY = randomBetween(GAME_CONFIG.goldenPath.footOffsetYMin, GAME_CONFIG.goldenPath.footOffsetYMax);
+  const routeHoldTypes = zoneProfile?.routeHoldTypes ?? ROUTE_HOLD_TYPES;
 
   return {
     centerX,
     baseY,
     stanceIndex,
+    zoneKey,
     holds: [
-      createHold(centerX - handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(ROUTE_HOLD_TYPES), {
+      createHold(centerX - handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
+        routeZone: zoneKey,
         lane: "leftHand",
         stanceIndex,
       }),
-      createHold(centerX + handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(ROUTE_HOLD_TYPES), {
+      createHold(centerX + handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
+        routeZone: zoneKey,
         lane: "rightHand",
         stanceIndex,
       }),
-      createHold(centerX - footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(ROUTE_HOLD_TYPES), {
+      createHold(centerX - footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
+        routeZone: zoneKey,
         lane: "leftFoot",
         stanceIndex,
       }),
-      createHold(centerX + footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(ROUTE_HOLD_TYPES), {
+      createHold(centerX + footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
+        routeZone: zoneKey,
         lane: "rightFoot",
         stanceIndex,
       }),
@@ -685,17 +692,60 @@ function createGoldenPath(viewportWidth, viewportHeight) {
   return path;
 }
 
-function createNoiseHolds(stance, viewportWidth) {
+function createRouteSegments(stanceCount) {
+  const segments = [];
+  let stanceIndex = 0;
+  let sequenceIndex = 0;
+
+  while (stanceIndex < stanceCount) {
+    const zoneKey = ROUTE_ZONE_SEQUENCE[sequenceIndex % ROUTE_ZONE_SEQUENCE.length];
+    const zoneProfile = GAME_CONFIG.goldenPath.contentZones[zoneKey];
+    const segmentLength = Math.min(
+      stanceCount - stanceIndex,
+      randomInt(zoneProfile.segmentSpanMin, zoneProfile.segmentSpanMax),
+    );
+
+    segments.push({
+      id: `${zoneKey}-${segments.length}`,
+      zoneKey,
+      startStanceIndex: stanceIndex,
+      endStanceIndex: stanceIndex + segmentLength - 1,
+      windMultiplier: zoneProfile.windMultiplier,
+      staminaModifier: zoneProfile.staminaModifier,
+    });
+
+    stanceIndex += segmentLength;
+    sequenceIndex += 1;
+  }
+
+  return segments;
+}
+
+function getRouteSegmentForStance(routeSegments, stanceIndex) {
+  return (
+    routeSegments.find((segment) => stanceIndex >= segment.startStanceIndex && stanceIndex <= segment.endStanceIndex) ??
+    routeSegments[routeSegments.length - 1]
+  );
+}
+
+function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile) {
   const noiseHolds = [];
-  const noiseCount = randomInt(GAME_CONFIG.goldenPath.noiseCountMin, GAME_CONFIG.goldenPath.noiseCountMax);
+  const noiseCount = randomInt(
+    zoneProfile?.noiseCountMin ?? GAME_CONFIG.goldenPath.noiseCountMin,
+    zoneProfile?.noiseCountMax ?? GAME_CONFIG.goldenPath.noiseCountMax,
+  );
+  const noiseHoldTypes = zoneProfile?.noiseHoldTypes ?? NOISE_HOLD_TYPES;
+  const noiseOffsetX = GAME_CONFIG.goldenPath.noiseOffsetX * (zoneProfile?.noiseOffsetXMultiplier ?? 1);
+  const noiseOffsetY = GAME_CONFIG.goldenPath.noiseOffsetY * (zoneProfile?.noiseOffsetYMultiplier ?? 1);
 
   for (let index = 0; index < noiseCount; index += 1) {
-    const offsetX = randomBetween(-GAME_CONFIG.goldenPath.noiseOffsetX, GAME_CONFIG.goldenPath.noiseOffsetX);
-    const offsetY = randomBetween(-GAME_CONFIG.goldenPath.noiseOffsetY, GAME_CONFIG.goldenPath.noiseOffsetY);
+    const offsetX = randomBetween(-noiseOffsetX, noiseOffsetX);
+    const offsetY = randomBetween(-noiseOffsetY, noiseOffsetY);
     const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX);
     const noiseY = stance.baseY + offsetY;
-    noiseHolds.push(createHold(noiseX, noiseY, pickHoldType(NOISE_HOLD_TYPES), {
+    noiseHolds.push(createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
       routeRole: "noise",
+      routeZone: zoneKey,
       stanceIndex: stance.stanceIndex,
     }));
   }
@@ -720,7 +770,12 @@ function buildWallBlueprint(viewportWidth, viewportHeight) {
   const holds = [];
   const centerX = viewportWidth / 2;
   const spawnHolds = createSpawnHolds(centerX, viewportHeight);
-  const goldenPath = createGoldenPath(viewportWidth, viewportHeight).map((stance) => {
+  const goldenPathBase = createGoldenPath(viewportWidth, viewportHeight);
+  const routeSegments = createRouteSegments(goldenPathBase.length);
+  const goldenPath = goldenPathBase.map((baseStance) => {
+    const segment = getRouteSegmentForStance(routeSegments, baseStance.stanceIndex);
+    const zoneProfile = GAME_CONFIG.goldenPath.contentZones[segment.zoneKey];
+    const stance = createGoldenStance(baseStance.centerX, baseStance.baseY, baseStance.stanceIndex, segment.zoneKey, zoneProfile);
     const holdIndices = [];
 
     stance.holds.forEach((hold) => {
@@ -728,13 +783,15 @@ function buildWallBlueprint(viewportWidth, viewportHeight) {
       holds.push(hold);
     });
 
-    createNoiseHolds(stance, viewportWidth).forEach((hold) => {
+    createNoiseHolds(stance, viewportWidth, segment.zoneKey, zoneProfile).forEach((hold) => {
       holds.push(hold);
     });
 
     return {
       centerX: stance.centerX,
       baseY: stance.baseY,
+      zoneKey: segment.zoneKey,
+      segmentId: segment.id,
       holdIndices,
     };
   });
@@ -742,6 +799,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight) {
   return {
     holds: [...spawnHolds, ...holds],
     goldenPath,
+    routeSegments,
   };
 }
 
@@ -760,6 +818,42 @@ function getLimbRootPosition(player, limb) {
     x: player.com.x + limb.reachProfile.rootOffset.x,
     y: player.com.y + limb.reachProfile.rootOffset.y,
   };
+}
+
+function createInitialRouteState(routeSegments) {
+  const initialSegment = routeSegments[0] ?? null;
+
+  return {
+    currentStanceIndex: 0,
+    currentSegmentId: initialSegment?.id ?? null,
+    currentZoneKey: initialSegment?.zoneKey ?? "recovery",
+  };
+}
+
+function getClosestGoldenStanceIndex(state) {
+  let closestIndex = 0;
+  let closestDistance = Infinity;
+
+  state.goldenPath.forEach((stance, index) => {
+    const distance = Math.abs(stance.baseY - state.player.com.y);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+
+  return closestIndex;
+}
+
+function updateRouteState(state) {
+  const currentStanceIndex = getClosestGoldenStanceIndex(state);
+  const currentSegment = getRouteSegmentForStance(state.routeSegments, currentStanceIndex);
+
+  state.routeState.currentStanceIndex = currentStanceIndex;
+  state.routeState.currentSegmentId = currentSegment.id;
+  state.routeState.currentZoneKey = currentSegment.zoneKey;
+  return currentSegment;
 }
 
 function canLimbReachTarget(state, limb, targetX, targetY) {
@@ -809,7 +903,7 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
 }
 
 export function createInitialGameState(viewportWidth, viewportHeight) {
-  const { holds, goldenPath } = generateWall(viewportWidth, viewportHeight);
+  const { holds, goldenPath, routeSegments } = generateWall(viewportWidth, viewportHeight);
 
   return {
     isPlaying: true,
@@ -819,6 +913,7 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
     maxHeightReached: 0,
     holds,
     goldenPath,
+    routeSegments,
     player: createPlayer(holds, viewportWidth, viewportHeight),
     draggedLimbIndex: -1,
     pointer: {
@@ -831,6 +926,7 @@ export function createInitialGameState(viewportWidth, viewportHeight) {
     itemState: createInitialItemState(),
     movementState: createInitialMovementState(),
     conditionState: createInitialConditionState(),
+    routeState: createInitialRouteState(routeSegments),
     tutorialVisible: true,
     endMessage: null,
   };
@@ -845,6 +941,10 @@ export function getUiSnapshot(state, frame) {
     staminaCap: state.staminaCap,
     height: state.maxHeightReached,
     items: getInventoryUiState(state),
+    route: {
+      zoneKey: state.routeState.currentZoneKey,
+      stanceIndex: state.routeState.currentStanceIndex,
+    },
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
@@ -1024,6 +1124,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   advanceDynoCharge(state);
   updateWeatherState(state);
+  const currentRouteSegment = updateRouteState(state);
 
   const attachedLimbs = [];
   const detachedLimbs = [];
@@ -1045,7 +1146,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   state.movementState.restPose = getRestPoseState(state);
   updateInjuryState(state, attachedLimbs);
   const windResistance = state.movementState.restPose.active ? GAME_CONFIG.conditions.weather.restResistance : 1;
-  const effectiveWindForce = state.conditionState.weather.windForce * windResistance;
+  const effectiveWindForce = state.conditionState.weather.windForce * windResistance * currentRouteSegment.windMultiplier;
 
   let totalX = 0;
   let totalY = 0;
@@ -1118,6 +1219,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
   }
 
+  staminaChange += currentRouteSegment.staminaModifier;
   staminaChange += getEffectValue(state, "staminaRecoveryBonus");
   tickActiveEffects(state);
   decayDynoState(state);

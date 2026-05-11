@@ -18,9 +18,10 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 
 - Independent control for both hands and both feet
 - Golden-path wall generation with readable trap holds around a guaranteed route
+- Route content zoning that alternates recovery, reading, exposure, and crux sections along the ascent
 - Limb-specific reach constraints with asymmetric hand and foot movement envelopes
 - Stamina pressure that turns small mistakes into fatal ones
-- Limited chalk uses that create short recovery windows
+- A small survival rack: chalk, protection placements, and single-hand energy gel channels
 - Charge-and-release dyno window for committing to longer moves
 - Rest pose detection for wide foot locks and hands-off recovery windows
 - Wind pressure and hand injury systems that steadily destabilize bad decisions
@@ -65,4 +66,4 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, limb-specific reach rules, a reusable item/effect framework, a first-pass dyno action, rest pose recovery, wind pressure, and hand injury escalation.
+The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery, energy gel channeling, a dyno action, rest pose recovery, wind pressure, and hand injury escalation.

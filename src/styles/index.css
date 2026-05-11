@@ -162,6 +162,26 @@ select {
   border-color: #6a6447;
 }
 
+.route-pill--recovery {
+  color: #a8d8b9;
+  border-color: #4f7a60;
+}
+
+.route-pill--reading {
+  color: #c7d3df;
+  border-color: #54616d;
+}
+
+.route-pill--exposure {
+  color: #9cc4da;
+  border-color: #486677;
+}
+
+.route-pill--crux {
+  color: #d9af8d;
+  border-color: #7b5439;
+}
+
 .status-pill.is-windy {
   color: #9cc4da;
   border-color: #486677;

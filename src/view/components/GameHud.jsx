@@ -8,6 +8,7 @@ export function GameHud({
   onDynoEnd,
   onDynoStart,
   onUseItem,
+  route,
   staminaRatio,
   tutorialVisible,
 }) {
@@ -50,6 +51,14 @@ export function GameHud({
   } else if (injuryState?.severity === "warning") {
     injuryLabel = UI_TEXT.injuryWarnLabel;
   }
+
+  const routeLabels = {
+    recovery: UI_TEXT.routeRecoveryLabel,
+    reading: UI_TEXT.routeReadingLabel,
+    exposure: UI_TEXT.routeExposureLabel,
+    crux: UI_TEXT.routeCruxLabel,
+  };
+  const routeLabel = routeLabels[route?.zoneKey] ?? UI_TEXT.routeReadingLabel;
 
   const windForce = weatherState?.windForce ?? 0;
   const windDirection = windForce >= 0 ? "→" : "←";
@@ -121,6 +130,9 @@ export function GameHud({
           </div>
         </div>
         <div className="status-row">
+          <div className={`status-pill route-pill route-pill--${route?.zoneKey ?? "reading"}`}>
+            {UI_TEXT.routeLabel}: {routeLabel}
+          </div>
           <div className={`status-pill${restPoseState?.active ? " is-resting" : ""}`}>{restLabel}</div>
           <div className={`status-pill${windStrength > 12 ? " is-windy" : ""}`}>
             {UI_TEXT.windLabel}: {windDirection} {windStrength}%

@@ -29,6 +29,10 @@ export function useSolitaryApexGame() {
     staminaRatio: 1,
     height: 0,
     items: [],
+    route: {
+      zoneKey: "recovery",
+      stanceIndex: 0,
+    },
     movement: {
       dyno: {
         charging: false,

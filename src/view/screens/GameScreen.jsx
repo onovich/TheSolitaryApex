@@ -42,6 +42,7 @@ export function GameScreen() {
         onDynoEnd={endDyno}
         onDynoStart={startDyno}
         onUseItem={useInventoryItem}
+        route={uiState.route}
         staminaRatio={uiState.staminaRatio}
         tutorialVisible={uiState.tutorialVisible}
       />
