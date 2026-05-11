@@ -92,8 +92,6 @@ export const GAME_CONFIG = {
       maxHorizontalOffset: 92,
       minVerticalOffset: -194,
       maxVerticalOffset: 72,
-      preferredDirection: { x: -0.45, y: -0.89 },
-      minDirectionalDot: -0.15,
     },
     rightHand: {
       maxReach: 192,
@@ -103,8 +101,6 @@ export const GAME_CONFIG = {
       maxHorizontalOffset: 196,
       minVerticalOffset: -194,
       maxVerticalOffset: 72,
-      preferredDirection: { x: 0.45, y: -0.89 },
-      minDirectionalDot: -0.15,
     },
     leftFoot: {
       maxReach: 156,
@@ -114,8 +110,6 @@ export const GAME_CONFIG = {
       maxHorizontalOffset: 84,
       minVerticalOffset: -78,
       maxVerticalOffset: 168,
-      preferredDirection: { x: -0.35, y: 0.94 },
-      minDirectionalDot: -0.1,
     },
     rightFoot: {
       maxReach: 156,
@@ -125,8 +119,6 @@ export const GAME_CONFIG = {
       maxHorizontalOffset: 164,
       minVerticalOffset: -78,
       maxVerticalOffset: 168,
-      preferredDirection: { x: 0.35, y: 0.94 },
-      minDirectionalDot: -0.1,
     },
   },
   movement: {
@@ -140,7 +132,6 @@ export const GAME_CONFIG = {
       reachBonusMax: 108,
       lateralBonusMax: 84,
       verticalBonusMax: 92,
-      directionalRelaxation: 0.52,
       staminaDrainPerFrame: 0.03,
       releaseStaminaCostMin: 1.3,
       releaseStaminaCostMax: 3.2,
