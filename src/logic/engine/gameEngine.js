@@ -301,6 +301,77 @@ function tickTimedSoftHolds(state, viewportHeight) {
   return false;
 }
 
+function getObstacleRules(state) {
+  return state.mechanicRules?.obstacle ?? {
+    drillFramesRequired: 54,
+    drillRadius: 42,
+    staminaCostPerFrame: 0.07,
+  };
+}
+
+function getClosestDrillableObstacle(state, targetX, targetY, drillRadius) {
+  let closestHoldIndex = -1;
+  let closestDistance = drillRadius;
+
+  state.holds.forEach((hold, holdIndex) => {
+    if (hold.hazardType !== "obstacle" || hold.removed) {
+      return;
+    }
+
+    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestHoldIndex = holdIndex;
+    }
+  });
+
+  return closestHoldIndex;
+}
+
+function tickObstacleDrilling(state, viewportHeight) {
+  const obstacleRules = getObstacleRules(state);
+  const targetX = state.pointer.x;
+  const targetY = state.pointer.y + state.cameraY;
+  const drilledHoldIndex =
+    state.draggedLimbIndex === -1
+      ? -1
+      : getClosestDrillableObstacle(state, targetX, targetY, obstacleRules.drillRadius);
+
+  state.holds.forEach((hold, holdIndex) => {
+    if (hold.hazardType !== "obstacle" || hold.removed) {
+      return;
+    }
+
+    if (holdIndex !== drilledHoldIndex) {
+      hold.drillFrames = 0;
+      hold.hazardState = "solid";
+    }
+  });
+
+  if (drilledHoldIndex === -1) {
+    return false;
+  }
+
+  const obstacle = state.holds[drilledHoldIndex];
+  obstacle.drillFrames = (obstacle.drillFrames ?? 0) + 1;
+  obstacle.hazardState = "drilling";
+  applyStaminaDelta(state, -obstacleRules.staminaCostPerFrame);
+
+  if (obstacle.drillFrames >= obstacleRules.drillFramesRequired) {
+    obstacle.removed = true;
+    obstacle.hazardState = "destroyed";
+    pushParticles(state, obstacle.x, obstacle.y - state.cameraY, 28, "rgba(190, 190, 178, 0.9)");
+  }
+
+  if (state.stamina <= 0) {
+    resolveFailure(state, "exhaustion", viewportHeight);
+    return true;
+  }
+
+  return false;
+}
+
 function getAttachedLimbs(state) {
   return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1 && isHoldAvailable(state.holds[limb.attachedHoldIndex]));
 }
@@ -1372,6 +1443,7 @@ function getRouteSegmentForStance(routeSegments, stanceIndex) {
 function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
   const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
   const timedSoftChance = zoneProfile?.mechanicBudget?.timedSoft ?? 0;
+  const obstacleChance = zoneProfile?.mechanicBudget?.obstacle ?? 0;
 
   if (fragileChance > 0 && Math.random() < fragileChance) {
     return {
@@ -1391,6 +1463,20 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
       hazardState: "stable",
       attachedFrames: 0,
       collapseFrames: randomInt(timedSoftRules.collapseFramesMin, timedSoftRules.collapseFramesMax),
+    };
+  }
+
+  if (obstacleChance > 0 && Math.random() < obstacleChance) {
+    const obstacleRules = routeConfig.mechanicRules?.obstacle ?? {
+      radiusMin: 14,
+      radiusMax: 24,
+    };
+
+    return {
+      hazardType: "obstacle",
+      hazardState: "solid",
+      drillFrames: 0,
+      radius: randomBetween(obstacleRules.radiusMin, obstacleRules.radiusMax),
     };
   }
 
@@ -1484,11 +1570,12 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     routeSegments,
     levelId: levelConfig.id,
     levelLabel: levelConfig.label,
+    mechanicRules: routeConfig.mechanicRules ?? {},
   };
 }
 
 function isHoldAvailable(hold) {
-  return Boolean(hold && !hold.removed);
+  return Boolean(hold && !hold.removed && hold.hazardType !== "obstacle");
 }
 
 export function generateWall(viewportWidth, viewportHeight, levelId) {
@@ -1611,12 +1698,14 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     routeSegments,
     levelId: activeLevelId,
     levelLabel,
+    mechanicRules,
   } = generateWall(viewportWidth, viewportHeight, levelId);
 
   return {
     isPlaying: true,
     levelId: activeLevelId,
     levelLabel,
+    mechanicRules,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
@@ -2018,6 +2107,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   }
 
   if (tickTimedSoftHolds(state, viewportHeight)) {
+    return;
+  }
+
+  if (tickObstacleDrilling(state, viewportHeight)) {
     return;
   }
 

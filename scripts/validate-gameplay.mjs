@@ -341,12 +341,49 @@ function validateTimedSoftHoldCollapse() {
   return { holdIndex };
 }
 
+function validateDrillableObstacle() {
+  const state = createStableState();
+  const limb = state.player.limbs[0];
+  const obstacleIndex = state.holds.length - 1;
+  const obstacle = state.holds[obstacleIndex];
+
+  state.mechanicRules.obstacle = {
+    drillFramesRequired: 5,
+    drillRadius: 42,
+    staminaCostPerFrame: 0.1,
+  };
+  obstacle.hazardType = "obstacle";
+  obstacle.hazardState = "solid";
+  obstacle.removed = false;
+  obstacle.radius = 20;
+  obstacle.x = limb.x + 6;
+  obstacle.y = limb.y;
+
+  beginDrag(state, limb.x, limb.y - state.cameraY);
+
+  for (let index = 0; index < 6; index += 1) {
+    updatePointer(state, obstacle.x, obstacle.y - state.cameraY);
+    updateFrame(state, 1280, 720);
+  }
+
+  if (!obstacle.removed) {
+    throw new Error("Drillable obstacle did not break after sustained limb drilling");
+  }
+
+  if (state.stamina >= GAME_CONFIG.maxStamina) {
+    throw new Error("Drilling should consume stamina");
+  }
+
+  return { obstacleIndex };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
+const obstacleResult = validateDrillableObstacle();
 
 console.log(
   [
@@ -360,5 +397,6 @@ console.log(
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
+    `obstacle=${obstacleResult.obstacleIndex}`,
   ].join(" "),
 );

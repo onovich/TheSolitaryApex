@@ -27,6 +27,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - Wind pressure and hand injury systems that steadily destabilize bad decisions
 - Fragile noise holds that collapse after the player leaves them
 - Timed soft holds that collapse while loaded, forcing a faster transfer
+- Drillable obstacle stones that can block decoy space until broken at stamina cost
 - Two clear failure states: losing balance or climbing to exhaustion
 - Minimal, oppressive presentation focused on isolation and height
 
@@ -74,7 +75,7 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, and timed soft holds.
+The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, and drillable obstacles.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 

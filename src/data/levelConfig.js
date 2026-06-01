@@ -29,6 +29,13 @@ export const LEVEL_CONFIGS = [
           collapseFramesMin: 150,
           collapseFramesMax: 240,
         },
+        obstacle: {
+          drillFramesRequired: 54,
+          drillRadius: 42,
+          staminaCostPerFrame: 0.07,
+          radiusMin: 14,
+          radiusMax: 24,
+        },
       },
       zoneSequence: ["recovery", "reading", "exposure", "crux"],
       zones: {
@@ -174,6 +181,16 @@ export function validateLevelConfig(levelConfig) {
       "collapseFramesMin",
       "collapseFramesMax",
     );
+  }
+
+  if (routeGeneration.mechanicRules?.obstacle) {
+    assertRange(errors, routeGeneration.mechanicRules.obstacle, "radiusMin", "radiusMax");
+
+    ["drillFramesRequired", "drillRadius", "staminaCostPerFrame"].forEach((key) => {
+      if (typeof routeGeneration.mechanicRules.obstacle[key] !== "number") {
+        errors.push(`mechanicRules.obstacle.${key} must be a number`);
+      }
+    });
   }
 
   if (!Array.isArray(routeGeneration.zoneSequence) || routeGeneration.zoneSequence.length === 0) {

@@ -311,6 +311,43 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
+    if (hold.hazardType === "obstacle") {
+      const drillRatio = Math.max(0, Math.min(1, (hold.drillFrames ?? 0) / (state.mechanicRules?.obstacle?.drillFramesRequired ?? 54)));
+      const sides = 5;
+
+      ctx.save();
+      ctx.beginPath();
+      for (let index = 0; index < sides; index += 1) {
+        const angle = -Math.PI / 2 + (Math.PI * 2 * index) / sides;
+        const radius = hold.radius * (index % 2 === 0 ? 1 : 0.78);
+        const x = hold.x + Math.cos(angle) * radius;
+        const y = screenY + Math.sin(angle) * radius;
+
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+      ctx.fillStyle = hold.hazardState === "drilling" ? "#55534a" : "#2f2f2b";
+      ctx.fill();
+      ctx.strokeStyle = hold.hazardState === "drilling" ? "#d0c891" : "#777064";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      if (drillRatio > 0) {
+        ctx.beginPath();
+        ctx.arc(hold.x, screenY, hold.radius + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * drillRatio);
+        ctx.strokeStyle = "rgba(240, 213, 138, 0.75)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
     const holdRejected = (state.feedbackState?.dragRejectFrames ?? 0) > 0 && state.feedbackState?.holdIndex === state.holds.indexOf(hold);
