@@ -11,6 +11,7 @@ export function GameScreen() {
   const {
     canvasRef,
     gameStateRef,
+    levels,
     loadouts,
     viewport,
     uiState,
@@ -19,6 +20,7 @@ export function GameScreen() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
+    selectLevel,
     selectLoadout,
     updateSpatialScan,
     useInventoryItem,
@@ -45,8 +47,11 @@ export function GameScreen() {
         conditions={uiState.conditions}
         height={uiState.height}
         items={uiState.items}
+        levelId={uiState.levelId}
+        levels={levels}
         loadout={uiState.loadout}
         loadouts={loadouts}
+        onSelectLevel={selectLevel}
         movement={uiState.movement}
         onSelectLoadout={selectLoadout}
         onUseItem={useInventoryItem}

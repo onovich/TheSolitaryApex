@@ -18,6 +18,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 
 - Independent control for both hands and both feet
 - Golden-path wall generation with readable trap holds around a guaranteed route
+- Four selectable official route templates for mixed, resource-reading, pursuit-crux, and rescue-encounter pacing
 - Route content zoning that alternates recovery, reading, exposure, and crux sections along the ascent
 - Limb-specific reach constraints with asymmetric hand and foot movement envelopes
 - Stamina pressure that turns small mistakes into fatal ones
@@ -84,10 +85,10 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets.
+The current web build now includes guaranteed-solvable route generation, four selectable official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 
-Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, plus pressure rules for event spacing. Each level also has a stable `seed` so route changes are reproducible while tuning. Use `npm run validate:levels` to check level definitions, pressure rules, generated-route coverage, and seed repeatability before committing route template changes.
+Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, plus pressure rules for event spacing. Each level also has a stable `seed` so route changes are reproducible while tuning. The HUD level switcher restarts into any configured official template. Use `npm run validate:levels` to check level definitions, pressure rules, generated-route coverage, and seed repeatability before committing route template changes.
 
 Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.

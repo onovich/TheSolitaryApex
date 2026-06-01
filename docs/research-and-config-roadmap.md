@@ -32,6 +32,7 @@ npm run build
 ## Implemented Gameplay Prototypes
 
 - Guaranteed Golden Path route generation with seeded reproducibility.
+- Selectable official level templates: prototype mixed ascent, resource reading, pursuit crux, and rescue encounter.
 - Route zones: recovery, reading, exposure, crux.
 - Runtime Dyno tuning panel.
 - Selectable loadouts: steady, bold dyno, technical.
@@ -62,7 +63,8 @@ These tasks keep the prototype editable as mechanics accumulate.
 
 - Expand `levelConfig` into a clearer authoring contract:
   - Current status: each level now includes `authoring.templateId`, intended pace, authored controls, randomized controls, pressure rules, and required validators.
-  - Next step: add multiple named level templates with distinct route length, event timing, hazard budget, and resource budget.
+  - Current status: four named level templates now cover mixed prototype, resource reading, pursuit crux, and rescue encounter pacing.
+  - Next step: add per-template target ranges for expected stamina pressure and resource recovery.
   - Keep Golden Path reachability authored/validated rather than purely random.
 - Add stronger validation around route pacing:
   - Current status: `validate:levels` checks environment-event count and minimum spacing through `authoring.pressureRules`.

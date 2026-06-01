@@ -13,6 +13,7 @@ import {
   updatePointer,
 } from "../engine/gameEngine.js";
 import { DEFAULT_LOADOUT_ID, LOADOUT_CONFIGS } from "../../data/loadoutConfig.js";
+import { DEFAULT_LEVEL_ID, LEVEL_CONFIGS } from "../../data/levelConfig.js";
 
 const getViewport = () => ({
   width: window.innerWidth,
@@ -26,9 +27,12 @@ export function useSolitaryApexGame() {
   const frameRef = useRef(0);
   const [viewport, setViewport] = useState(getViewport);
   const [selectedLoadoutId, setSelectedLoadoutId] = useState(DEFAULT_LOADOUT_ID);
+  const [selectedLevelId, setSelectedLevelId] = useState(DEFAULT_LEVEL_ID);
   const [uiState, setUiState] = useState(() => ({
     frame: 0,
     isPlaying: true,
+    levelId: DEFAULT_LEVEL_ID,
+    levelLabel: "Prototype Ascent",
     loadout: {
       id: DEFAULT_LOADOUT_ID,
       label: "稳健",
@@ -149,7 +153,10 @@ export function useSolitaryApexGame() {
   }, []);
 
   useEffect(() => {
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, { loadoutId: selectedLoadoutId });
+    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, {
+      levelId: selectedLevelId,
+      loadoutId: selectedLoadoutId,
+    });
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
 
@@ -169,7 +176,7 @@ export function useSolitaryApexGame() {
     return () => {
       window.cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [selectedLoadoutId, viewport.height, viewport.width]);
+  }, [selectedLevelId, selectedLoadoutId, viewport.height, viewport.width]);
 
   const toCanvasPosition = (event) => {
     const canvas = canvasRef.current;
@@ -249,15 +256,26 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
-  const restartGame = (loadoutId = selectedLoadoutId) => {
-    setSelectedLoadoutId(loadoutId);
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, { loadoutId });
+  const restartGame = (loadoutId = selectedLoadoutId, levelId = selectedLevelId) => {
+    const nextLoadoutId = typeof loadoutId === "string" ? loadoutId : selectedLoadoutId;
+    const nextLevelId = typeof levelId === "string" ? levelId : selectedLevelId;
+
+    setSelectedLoadoutId(nextLoadoutId);
+    setSelectedLevelId(nextLevelId);
+    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, {
+      levelId: nextLevelId,
+      loadoutId: nextLoadoutId,
+    });
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
   };
 
   const selectLoadout = (loadoutId) => {
-    restartGame(loadoutId);
+    restartGame(loadoutId, selectedLevelId);
+  };
+
+  const selectLevel = (levelId) => {
+    restartGame(selectedLoadoutId, levelId);
   };
 
   const useInventoryItem = (itemId) => {
@@ -283,12 +301,14 @@ export function useSolitaryApexGame() {
     gameStateRef,
     viewport,
     uiState,
+    levels: LEVEL_CONFIGS,
     loadouts: LOADOUT_CONFIGS,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handlePointerCancel,
     restartGame,
+    selectLevel,
     selectLoadout,
     updateSpatialScan,
     useInventoryItem,

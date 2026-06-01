@@ -210,6 +210,332 @@ export const LEVEL_CONFIGS = [
   },
 ];
 
+function createAuthoring({
+  templateId,
+  intendedPace,
+  authoredControls = LEVEL_CONFIGS[0].authoring.authoredControls,
+  randomizedControls = LEVEL_CONFIGS[0].authoring.randomizedControls,
+  pressureRules = LEVEL_CONFIGS[0].authoring.pressureRules,
+}) {
+  return {
+    templateId,
+    intendedPace,
+    authoredControls: [...authoredControls],
+    randomizedControls: [...randomizedControls],
+    pressureRules: { ...pressureRules },
+    requiredValidators: [...LEVEL_CONFIGS[0].authoring.requiredValidators],
+  };
+}
+
+function cloneZone(zoneKey, overrides = {}) {
+  const baseZone = LEVEL_CONFIGS[0].routeGeneration.zones[zoneKey];
+
+  return {
+    ...baseZone,
+    ...overrides,
+    routeHoldTypes: [...(overrides.routeHoldTypes ?? baseZone.routeHoldTypes)],
+    noiseHoldTypes: [...(overrides.noiseHoldTypes ?? baseZone.noiseHoldTypes)],
+    mechanicBudget: {
+      ...baseZone.mechanicBudget,
+      ...(overrides.mechanicBudget ?? {}),
+    },
+  };
+}
+
+function cloneRouteGeneration(overrides = {}) {
+  const baseRoute = LEVEL_CONFIGS[0].routeGeneration;
+  const baseSpatial = baseRoute.spatialExperiment;
+  const spatialOverrides = overrides.spatialExperiment ?? {};
+  const zoneOverrides = overrides.zones ?? {};
+  const mechanicRuleOverrides = overrides.mechanicRules ?? {};
+
+  return {
+    ...baseRoute,
+    ...overrides,
+    spatialExperiment:
+      overrides.spatialExperiment === null
+        ? null
+        : {
+            ...baseSpatial,
+            ...spatialOverrides,
+            goldenLaneDepths: {
+              ...baseSpatial.goldenLaneDepths,
+              ...(spatialOverrides.goldenLaneDepths ?? {}),
+            },
+          },
+    mechanicRules: {
+      timedSoft: {
+        ...baseRoute.mechanicRules.timedSoft,
+        ...(mechanicRuleOverrides.timedSoft ?? {}),
+      },
+      obstacle: {
+        ...baseRoute.mechanicRules.obstacle,
+        ...(mechanicRuleOverrides.obstacle ?? {}),
+      },
+      resourceFruit: {
+        ...baseRoute.mechanicRules.resourceFruit,
+        ...(mechanicRuleOverrides.resourceFruit ?? {}),
+      },
+    },
+    zoneSequence: [...(overrides.zoneSequence ?? baseRoute.zoneSequence)],
+    zones: Object.fromEntries(
+      Object.keys(baseRoute.zones).map((zoneKey) => [zoneKey, cloneZone(zoneKey, zoneOverrides[zoneKey] ?? {})]),
+    ),
+  };
+}
+
+LEVEL_CONFIGS.push(
+  {
+    id: "resource-reading-ascent",
+    label: "Resource Reading",
+    description: "A gentler route that teaches fruit routing, thirst pressure, and decoy recognition.",
+    seed: "resource-reading-2026-06",
+    wallHeight: 8200,
+    authoring: createAuthoring({
+      templateId: "resource-reading",
+      intendedPace: "Longer reading beats with more fruit choices and lighter environmental pressure.",
+      pressureRules: {
+        minEnvironmentEventSpacingFrames: 480,
+        maxEnvironmentEvents: 2,
+      },
+    }),
+    environmentEvents: [
+      {
+        id: "resource-avalanche",
+        type: "avalanche",
+        startFrame: 1800,
+        durationFrames: 150,
+        affectedNoiseCount: 6,
+        earliestStanceIndex: 16,
+      },
+    ],
+    pursuit: null,
+    ropeThreat: {
+      startDelayFrames: 270,
+      climbSpeed: 0.0032,
+      dangerProgress: 0.78,
+      staminaPenalty: 0.035,
+      disableProgress: 1,
+    },
+    rescueTargets: [],
+    routeGeneration: cloneRouteGeneration({
+      centerDrift: 68,
+      noiseCountMin: 1,
+      noiseCountMax: 4,
+      zoneSequence: ["recovery", "reading", "reading", "exposure"],
+      zones: {
+        recovery: {
+          segmentSpanMin: 5,
+          segmentSpanMax: 7,
+          staminaModifier: 0.035,
+          mechanicBudget: {
+            resource: 0.08,
+          },
+        },
+        reading: {
+          segmentSpanMin: 6,
+          segmentSpanMax: 8,
+          noiseCountMin: 3,
+          noiseCountMax: 5,
+          mechanicBudget: {
+            fragile: 0.05,
+            resource: 0.12,
+          },
+        },
+        exposure: {
+          windMultiplier: 1.25,
+          staminaModifier: -0.002,
+          mechanicBudget: {
+            fragile: 0.08,
+            timedSoft: 0.03,
+            resource: 0.06,
+          },
+        },
+        crux: {
+          mechanicBudget: {
+            fragile: 0.12,
+            timedSoft: 0.04,
+            obstacle: 0.02,
+          },
+        },
+      },
+    }),
+  },
+  {
+    id: "pursuit-crux-ascent",
+    label: "Pursuit Crux",
+    description: "A faster route that stacks pursuit tempo with sharper exposure and crux decisions.",
+    seed: "pursuit-crux-2026-06",
+    wallHeight: 9200,
+    authoring: createAuthoring({
+      templateId: "pursuit-crux",
+      intendedPace: "Earlier pursuit pressure, tighter crux segments, and fewer recovery resources.",
+      pressureRules: {
+        minEnvironmentEventSpacingFrames: 420,
+        maxEnvironmentEvents: 3,
+      },
+    }),
+    environmentEvents: [
+      {
+        id: "crux-quake",
+        type: "earthquake",
+        startFrame: 720,
+        durationFrames: 120,
+        fragileNoiseCount: 9,
+        earliestStanceIndex: 7,
+      },
+      {
+        id: "crux-avalanche",
+        type: "avalanche",
+        startFrame: 1650,
+        durationFrames: 160,
+        affectedNoiseCount: 8,
+        earliestStanceIndex: 13,
+      },
+    ],
+    pursuit: {
+      startFrame: 820,
+      speed: 0.048,
+      dangerGap: 20,
+      staminaPenalty: 0.065,
+    },
+    ropeThreat: {
+      startDelayFrames: 150,
+      climbSpeed: 0.0055,
+      dangerProgress: 0.68,
+      staminaPenalty: 0.065,
+      disableProgress: 1,
+    },
+    rescueTargets: [],
+    routeGeneration: cloneRouteGeneration({
+      centerDrift: 104,
+      noiseCountMin: 1,
+      noiseCountMax: 3,
+      zoneSequence: ["recovery", "reading", "exposure", "crux", "crux"],
+      zones: {
+        recovery: {
+          segmentSpanMin: 3,
+          segmentSpanMax: 5,
+          staminaModifier: 0.018,
+        },
+        reading: {
+          segmentSpanMin: 4,
+          segmentSpanMax: 6,
+          mechanicBudget: {
+            fragile: 0.1,
+            resource: 0.02,
+          },
+        },
+        exposure: {
+          windMultiplier: 2,
+          staminaModifier: -0.01,
+          mechanicBudget: {
+            fragile: 0.16,
+            timedSoft: 0.08,
+          },
+        },
+        crux: {
+          segmentSpanMin: 3,
+          segmentSpanMax: 4,
+          routeHoldTypes: [1, 2, 2, 2],
+          mechanicBudget: {
+            fragile: 0.22,
+            timedSoft: 0.14,
+            obstacle: 0.06,
+            resource: 0,
+          },
+        },
+      },
+    }),
+  },
+  {
+    id: "rescue-encounter-ascent",
+    label: "Rescue Encounter",
+    description: "A route that foregrounds protection as a collaboration tool through multiple rescue targets.",
+    seed: "rescue-encounter-2026-06",
+    wallHeight: 8800,
+    authoring: createAuthoring({
+      templateId: "rescue-encounter",
+      intendedPace: "Moderate route pressure with protection decisions pulled toward rescue targets.",
+      pressureRules: {
+        minEnvironmentEventSpacingFrames: 540,
+        maxEnvironmentEvents: 2,
+      },
+    }),
+    environmentEvents: [
+      {
+        id: "rescue-quake",
+        type: "earthquake",
+        startFrame: 1500,
+        durationFrames: 140,
+        fragileNoiseCount: 8,
+        earliestStanceIndex: 12,
+      },
+    ],
+    pursuit: null,
+    ropeThreat: {
+      startDelayFrames: 240,
+      climbSpeed: 0.0038,
+      dangerProgress: 0.74,
+      staminaPenalty: 0.045,
+      disableProgress: 1,
+    },
+    rescueTargets: [
+      {
+        id: "injured-climber-early",
+        stanceIndex: 14,
+        offsetX: -104,
+        offsetY: -24,
+        radius: 12,
+        rescueRadius: 150,
+      },
+      {
+        id: "injured-climber-high",
+        stanceIndex: 28,
+        offsetX: 116,
+        offsetY: -30,
+        radius: 12,
+        rescueRadius: 155,
+      },
+    ],
+    routeGeneration: cloneRouteGeneration({
+      centerDrift: 78,
+      zoneSequence: ["recovery", "reading", "exposure", "reading", "crux"],
+      zones: {
+        recovery: {
+          staminaModifier: 0.03,
+          mechanicBudget: {
+            resource: 0.04,
+          },
+        },
+        reading: {
+          noiseCountMin: 2,
+          noiseCountMax: 4,
+          mechanicBudget: {
+            fragile: 0.07,
+            resource: 0.06,
+          },
+        },
+        exposure: {
+          windMultiplier: 1.45,
+          mechanicBudget: {
+            fragile: 0.12,
+            timedSoft: 0.04,
+            resource: 0.03,
+          },
+        },
+        crux: {
+          mechanicBudget: {
+            fragile: 0.16,
+            timedSoft: 0.08,
+            obstacle: 0.03,
+          },
+        },
+      },
+    }),
+  },
+);
+
 export function getLevelConfig(levelId = DEFAULT_LEVEL_ID) {
   return LEVEL_CONFIGS.find((levelConfig) => levelConfig.id === levelId) ?? LEVEL_CONFIGS[0];
 }

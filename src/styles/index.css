@@ -61,6 +61,7 @@ select {
   gap: 12px;
 }
 
+.level-switcher,
 .loadout-switcher {
   pointer-events: auto;
   display: flex;
@@ -68,20 +69,28 @@ select {
   border: 1px solid #555555;
 }
 
+.level-button,
 .loadout-button {
   min-width: 58px;
+  max-width: 150px;
   padding: 0 10px;
   background: rgba(0, 0, 0, 0.45);
   color: #9a9a9a;
   border: 0;
   border-right: 1px solid #555555;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+.level-button:last-child,
 .loadout-button:last-child {
   border-right: 0;
 }
 
+.level-button:hover,
+.level-button.is-active,
 .loadout-button:hover,
 .loadout-button.is-active {
   color: #f0d58a;

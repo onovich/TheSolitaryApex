@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from "../src/data/gameConfig.js";
+import { LEVEL_CONFIGS } from "../src/data/levelConfig.js";
 import {
   beginBodyAction,
   beginDynoCharge,
@@ -291,6 +292,42 @@ function validateLoadouts() {
     steadyDynoCost,
     boldDynoCost,
     technicalGel: getCount(technicalItems, "energyGel"),
+  };
+}
+
+function validateLevelTemplates() {
+  const levelIds = LEVEL_CONFIGS.map((levelConfig) => levelConfig.id);
+
+  if (levelIds.length < 4) {
+    throw new Error(`Expected at least four official level templates, got ${levelIds.length}`);
+  }
+
+  const resourceState = createStableState({ levelId: "resource-reading-ascent", loadoutId: "steadyRack" });
+  const pursuitState = createStableState({ levelId: "pursuit-crux-ascent", loadoutId: "boldDyno" });
+  const rescueState = createStableState({ levelId: "rescue-encounter-ascent", loadoutId: "steadyRack" });
+
+  if (resourceState.pursuit) {
+    throw new Error("Resource-reading level should not start with pursuit pressure configured");
+  }
+
+  if (!pursuitState.pursuit || pursuitState.routeSegments.filter((segment) => segment.zoneKey === "crux").length < 2) {
+    throw new Error("Pursuit-crux level should configure pursuit and multiple crux segments");
+  }
+
+  if (rescueState.holds.filter((hold) => hold.hazardType === "rescueTarget").length !== 2) {
+    throw new Error("Rescue encounter level should generate two rescue targets");
+  }
+
+  const snapshot = getUiSnapshot(pursuitState, 0);
+
+  if (snapshot.levelId !== "pursuit-crux-ascent" || snapshot.loadout.id !== "boldDyno") {
+    throw new Error("Level/loadout selection did not survive initial state snapshot");
+  }
+
+  return {
+    levelCount: levelIds.length,
+    pursuitCruxSegments: pursuitState.routeSegments.filter((segment) => segment.zoneKey === "crux").length,
+    rescueTargets: rescueState.holds.filter((hold) => hold.hazardType === "rescueTarget").length,
   };
 }
 
@@ -682,6 +719,7 @@ const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
+const levelTemplateResult = validateLevelTemplates();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -704,6 +742,9 @@ console.log(
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,
+    `levels=${levelTemplateResult.levelCount}`,
+    `pursuitCruxSegments=${levelTemplateResult.pursuitCruxSegments}`,
+    `rescueTargets=${levelTemplateResult.rescueTargets}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,

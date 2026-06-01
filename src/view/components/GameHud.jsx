@@ -5,9 +5,12 @@ export function GameHud({
   fall,
   height,
   items,
+  levelId,
+  levels,
   loadout,
   loadouts,
   movement,
+  onSelectLevel,
   onSelectLoadout,
   onUseItem,
   recovery,
@@ -122,6 +125,19 @@ export function GameHud({
             </div>
           </div>
           <div className="hud-actions">
+            <div className="level-switcher" aria-label="Level">
+              {levels.map((levelOption) => (
+                <button
+                  key={levelOption.id}
+                  className={`level-button${levelOption.id === levelId ? " is-active" : ""}`}
+                  type="button"
+                  onClick={() => onSelectLevel(levelOption.id)}
+                  title={levelOption.description}
+                >
+                  {levelOption.label}
+                </button>
+              ))}
+            </div>
             <div className="loadout-switcher" aria-label="Loadout">
               {loadouts.map((loadoutOption) => (
                 <button
