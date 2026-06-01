@@ -90,6 +90,12 @@ export function useSolitaryApexGame() {
         totalFrames: 0,
         triggeredEventIds: [],
       },
+      encounter: {
+        pursuitActive: false,
+        threatHeight: 0,
+        gap: Infinity,
+        danger: false,
+      },
     },
     tutorialVisible: true,
     endMessage: null,

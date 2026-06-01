@@ -486,6 +486,33 @@ function validateEarthquakeEvent() {
   return { alteredCount: alteredHolds.length };
 }
 
+function validatePursuitPressure() {
+  const pursuitState = createStableState();
+  const controlState = createStableState();
+
+  pursuitState.pursuit = {
+    startFrame: 1,
+    speed: 1,
+    dangerGap: 999,
+    staminaPenalty: 0.5,
+  };
+  pursuitState.stamina = 80;
+  controlState.stamina = 80;
+
+  updateFrame(pursuitState, 1280, 720);
+  updateFrame(controlState, 1280, 720);
+
+  if (!pursuitState.conditionState.encounter.pursuitActive || !pursuitState.conditionState.encounter.danger) {
+    throw new Error("Pursuit pressure did not activate and enter danger state");
+  }
+
+  if (pursuitState.stamina >= controlState.stamina) {
+    throw new Error("Pursuit danger should add stamina pressure compared with a control state");
+  }
+
+  return { gap: pursuitState.conditionState.encounter.gap };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -496,6 +523,7 @@ const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
+const pursuitResult = validatePursuitPressure();
 
 console.log(
   [
@@ -513,5 +541,6 @@ console.log(
     `obstacle=${obstacleResult.obstacleIndex}`,
     `fruit=${fruitResult.fruitIndex}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
+    `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
   ].join(" "),
 );

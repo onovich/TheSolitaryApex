@@ -16,6 +16,12 @@ export const LEVEL_CONFIGS = [
         earliestStanceIndex: 8,
       },
     ],
+    pursuit: {
+      startFrame: 1350,
+      speed: 0.035,
+      dangerGap: 18,
+      staminaPenalty: 0.05,
+    },
     routeGeneration: {
       centerDrift: 84,
       corridorPadding: 140,
@@ -194,6 +200,14 @@ export function validateLevelConfig(levelConfig) {
       errors.push(`${eventConfig.id}.type is unsupported: ${eventConfig.type}`);
     }
   });
+
+  if (levelConfig?.pursuit) {
+    ["startFrame", "speed", "dangerGap", "staminaPenalty"].forEach((key) => {
+      if (typeof levelConfig.pursuit[key] !== "number" || levelConfig.pursuit[key] < 0) {
+        errors.push(`pursuit.${key} must be a non-negative number`);
+      }
+    });
+  }
 
   const routeGeneration = levelConfig?.routeGeneration;
 

@@ -312,6 +312,24 @@ function drawScene(canvas, state, viewport) {
     ctx.stroke();
   }
 
+  if (state.conditionState?.encounter?.pursuitActive) {
+    const threatWorldY = viewport.height - state.conditionState.encounter.threatHeight * GAME_CONFIG.heightScale;
+    const threatScreenY = threatWorldY - state.cameraY;
+
+    if (threatScreenY > -40 && threatScreenY < viewport.height + 80) {
+      ctx.save();
+      ctx.strokeStyle = state.conditionState.encounter.danger ? "rgba(255, 110, 110, 0.8)" : "rgba(180, 90, 90, 0.45)";
+      ctx.lineWidth = state.conditionState.encounter.danger ? 3 : 2;
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath();
+      ctx.moveTo(0, threatScreenY);
+      ctx.lineTo(viewport.width, threatScreenY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+  }
+
   state.holds.forEach((hold) => {
     if (hold.removed) {
       return;

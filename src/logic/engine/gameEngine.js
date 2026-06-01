@@ -182,6 +182,12 @@ function createInitialConditionState() {
       totalFrames: 0,
       triggeredEventIds: [],
     },
+    encounter: {
+      pursuitActive: false,
+      threatHeight: 0,
+      gap: Infinity,
+      danger: false,
+    },
   };
 }
 
@@ -514,6 +520,24 @@ function tickEnvironmentEvents(state) {
   if (nextEvent) {
     activateEnvironmentEvent(state, nextEvent);
   }
+}
+
+function getCurrentHeight(state, viewportHeight) {
+  return Math.max(0, Math.floor((viewportHeight - state.player.com.y) / GAME_CONFIG.heightScale));
+}
+
+function tickPursuitState(state, viewportHeight) {
+  const pursuitConfig = state.pursuit;
+  const pursuitState = state.conditionState.encounter;
+
+  if (!pursuitConfig || state.frame < pursuitConfig.startFrame) {
+    return;
+  }
+
+  pursuitState.pursuitActive = true;
+  pursuitState.threatHeight += pursuitConfig.speed;
+  pursuitState.gap = getCurrentHeight(state, viewportHeight) - pursuitState.threatHeight;
+  pursuitState.danger = pursuitState.gap <= pursuitConfig.dangerGap;
 }
 
 function getAttachedLimbs(state) {
@@ -1733,6 +1757,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     levelLabel: levelConfig.label,
     mechanicRules: routeConfig.mechanicRules ?? {},
     environmentEvents: levelConfig.environmentEvents ?? [],
+    pursuit: levelConfig.pursuit ?? null,
   };
 }
 
@@ -1864,6 +1889,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     levelLabel,
     mechanicRules,
     environmentEvents,
+    pursuit,
   } = generateWall(viewportWidth, viewportHeight, activeLevelId);
 
   return {
@@ -1873,6 +1899,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     loadout,
     mechanicRules,
     environmentEvents,
+    pursuit,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
@@ -1962,6 +1989,7 @@ export function getUiSnapshot(state, frame) {
       injury: { ...state.conditionState.injury },
       survival: { ...state.conditionState.survival },
       environment: { ...state.conditionState.environment },
+      encounter: { ...state.conditionState.encounter },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
@@ -2258,7 +2286,7 @@ function updateDynoFlightState(state, currentRouteSegment, viewportHeight) {
 }
 
 function updateHeightAndCamera(state, viewportHeight) {
-  const currentHeight = Math.max(0, Math.floor((viewportHeight - state.player.com.y) / GAME_CONFIG.heightScale));
+  const currentHeight = getCurrentHeight(state, viewportHeight);
 
   if (currentHeight > state.maxHeightReached) {
     state.maxHeightReached = currentHeight;
@@ -2281,6 +2309,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   updateWeatherState(state);
   tickSurvivalPressure(state);
   tickEnvironmentEvents(state);
+  tickPursuitState(state, viewportHeight);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
@@ -2413,6 +2442,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
       staminaChange -=
         (state.conditionState.survival.thirst - GAME_CONFIG.conditions.survival.highThirstThreshold) *
         GAME_CONFIG.conditions.survival.staminaPenaltyScale;
+    }
+
+    if (state.conditionState.encounter.danger) {
+      staminaChange -= state.pursuit?.staminaPenalty ?? 0;
     }
 
     staminaChange += currentRouteSegment.staminaModifier;

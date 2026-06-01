@@ -24,6 +24,7 @@ export function GameHud({
   const injuryState = conditions?.injury;
   const survivalState = conditions?.survival;
   const environmentState = conditions?.environment;
+  const encounterState = conditions?.encounter;
 
   if (staminaPercent <= 30) {
     staminaColor = "#e74c3c";
@@ -163,6 +164,11 @@ export function GameHud({
           {environmentState?.activeEventId ? (
             <div className="status-pill is-environment-event">
               {UI_TEXT.eventLabel}: {environmentState.type === "earthquake" ? UI_TEXT.earthquakeLabel : environmentState.type}
+            </div>
+          ) : null}
+          {encounterState?.pursuitActive ? (
+            <div className={`status-pill${encounterState.danger ? " is-pursuit-danger" : " is-pursuit"}`}>
+              {UI_TEXT.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
             </div>
           ) : null}
           <div className={launchClassName}>

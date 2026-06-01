@@ -229,6 +229,16 @@ select {
   border-color: #8a7440;
 }
 
+.status-pill.is-pursuit {
+  color: #d8adad;
+  border-color: #744d4d;
+}
+
+.status-pill.is-pursuit-danger {
+  color: #ff9a9a;
+  border-color: #a84b4b;
+}
+
 .status-pill.is-launch-ready {
   color: #f0d58a;
   border-color: #8e7840;
