@@ -224,6 +224,11 @@ select {
   border-color: #597847;
 }
 
+.status-pill.is-environment-event {
+  color: #e3c677;
+  border-color: #8a7440;
+}
+
 .status-pill.is-launch-ready {
   color: #f0d58a;
   border-color: #8e7840;

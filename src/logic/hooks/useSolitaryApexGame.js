@@ -83,6 +83,13 @@ export function useSolitaryApexGame() {
         fruitCollected: 0,
         senseFrames: 0,
       },
+      environment: {
+        activeEventId: null,
+        type: "none",
+        remainingFrames: 0,
+        totalFrames: 0,
+        triggeredEventIds: [],
+      },
     },
     tutorialVisible: true,
     endMessage: null,

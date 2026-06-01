@@ -453,6 +453,39 @@ function validateResourceFruit() {
   return { fruitIndex };
 }
 
+function validateEarthquakeEvent() {
+  const state = createStableState();
+
+  state.environmentEvents = [
+    {
+      id: "test-quake",
+      type: "earthquake",
+      startFrame: 1,
+      durationFrames: 4,
+      fragileNoiseCount: 5,
+      earliestStanceIndex: 1,
+    },
+  ];
+
+  updateFrame(state, 1280, 720);
+
+  const alteredHolds = state.holds.filter((hold) => hold.eventAltered === "test-quake");
+
+  if (state.conditionState.environment.activeEventId !== "test-quake") {
+    throw new Error("Earthquake event did not activate at its configured start frame");
+  }
+
+  if (alteredHolds.length !== 5) {
+    throw new Error(`Earthquake should alter five noise holds, got ${alteredHolds.length}`);
+  }
+
+  if (alteredHolds.some((hold) => hold.routeRole !== "noise" || hold.hazardType !== "fragile")) {
+    throw new Error("Earthquake altered a non-noise hold or failed to mark altered holds as fragile");
+  }
+
+  return { alteredCount: alteredHolds.length };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -462,6 +495,7 @@ const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
+const earthquakeResult = validateEarthquakeEvent();
 
 console.log(
   [
@@ -478,5 +512,6 @@ console.log(
     `timedSoftHold=${timedSoftResult.holdIndex}`,
     `obstacle=${obstacleResult.obstacleIndex}`,
     `fruit=${fruitResult.fruitIndex}`,
+    `quakeAltered=${earthquakeResult.alteredCount}`,
   ].join(" "),
 );

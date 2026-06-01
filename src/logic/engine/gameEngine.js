@@ -175,6 +175,13 @@ function createInitialConditionState() {
       fruitCollected: 0,
       senseFrames: 0,
     },
+    environment: {
+      activeEventId: null,
+      type: "none",
+      remainingFrames: 0,
+      totalFrames: 0,
+      triggeredEventIds: [],
+    },
   };
 }
 
@@ -440,6 +447,72 @@ function tickResourceCollection(state) {
 
   if (closestHoldIndex !== -1) {
     collectResourceFruit(state, closestHoldIndex);
+  }
+}
+
+function activateEarthquakeEvent(state, eventConfig) {
+  const candidates = state.holds
+    .map((hold, holdIndex) => ({ hold, holdIndex }))
+    .filter(
+      ({ hold }) =>
+        hold.routeRole === "noise" &&
+        hold.stanceIndex >= eventConfig.earliestStanceIndex &&
+        !hold.hazardType &&
+        !hold.removed,
+    );
+  const alteredCount = Math.min(eventConfig.fragileNoiseCount, candidates.length);
+
+  for (let index = 0; index < alteredCount; index += 1) {
+    const candidateIndex = randomInt(index, candidates.length - 1);
+    const selected = candidates[candidateIndex];
+
+    candidates[candidateIndex] = candidates[index];
+    candidates[index] = selected;
+    selected.hold.hazardType = "fragile";
+    selected.hold.hazardState = "intact";
+    selected.hold.eventAltered = eventConfig.id;
+    pushParticles(state, selected.hold.x, selected.hold.y - state.cameraY, 8, "rgba(210, 190, 140, 0.72)");
+  }
+
+  return alteredCount;
+}
+
+function activateEnvironmentEvent(state, eventConfig) {
+  const environmentState = state.conditionState.environment;
+
+  environmentState.activeEventId = eventConfig.id;
+  environmentState.type = eventConfig.type;
+  environmentState.remainingFrames = eventConfig.durationFrames;
+  environmentState.totalFrames = eventConfig.durationFrames;
+  environmentState.triggeredEventIds.push(eventConfig.id);
+
+  if (eventConfig.type === "earthquake") {
+    environmentState.alteredHoldCount = activateEarthquakeEvent(state, eventConfig);
+  }
+}
+
+function tickEnvironmentEvents(state) {
+  const environmentState = state.conditionState.environment;
+
+  if (environmentState.remainingFrames > 0) {
+    environmentState.remainingFrames -= 1;
+
+    if (environmentState.remainingFrames === 0) {
+      environmentState.activeEventId = null;
+      environmentState.type = "none";
+      environmentState.totalFrames = 0;
+    }
+
+    return;
+  }
+
+  const nextEvent = state.environmentEvents.find(
+    (eventConfig) =>
+      state.frame >= eventConfig.startFrame && !environmentState.triggeredEventIds.includes(eventConfig.id),
+  );
+
+  if (nextEvent) {
+    activateEnvironmentEvent(state, nextEvent);
   }
 }
 
@@ -1659,6 +1732,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     levelId: levelConfig.id,
     levelLabel: levelConfig.label,
     mechanicRules: routeConfig.mechanicRules ?? {},
+    environmentEvents: levelConfig.environmentEvents ?? [],
   };
 }
 
@@ -1789,6 +1863,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     levelId: resolvedLevelId,
     levelLabel,
     mechanicRules,
+    environmentEvents,
   } = generateWall(viewportWidth, viewportHeight, activeLevelId);
 
   return {
@@ -1797,6 +1872,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     levelLabel,
     loadout,
     mechanicRules,
+    environmentEvents,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
@@ -1885,6 +1961,7 @@ export function getUiSnapshot(state, frame) {
       },
       injury: { ...state.conditionState.injury },
       survival: { ...state.conditionState.survival },
+      environment: { ...state.conditionState.environment },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
@@ -2203,6 +2280,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   advanceDynoCharge(state);
   updateWeatherState(state);
   tickSurvivalPressure(state);
+  tickEnvironmentEvents(state);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);

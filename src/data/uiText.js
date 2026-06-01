@@ -43,6 +43,8 @@ export const UI_TEXT = {
   injuryBloodiedLabel: "流血",
   injurySevereLabel: "重伤",
   thirstLabel: "饥渴",
+  eventLabel: "环境",
+  earthquakeLabel: "震动",
   tutorial: "拖拽手脚圆环移动到上方岩点。\n先打保护点，再长按身体并向下反拉完成弹射。",
   restart: "重新攀登",
 };

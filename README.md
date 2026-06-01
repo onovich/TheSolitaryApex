@@ -31,6 +31,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - Drillable obstacle stones that can block decoy space until broken at stamina cost
 - Collectible fruit resources that relieve thirst pressure and restore stamina
 - A restrained sensory-flow overlay that briefly activates after fruit collection
+- Configured earthquake events that destabilize decoy holds without breaking the golden path
 - Two clear failure states: losing balance or climbing to exhaustion
 - Minimal, oppressive presentation focused on isolation and height
 
@@ -78,7 +79,7 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, and three selectable loadouts.
+The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, and a first earthquake event prototype.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 

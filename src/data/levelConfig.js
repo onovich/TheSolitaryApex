@@ -6,6 +6,16 @@ export const LEVEL_CONFIGS = [
     label: "Prototype Ascent",
     description: "Default endless prototype route with readable recovery, route-reading, exposure, and crux beats.",
     wallHeight: 10000,
+    environmentEvents: [
+      {
+        id: "first-quake",
+        type: "earthquake",
+        startFrame: 900,
+        durationFrames: 150,
+        fragileNoiseCount: 12,
+        earliestStanceIndex: 8,
+      },
+    ],
     routeGeneration: {
       centerDrift: 84,
       corridorPadding: 140,
@@ -168,6 +178,22 @@ export function validateLevelConfig(levelConfig) {
   if (typeof levelConfig?.wallHeight !== "number" || levelConfig.wallHeight <= 0) {
     errors.push(`${levelConfig?.id ?? "unknown"} wallHeight must be positive`);
   }
+
+  (levelConfig?.environmentEvents ?? []).forEach((eventConfig) => {
+    if (!eventConfig.id) {
+      errors.push(`${levelConfig.id} environment event id is required`);
+    }
+
+    ["startFrame", "durationFrames", "fragileNoiseCount", "earliestStanceIndex"].forEach((key) => {
+      if (!Number.isInteger(eventConfig[key]) || eventConfig[key] < 0) {
+        errors.push(`${eventConfig.id}.${key} must be a non-negative integer`);
+      }
+    });
+
+    if (!["earthquake"].includes(eventConfig.type)) {
+      errors.push(`${eventConfig.id}.type is unsupported: ${eventConfig.type}`);
+    }
+  });
 
   const routeGeneration = levelConfig?.routeGeneration;
 

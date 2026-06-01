@@ -23,6 +23,7 @@ export function GameHud({
   const weatherState = conditions?.weather;
   const injuryState = conditions?.injury;
   const survivalState = conditions?.survival;
+  const environmentState = conditions?.environment;
 
   if (staminaPercent <= 30) {
     staminaColor = "#e74c3c";
@@ -159,6 +160,11 @@ export function GameHud({
           <div className={`status-pill${thirst >= 70 ? " is-thirsty" : ""}`}>
             {UI_TEXT.thirstLabel}: {thirst}%
           </div>
+          {environmentState?.activeEventId ? (
+            <div className="status-pill is-environment-event">
+              {UI_TEXT.eventLabel}: {environmentState.type === "earthquake" ? UI_TEXT.earthquakeLabel : environmentState.type}
+            </div>
+          ) : null}
           <div className={launchClassName}>
             {UI_TEXT.launchLabel}: {launchLabel}
           </div>

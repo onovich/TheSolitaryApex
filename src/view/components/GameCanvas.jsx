@@ -290,6 +290,18 @@ function drawScene(canvas, state, viewport) {
 
   ctx.fillStyle = GAME_CONFIG.palette.background;
   ctx.fillRect(0, 0, viewport.width, viewport.height);
+  ctx.save();
+
+  if (state.conditionState?.environment?.type === "earthquake") {
+    const eventRatio =
+      state.conditionState.environment.totalFrames > 0
+        ? state.conditionState.environment.remainingFrames / state.conditionState.environment.totalFrames
+        : 0;
+    const shake = 5 * eventRatio;
+
+    ctx.translate(Math.sin(Date.now() / 34) * shake, Math.cos(Date.now() / 41) * shake * 0.7);
+  }
+
   ctx.strokeStyle = GAME_CONFIG.palette.wallGrid;
   ctx.lineWidth = 1;
 
@@ -399,6 +411,7 @@ function drawScene(canvas, state, viewport) {
   drawDynoSling(ctx, state);
   drawPlayer(ctx, state, viewport.height);
   drawParticles(ctx, state.particles);
+  ctx.restore();
 }
 
 export function GameCanvas({
