@@ -24,6 +24,12 @@ export const LEVEL_CONFIGS = [
       noiseOffsetX: 150,
       noiseOffsetY: 72,
       routeSafetyBuffer: 12,
+      mechanicRules: {
+        timedSoft: {
+          collapseFramesMin: 150,
+          collapseFramesMax: 240,
+        },
+      },
       zoneSequence: ["recovery", "reading", "exposure", "crux"],
       zones: {
         recovery: {
@@ -161,6 +167,15 @@ export function validateLevelConfig(levelConfig) {
     assertRange(errors, routeGeneration, `${rangeName}Min`, `${rangeName}Max`);
   });
 
+  if (routeGeneration.mechanicRules?.timedSoft) {
+    assertRange(
+      errors,
+      routeGeneration.mechanicRules.timedSoft,
+      "collapseFramesMin",
+      "collapseFramesMax",
+    );
+  }
+
   if (!Array.isArray(routeGeneration.zoneSequence) || routeGeneration.zoneSequence.length === 0) {
     errors.push("routeGeneration.zoneSequence must be a non-empty array");
   }
@@ -190,4 +205,3 @@ export function validateLevelConfig(levelConfig) {
 
   return errors;
 }
-

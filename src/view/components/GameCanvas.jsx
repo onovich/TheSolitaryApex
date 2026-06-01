@@ -320,6 +320,10 @@ function drawScene(canvas, state, viewport) {
         ? "#7b242a"
         : hold.hazardType === "fragile"
           ? "#3b3035"
+          : hold.hazardType === "timedSoft"
+            ? hold.hazardState === "failing"
+              ? "#4d6862"
+              : "#314844"
         : GAME_CONFIG.palette.holdFillByType[hold.type];
     ctx.fill();
     ctx.strokeStyle = holdRejected
@@ -328,6 +332,10 @@ function drawScene(canvas, state, viewport) {
         ? "#b5555d"
         : hold.hazardType === "fragile"
           ? "#9a646c"
+          : hold.hazardType === "timedSoft"
+            ? hold.hazardState === "failing"
+              ? "#9ed1c3"
+              : "#6fa395"
         : GAME_CONFIG.palette.holdStroke;
     ctx.lineWidth = 1;
     ctx.stroke();

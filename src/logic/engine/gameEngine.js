@@ -250,6 +250,57 @@ function releaseHoldAttachment(state, limb) {
   maybeCollapseDepartedHold(state, holdIndex);
 }
 
+function collapseTimedSoftHold(state, holdIndex) {
+  const hold = state.holds[holdIndex];
+
+  if (!hold || hold.removed) {
+    return;
+  }
+
+  hold.removed = true;
+  hold.hazardState = "collapsed";
+  hold.collapseFrame = state.frame ?? 0;
+
+  state.player.limbs.forEach((limb) => {
+    if (limb.attachedHoldIndex === holdIndex) {
+      limb.attachedHoldIndex = -1;
+    }
+  });
+
+  pushParticles(state, hold.x, hold.y - state.cameraY, 22, "rgba(145, 188, 180, 0.85)");
+}
+
+function tickTimedSoftHolds(state, viewportHeight) {
+  const attachedHoldIndices = new Set(getAttachedLimbs(state).map((limb) => limb.attachedHoldIndex));
+  let collapsed = false;
+
+  state.holds.forEach((hold, holdIndex) => {
+    if (hold.hazardType !== "timedSoft" || hold.removed) {
+      return;
+    }
+
+    if (!attachedHoldIndices.has(holdIndex)) {
+      hold.attachedFrames = 0;
+      return;
+    }
+
+    hold.attachedFrames = (hold.attachedFrames ?? 0) + 1;
+    hold.hazardState = hold.attachedFrames >= hold.collapseFrames * 0.65 ? "failing" : "loaded";
+
+    if (hold.attachedFrames >= hold.collapseFrames) {
+      collapseTimedSoftHold(state, holdIndex);
+      collapsed = true;
+    }
+  });
+
+  if (collapsed && getAttachedLimbs(state).length < 2) {
+    resolveFailure(state, "balance", viewportHeight);
+    return true;
+  }
+
+  return false;
+}
+
 function getAttachedLimbs(state) {
   return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1 && isHoldAvailable(state.holds[limb.attachedHoldIndex]));
 }
@@ -1318,13 +1369,28 @@ function getRouteSegmentForStance(routeSegments, stanceIndex) {
   );
 }
 
-function getNoiseHoldHazardMeta(zoneProfile) {
+function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
   const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
+  const timedSoftChance = zoneProfile?.mechanicBudget?.timedSoft ?? 0;
 
   if (fragileChance > 0 && Math.random() < fragileChance) {
     return {
       hazardType: "fragile",
       hazardState: "intact",
+    };
+  }
+
+  if (timedSoftChance > 0 && Math.random() < timedSoftChance) {
+    const timedSoftRules = routeConfig.mechanicRules?.timedSoft ?? {
+      collapseFramesMin: 150,
+      collapseFramesMax: 240,
+    };
+
+    return {
+      hazardType: "timedSoft",
+      hazardState: "stable",
+      attachedFrames: 0,
+      collapseFrames: randomInt(timedSoftRules.collapseFramesMin, timedSoftRules.collapseFramesMax),
     };
   }
 
@@ -1351,7 +1417,7 @@ function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConf
         routeRole: "noise",
         routeZone: zoneKey,
         stanceIndex: stance.stanceIndex,
-        ...getNoiseHoldHazardMeta(zoneProfile),
+        ...getNoiseHoldHazardMeta(zoneProfile, routeConfig),
       }),
     );
   }
@@ -1948,6 +2014,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
+    return;
+  }
+
+  if (tickTimedSoftHolds(state, viewportHeight)) {
     return;
   }
 

@@ -312,11 +312,41 @@ function validateFragileHoldDeparture() {
   return { holdIndex };
 }
 
+function validateTimedSoftHoldCollapse() {
+  const state = createStableState();
+  const limb = state.player.limbs[0];
+  const holdIndex = limb.attachedHoldIndex;
+  const hold = state.holds[holdIndex];
+
+  hold.hazardType = "timedSoft";
+  hold.collapseFrames = 3;
+  hold.attachedFrames = 0;
+
+  for (let index = 0; index < 4; index += 1) {
+    updateFrame(state, 1280, 720);
+  }
+
+  if (!hold.removed) {
+    throw new Error("Timed soft hold did not collapse after its loaded frame window");
+  }
+
+  if (limb.attachedHoldIndex !== -1) {
+    throw new Error("Timed soft hold collapse did not detach the attached limb");
+  }
+
+  if (!state.isPlaying) {
+    throw new Error("Timed soft hold collapse from four points of contact should not immediately end the run");
+  }
+
+  return { holdIndex };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
+const timedSoftResult = validateTimedSoftHoldCollapse();
 
 console.log(
   [
@@ -329,5 +359,6 @@ console.log(
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
+    `timedSoftHold=${timedSoftResult.holdIndex}`,
   ].join(" "),
 );
