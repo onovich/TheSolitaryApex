@@ -5,6 +5,7 @@ export const LEVEL_CONFIGS = [
     id: DEFAULT_LEVEL_ID,
     label: "Prototype Ascent",
     description: "Default endless prototype route with readable recovery, route-reading, exposure, and crux beats.",
+    seed: "prototype-2026-06",
     wallHeight: 10000,
     environmentEvents: [
       {
@@ -183,6 +184,10 @@ export function validateLevelConfig(levelConfig) {
 
   if (typeof levelConfig?.wallHeight !== "number" || levelConfig.wallHeight <= 0) {
     errors.push(`${levelConfig?.id ?? "unknown"} wallHeight must be positive`);
+  }
+
+  if (typeof levelConfig?.seed !== "string" || levelConfig.seed.length === 0) {
+    errors.push(`${levelConfig?.id ?? "unknown"} seed must be a non-empty string`);
   }
 
   (levelConfig?.environmentEvents ?? []).forEach((eventConfig) => {

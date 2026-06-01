@@ -5,6 +5,7 @@ import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine
 
 function validateGeneratedRoute(levelConfig) {
   const blueprint = generateWall(1280, 720, levelConfig.id);
+  const repeatedBlueprint = generateWall(1280, 720, levelConfig.id);
   const zoneKeys = new Set(blueprint.routeSegments.map((segment) => segment.zoneKey));
 
   levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
@@ -15,6 +16,19 @@ function validateGeneratedRoute(levelConfig) {
 
   if (!validateGoldenPath(blueprint.goldenPath, levelConfig)) {
     throw new Error(`${levelConfig.id} generated an unsolvable golden path`);
+  }
+
+  const holdSignature = blueprint.holds
+    .slice(0, 24)
+    .map((hold) => `${hold.x.toFixed(2)},${hold.y.toFixed(2)},${hold.type},${hold.hazardType ?? "none"}`)
+    .join("|");
+  const repeatedHoldSignature = repeatedBlueprint.holds
+    .slice(0, 24)
+    .map((hold) => `${hold.x.toFixed(2)},${hold.y.toFixed(2)},${hold.type},${hold.hazardType ?? "none"}`)
+    .join("|");
+
+  if (holdSignature !== repeatedHoldSignature) {
+    throw new Error(`${levelConfig.id} seed did not reproduce the same route signature`);
   }
 
   return {

@@ -5,13 +5,14 @@ import { getLoadoutConfig } from "../../data/loadoutConfig.js";
 import { GAME_OVER_TEXT } from "../../data/uiText.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
+let randomSource = Math.random;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
 function randomBetween(min, max) {
-  return Math.random() * (max - min) + min;
+  return randomSource() * (max - min) + min;
 }
 
 function randomInt(min, max) {
@@ -20,6 +21,35 @@ function randomInt(min, max) {
 
 function pickHoldType(pool) {
   return pool[randomInt(0, pool.length - 1)];
+}
+
+function createSeededRandom(seed) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return () => {
+    hash += 0x6d2b79f5;
+    let value = hash;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function withRandomSource(nextRandomSource, callback) {
+  const previousRandomSource = randomSource;
+
+  randomSource = nextRandomSource;
+
+  try {
+    return callback();
+  } finally {
+    randomSource = previousRandomSource;
+  }
 }
 
 function createHold(x, y, type, meta = {}) {
@@ -1767,7 +1797,10 @@ function isHoldAvailable(hold) {
 
 export function generateWall(viewportWidth, viewportHeight, levelId) {
   const levelConfig = getLevelConfig(levelId);
-  const blueprint = buildWallBlueprint(viewportWidth, viewportHeight, levelConfig);
+  const blueprint = withRandomSource(
+    createSeededRandom(`${levelConfig.id}:${levelConfig.seed}:${viewportWidth}x${viewportHeight}`),
+    () => buildWallBlueprint(viewportWidth, viewportHeight, levelConfig),
+  );
 
   if (!validateGoldenPath(blueprint.goldenPath, levelConfig)) {
     return generateWall(viewportWidth, viewportHeight, levelConfig.id);

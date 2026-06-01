@@ -142,6 +142,8 @@ GameCanvas/drawScene(): 核心渲染层。负责绘制背景、岩点、角色�
 
 配置工具： `npm run validate:levels` 会校验关卡 ID、范围参数、岩点类型池、路段引用，并真实生成一条路线验证分区覆盖与 Golden Path 可解性。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
 
+复现工具： 每个关卡配置包含稳定 `seed`。路线生成会用 `level id + seed + viewport` 生成可复现的随机序列；`validate:levels` 会重复生成并比对路线签名，确保调参时可以固定同一条路线观察差异。
+
 建议演进： 在当前 `LEVEL_CONFIGS` 基础上继续扩展可组合的关卡段模板。每个模板声明“目标体验、生成约束、可投放机制、禁止机制、强制验证项”，生成完成后继续跑 solvability / stamina / event-density 检查。
 
 2. 仿真道具与战前准备 (Item / Loadout - 优先级：中)
