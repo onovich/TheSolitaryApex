@@ -68,6 +68,7 @@ These tasks keep the prototype editable as mechanics accumulate.
   - Keep Golden Path reachability authored/validated rather than purely random.
 - Add stronger validation around route pacing:
   - Current status: `validate:levels` checks environment-event count and minimum spacing through `authoring.pressureRules`.
+  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, and rope-threat usage.
   - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.
   - Resource-pressure checks so thirst, stamina, fruit, and loadout penalties stay recoverable.
   - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.

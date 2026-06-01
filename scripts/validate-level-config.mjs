@@ -36,6 +36,10 @@ function validateGeneratedRoute(levelConfig) {
     stanceCount: blueprint.goldenPath.length,
     segmentCount: blueprint.routeSegments.length,
     zoneKeys: [...zoneKeys],
+    eventTypes: levelConfig.environmentEvents.map((eventConfig) => eventConfig.type),
+    rescueTargetCount: levelConfig.rescueTargets?.length ?? 0,
+    pursuitEnabled: Boolean(levelConfig.pursuit),
+    ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
   };
 }
 
@@ -75,6 +79,10 @@ console.log(
     ...results.map(
       (result) =>
         `${result.id}:template=${result.templateId}:holds=${result.holdCount}:stances=${result.stanceCount}:segments=${result.segmentCount}:zones=${result.zoneKeys.join("/")}`,
+    ),
+    ...results.map(
+      (result) =>
+        `${result.id}:events=${result.eventTypes.join("/") || "none"}:rescues=${result.rescueTargetCount}:pursuit=${result.pursuitEnabled ? "on" : "off"}:ropeThreat=${result.ropeThreatEnabled ? "on" : "off"}`,
     ),
   ].join(" "),
 );
