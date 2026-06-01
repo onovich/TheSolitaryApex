@@ -301,6 +301,10 @@ function drawScene(canvas, state, viewport) {
   }
 
   state.holds.forEach((hold) => {
+    if (hold.removed) {
+      return;
+    }
+
     const screenY = hold.y - state.cameraY;
 
     if (screenY < -50 || screenY > viewport.height + 50) {
@@ -314,12 +318,16 @@ function drawScene(canvas, state, viewport) {
       ? `rgba(255, 100, 100, ${0.25 + getRejectFlashAlpha(state) * 0.45})`
       : hold.bloodied
         ? "#7b242a"
+        : hold.hazardType === "fragile"
+          ? "#3b3035"
         : GAME_CONFIG.palette.holdFillByType[hold.type];
     ctx.fill();
     ctx.strokeStyle = holdRejected
       ? GAME_CONFIG.palette.constraintReject
       : hold.bloodied
         ? "#b5555d"
+        : hold.hazardType === "fragile"
+          ? "#9a646c"
         : GAME_CONFIG.palette.holdStroke;
     ctx.lineWidth = 1;
     ctx.stroke();

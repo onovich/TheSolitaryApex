@@ -294,10 +294,29 @@ function validateFootDragFeel() {
   return { footHoldIndex: targetHoldIndex };
 }
 
+function validateFragileHoldDeparture() {
+  const state = createStableState();
+  const limb = state.player.limbs[0];
+  const holdIndex = limb.attachedHoldIndex;
+  const hold = state.holds[holdIndex];
+
+  hold.hazardType = "fragile";
+  beginDrag(state, limb.x, limb.y - state.cameraY);
+
+  if (!hold.removed) {
+    throw new Error("Fragile hold did not collapse after the attached limb left it");
+  }
+
+  releaseDrag(state);
+
+  return { holdIndex };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const footResult = validateFootDragFeel();
+const fragileResult = validateFragileHoldDeparture();
 
 console.log(
   [
@@ -309,5 +328,6 @@ console.log(
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `footHold=${footResult.footHoldIndex}`,
+    `fragileHold=${fragileResult.holdIndex}`,
   ].join(" "),
 );

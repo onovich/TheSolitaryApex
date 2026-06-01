@@ -221,8 +221,37 @@ function createInitialItemState() {
   };
 }
 
+function maybeCollapseDepartedHold(state, holdIndex) {
+  const hold = state.holds[holdIndex];
+
+  if (!hold || hold.removed || hold.hazardType !== "fragile") {
+    return;
+  }
+
+  const stillAttached = state.player.limbs.some((limb) => limb.attachedHoldIndex === holdIndex);
+
+  if (stillAttached) {
+    return;
+  }
+
+  hold.removed = true;
+  hold.collapseFrame = state.frame ?? 0;
+  pushParticles(state, hold.x, hold.y - state.cameraY, 14, "rgba(180, 115, 124, 0.85)");
+}
+
+function releaseHoldAttachment(state, limb) {
+  const holdIndex = limb.attachedHoldIndex;
+
+  if (holdIndex === -1) {
+    return;
+  }
+
+  limb.attachedHoldIndex = -1;
+  maybeCollapseDepartedHold(state, holdIndex);
+}
+
 function getAttachedLimbs(state) {
-  return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1);
+  return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1 && isHoldAvailable(state.holds[limb.attachedHoldIndex]));
 }
 
 function getAttachedHands(state) {
@@ -359,6 +388,10 @@ function getClosestHoldIndex(state, targetX, targetY, snapRadius = GAME_CONFIG.h
   let closestDistance = snapRadius;
 
   state.holds.forEach((hold, index) => {
+    if (!isHoldAvailable(hold)) {
+      return;
+    }
+
     const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
 
     if (distance < closestDistance) {
@@ -501,7 +534,7 @@ function beginFall(state, reason, viewportHeight) {
     stabilityFrames: 0,
   };
   state.player.limbs.forEach((limb) => {
-    limb.attachedHoldIndex = -1;
+    releaseHoldAttachment(state, limb);
   });
   clearDragRejectFeedback(state);
   state.recoveryState.lastFailureReason = reason;
@@ -572,7 +605,7 @@ function restoreCheckpointPose(state) {
 
 function updateDetachedLimbs(state, stiffness = 0.16) {
   state.player.limbs.forEach((limb) => {
-    limb.attachedHoldIndex = -1;
+    releaseHoldAttachment(state, limb);
     limb.x += (state.player.com.x - limb.x) * stiffness;
     limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
   });
@@ -1285,6 +1318,19 @@ function getRouteSegmentForStance(routeSegments, stanceIndex) {
   );
 }
 
+function getNoiseHoldHazardMeta(zoneProfile) {
+  const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
+
+  if (fragileChance > 0 && Math.random() < fragileChance) {
+    return {
+      hazardType: "fragile",
+      hazardState: "intact",
+    };
+  }
+
+  return {};
+}
+
 function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConfig) {
   const noiseHolds = [];
   const noiseCount = randomInt(
@@ -1300,11 +1346,14 @@ function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConf
     const offsetY = randomBetween(-noiseOffsetY, noiseOffsetY);
     const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX, routeConfig);
     const noiseY = stance.baseY + offsetY;
-    noiseHolds.push(createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
-      routeRole: "noise",
-      routeZone: zoneKey,
-      stanceIndex: stance.stanceIndex,
-    }));
+    noiseHolds.push(
+      createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
+        routeRole: "noise",
+        routeZone: zoneKey,
+        stanceIndex: stance.stanceIndex,
+        ...getNoiseHoldHazardMeta(zoneProfile),
+      }),
+    );
   }
 
   return noiseHolds;
@@ -1370,6 +1419,10 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     levelId: levelConfig.id,
     levelLabel: levelConfig.label,
   };
+}
+
+function isHoldAvailable(hold) {
+  return Boolean(hold && !hold.removed);
 }
 
 export function generateWall(viewportWidth, viewportHeight, levelId) {
@@ -1442,6 +1495,10 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   let closestHoldIndex = -1;
 
   state.holds.forEach((hold, index) => {
+    if (!isHoldAvailable(hold)) {
+      return;
+    }
+
     const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
 
     if (distance < snapRadius && canLimbReachTarget(state, draggedLimb, hold.x, hold.y)) {
@@ -1458,6 +1515,10 @@ function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) 
   let bestScore = Infinity;
 
   state.holds.forEach((hold, index) => {
+    if (!isHoldAvailable(hold)) {
+      return;
+    }
+
     if (!canLimbReachTarget(state, limb, hold.x, hold.y)) {
       return;
     }
@@ -1601,7 +1662,7 @@ export function beginDrag(state, screenX, screenY) {
 
     if (distance < GAME_CONFIG.limbHitRadius) {
       state.draggedLimbIndex = index;
-      limb.attachedHoldIndex = -1;
+      releaseHoldAttachment(state, limb);
       state.tutorialVisible = false;
       setDragConstraintSnapshot(state, index, limb);
       updateDragConstraintFeedback(state, screenX, screenY + state.cameraY);
@@ -1714,7 +1775,7 @@ export function releaseDynoCharge(state) {
   };
 
   state.player.limbs.forEach((limb) => {
-    limb.attachedHoldIndex = -1;
+    releaseHoldAttachment(state, limb);
   });
 
   state.movementState.bodyVelocity.x = normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio;
@@ -1874,6 +1935,7 @@ function updateHeightAndCamera(state, viewportHeight) {
 }
 
 export function updateFrame(state, viewportWidth, viewportHeight) {
+  state.frame = (state.frame ?? 0) + 1;
   updateParticles(state);
   tickFeedbackState(state);
 
