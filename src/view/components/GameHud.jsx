@@ -173,6 +173,11 @@ export function GameHud({
               {UI_TEXT.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
             </div>
           ) : null}
+          {encounterState?.ropeThreat?.active ? (
+            <div className={`status-pill${encounterState.ropeThreat.danger ? " is-rope-threat-danger" : " is-rope-threat"}`}>
+              {UI_TEXT.ropeThreatLabel}: {Math.round((encounterState.ropeThreat.progress ?? 0) * 100)}%
+            </div>
+          ) : null}
           {encounterState?.rescueCount > 0 ? (
             <div className="status-pill is-rescue">{UI_TEXT.rescueLabel}: {encounterState.rescueCount}</div>
           ) : null}

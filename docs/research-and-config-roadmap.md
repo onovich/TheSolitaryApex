@@ -42,6 +42,7 @@ npm run build
 - Fruit-triggered sensory-flow overlay.
 - Earthquake event: destabilizes decoy holds without touching Golden Path.
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
+- Rope threat: converts placed protection into a time-limited risk if left unattended.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
 - Rescue targets: use protection placements as a collaboration tool without NPC AI.
 
@@ -75,12 +76,6 @@ These tasks keep the prototype editable as mechanics accumulate.
 
 These are the best next implementation candidates because they extend existing systems without changing the whole control model.
 
-- Rope threat prototype:
-  - A simple threat starts only after a protection checkpoint exists.
-  - It climbs along the protection rope over time.
-  - Near danger range it creates HUD warning and stamina pressure.
-  - If it reaches the anchor, it damages or disables the current protection point.
-  - Config should live in `levelConfig`, with gameplay regression coverage.
 - Avalanche variant:
   - Environment event that removes, downgrades, or temporarily hides a bounded set of non-Golden noise holds.
   - It should read as route re-evaluation pressure, not random punishment.

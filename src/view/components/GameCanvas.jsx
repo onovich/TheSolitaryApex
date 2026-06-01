@@ -66,6 +66,23 @@ function getRenderedLimbPosition(state, limb) {
   };
 }
 
+function getCubicBezierPoint(start, controlA, controlB, end, t) {
+  const inverseT = 1 - t;
+
+  return {
+    x:
+      inverseT ** 3 * start.x +
+      3 * inverseT ** 2 * t * controlA.x +
+      3 * inverseT * t ** 2 * controlB.x +
+      t ** 3 * end.x,
+    y:
+      inverseT ** 3 * start.y +
+      3 * inverseT ** 2 * t * controlA.y +
+      3 * inverseT * t ** 2 * controlB.y +
+      t ** 3 * end.y,
+  };
+}
+
 function drawCheckpointRope(ctx, state) {
   const anchor = state.fallState?.active
     ? state.fallState.anchorHoldIndex !== -1
@@ -85,21 +102,42 @@ function drawCheckpointRope(ctx, state) {
   const distance = Math.hypot(bodyX - anchorX, bodyY - anchorScreenY);
   const sag = state.fallState?.mode === "hanging" ? Math.min(28, distance * 0.08) : Math.min(64, distance * 0.16);
   const swing = (bodyX - anchorX) * 0.24;
+  const controlA = {
+    x: anchorX + swing * 0.2,
+    y: anchorScreenY + sag,
+  };
+  const controlB = {
+    x: bodyX - swing * 0.35,
+    y: bodyY + sag,
+  };
 
   ctx.save();
   ctx.lineWidth = state.fallState?.active ? 2.8 : 2;
   ctx.strokeStyle = state.fallState?.active ? GAME_CONFIG.palette.ropeActive : GAME_CONFIG.palette.rope;
   ctx.beginPath();
   ctx.moveTo(anchorX, anchorScreenY);
-  ctx.bezierCurveTo(
-    anchorX + swing * 0.2,
-    anchorScreenY + sag,
-    bodyX - swing * 0.35,
-    bodyY + sag,
-    bodyX,
-    bodyY,
-  );
+  ctx.bezierCurveTo(controlA.x, controlA.y, controlB.x, controlB.y, bodyX, bodyY);
   ctx.stroke();
+
+  const ropeThreat = state.conditionState?.encounter?.ropeThreat;
+
+  if (ropeThreat?.active) {
+    const threatPoint = getCubicBezierPoint(
+      { x: anchorX, y: anchorScreenY },
+      controlA,
+      controlB,
+      { x: bodyX, y: bodyY },
+      1 - Math.max(0, Math.min(1, ropeThreat.progress ?? 0)),
+    );
+
+    ctx.beginPath();
+    ctx.arc(threatPoint.x, threatPoint.y, ropeThreat.danger ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = ropeThreat.danger ? "rgba(255, 95, 95, 0.92)" : "rgba(210, 120, 90, 0.72)";
+    ctx.fill();
+    ctx.strokeStyle = ropeThreat.danger ? "rgba(255, 215, 170, 0.85)" : "rgba(255, 180, 130, 0.5)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   ctx.fillStyle = state.fallState?.active ? GAME_CONFIG.palette.ropeActive : GAME_CONFIG.palette.rope;
   ctx.beginPath();

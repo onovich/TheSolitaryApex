@@ -519,6 +519,69 @@ function validatePursuitPressure() {
   return { gap: pursuitState.conditionState.encounter.gap };
 }
 
+function validateRopeThreat() {
+  const threatState = createStableState();
+  const controlState = createStableState();
+
+  threatState.ropeThreat = {
+    startDelayFrames: 0,
+    climbSpeed: 0.8,
+    dangerProgress: 0.5,
+    staminaPenalty: 0.5,
+    disableProgress: 1,
+  };
+  controlState.ropeThreat = null;
+  threatState.stamina = 80;
+  controlState.stamina = 80;
+
+  if (threatState.conditionState.encounter.ropeThreat.active) {
+    throw new Error("Rope threat should not activate before a checkpoint exists");
+  }
+
+  if (!useItem(threatState, "protectionCam") || !useItem(controlState, "protectionCam")) {
+    throw new Error("Protection placement failed during rope threat validation");
+  }
+
+  updateFrame(threatState, 1280, 720);
+  updateFrame(controlState, 1280, 720);
+
+  if (!threatState.conditionState.encounter.ropeThreat.active || !threatState.conditionState.encounter.ropeThreat.danger) {
+    throw new Error("Rope threat did not activate and enter danger after checkpoint placement");
+  }
+
+  if (threatState.stamina >= controlState.stamina) {
+    throw new Error("Rope threat danger should add stamina pressure compared with a control state");
+  }
+
+  const destroyState = createStableState();
+  destroyState.ropeThreat = {
+    startDelayFrames: 0,
+    climbSpeed: 1,
+    dangerProgress: 0.5,
+    staminaPenalty: 0,
+    disableProgress: 1,
+  };
+
+  if (!useItem(destroyState, "protectionCam")) {
+    throw new Error("Protection placement failed during rope threat destruction validation");
+  }
+
+  updateFrame(destroyState, 1280, 720);
+
+  if (destroyState.itemState.checkpoint) {
+    throw new Error("Rope threat should disable the current checkpoint after reaching the anchor");
+  }
+
+  if (destroyState.conditionState.encounter.ropeThreat.checkpointBrokenCount !== 1) {
+    throw new Error("Rope threat did not record a broken checkpoint");
+  }
+
+  return {
+    progress: threatState.conditionState.encounter.ropeThreat.progress,
+    brokenCount: destroyState.conditionState.encounter.ropeThreat.checkpointBrokenCount,
+  };
+}
+
 function validateSpatialScan() {
   const state = createStableState();
   const layeredHold = state.holds.find((hold) => typeof hold.zLayer === "number" && hold.zLayer !== 0);
@@ -586,6 +649,7 @@ const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
 const pursuitResult = validatePursuitPressure();
+const ropeThreatResult = validateRopeThreat();
 const spatialResult = validateSpatialScan();
 const rescueResult = validateRescueTarget();
 
@@ -606,6 +670,8 @@ console.log(
     `fruit=${fruitResult.fruitIndex}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
+    `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
+    `ropeBreaks=${ropeThreatResult.brokenCount}`,
     `spatialAngle=${spatialResult.angle.toFixed(2)}`,
     `rescuedTargets=${rescueResult.rescueCount}`,
   ].join(" "),

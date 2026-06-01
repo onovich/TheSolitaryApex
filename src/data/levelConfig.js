@@ -23,6 +23,13 @@ export const LEVEL_CONFIGS = [
       dangerGap: 18,
       staminaPenalty: 0.05,
     },
+    ropeThreat: {
+      startDelayFrames: 180,
+      climbSpeed: 0.0045,
+      dangerProgress: 0.72,
+      staminaPenalty: 0.055,
+      disableProgress: 1,
+    },
     rescueTargets: [
       {
         id: "injured-climber-01",
@@ -235,6 +242,22 @@ export function validateLevelConfig(levelConfig) {
         errors.push(`pursuit.${key} must be a non-negative number`);
       }
     });
+  }
+
+  if (levelConfig?.ropeThreat) {
+    ["startDelayFrames", "climbSpeed", "dangerProgress", "staminaPenalty", "disableProgress"].forEach((key) => {
+      if (typeof levelConfig.ropeThreat[key] !== "number" || levelConfig.ropeThreat[key] < 0) {
+        errors.push(`ropeThreat.${key} must be a non-negative number`);
+      }
+    });
+
+    if (levelConfig.ropeThreat.dangerProgress > levelConfig.ropeThreat.disableProgress) {
+      errors.push("ropeThreat.dangerProgress must be <= disableProgress");
+    }
+
+    if (levelConfig.ropeThreat.disableProgress > 1) {
+      errors.push("ropeThreat.disableProgress must be <= 1");
+    }
   }
 
   (levelConfig?.rescueTargets ?? []).forEach((targetConfig) => {

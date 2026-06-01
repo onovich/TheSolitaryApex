@@ -218,6 +218,14 @@ function createInitialConditionState() {
       gap: Infinity,
       danger: false,
       rescueCount: 0,
+      ropeThreat: {
+        armed: false,
+        active: false,
+        progress: 0,
+        danger: false,
+        checkpointBrokenCount: 0,
+        placedFrame: null,
+      },
     },
   };
 }
@@ -581,6 +589,97 @@ function tickPursuitState(state, viewportHeight) {
   pursuitState.threatHeight += pursuitConfig.speed;
   pursuitState.gap = getCurrentHeight(state, viewportHeight) - pursuitState.threatHeight;
   pursuitState.danger = pursuitState.gap <= pursuitConfig.dangerGap;
+}
+
+function resetRopeThreatState(state) {
+  const ropeThreatState = state.conditionState.encounter.ropeThreat;
+
+  if (!ropeThreatState) {
+    return;
+  }
+
+  ropeThreatState.armed = false;
+  ropeThreatState.active = false;
+  ropeThreatState.progress = 0;
+  ropeThreatState.danger = false;
+  ropeThreatState.placedFrame = null;
+}
+
+function armRopeThreatState(state) {
+  const ropeThreatState = state.conditionState.encounter.ropeThreat;
+
+  if (!state.ropeThreat || !ropeThreatState) {
+    return;
+  }
+
+  ropeThreatState.armed = true;
+  ropeThreatState.active = false;
+  ropeThreatState.progress = 0;
+  ropeThreatState.danger = false;
+  ropeThreatState.placedFrame = state.frame ?? 0;
+}
+
+function breakCheckpointFromRopeThreat(state) {
+  const ropeThreatState = state.conditionState.encounter.ropeThreat;
+  const checkpoint = state.itemState.checkpoint;
+  const anchorPosition = getCheckpointAnchorPosition(state, checkpoint);
+
+  if (!checkpoint || !anchorPosition) {
+    resetRopeThreatState(state);
+    return;
+  }
+
+  state.itemState.checkpoint = null;
+  state.fallState = createInitialFallState();
+  resetDynoState(state.movementState.dyno);
+  ropeThreatState.armed = false;
+  ropeThreatState.active = false;
+  ropeThreatState.progress = 1;
+  ropeThreatState.danger = false;
+  ropeThreatState.placedFrame = null;
+  ropeThreatState.checkpointBrokenCount = (ropeThreatState.checkpointBrokenCount ?? 0) + 1;
+  pushParticles(state, anchorPosition.x, anchorPosition.y - state.cameraY, 24, "rgba(255, 110, 110, 0.88)");
+}
+
+function tickRopeThreatState(state) {
+  const ropeThreatConfig = state.ropeThreat;
+  const ropeThreatState = state.conditionState.encounter.ropeThreat;
+
+  if (!ropeThreatConfig || !ropeThreatState) {
+    return;
+  }
+
+  if (!state.itemState.checkpoint) {
+    resetRopeThreatState(state);
+    return;
+  }
+
+  if (state.fallState?.active) {
+    return;
+  }
+
+  if (!ropeThreatState.armed) {
+    armRopeThreatState(state);
+  }
+
+  const placedFrame = ropeThreatState.placedFrame ?? state.frame ?? 0;
+  const elapsedFrames = Math.max(0, (state.frame ?? 0) - placedFrame);
+
+  if (elapsedFrames < ropeThreatConfig.startDelayFrames) {
+    return;
+  }
+
+  ropeThreatState.active = true;
+  ropeThreatState.progress = clamp(
+    ropeThreatState.progress + ropeThreatConfig.climbSpeed,
+    0,
+    ropeThreatConfig.disableProgress,
+  );
+  ropeThreatState.danger = ropeThreatState.progress >= ropeThreatConfig.dangerProgress;
+
+  if (ropeThreatState.progress >= ropeThreatConfig.disableProgress) {
+    breakCheckpointFromRopeThreat(state);
+  }
 }
 
 function getAttachedLimbs(state) {
@@ -1553,6 +1652,7 @@ function captureCheckpoint(state, itemDefinition) {
     cameraY: state.cameraY,
     maxHeightReached: state.maxHeightReached,
   };
+  armRopeThreatState(state);
 }
 
 function resolveFailure(state, reason, viewportHeight) {
@@ -1871,6 +1971,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     mechanicRules: routeConfig.mechanicRules ?? {},
     environmentEvents: levelConfig.environmentEvents ?? [],
     pursuit: levelConfig.pursuit ?? null,
+    ropeThreat: levelConfig.ropeThreat ?? null,
   };
 }
 
@@ -2012,6 +2113,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     mechanicRules,
     environmentEvents,
     pursuit,
+    ropeThreat,
   } = generateWall(viewportWidth, viewportHeight, activeLevelId);
 
   return {
@@ -2022,6 +2124,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     mechanicRules,
     environmentEvents,
     pursuit,
+    ropeThreat,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
@@ -2113,7 +2216,10 @@ export function getUiSnapshot(state, frame) {
       injury: { ...state.conditionState.injury },
       survival: { ...state.conditionState.survival },
       environment: { ...state.conditionState.environment },
-      encounter: { ...state.conditionState.encounter },
+      encounter: {
+        ...state.conditionState.encounter,
+        ropeThreat: { ...state.conditionState.encounter.ropeThreat },
+      },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
@@ -2449,6 +2555,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickSurvivalPressure(state);
   tickEnvironmentEvents(state);
   tickPursuitState(state, viewportHeight);
+  tickRopeThreatState(state);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
@@ -2585,6 +2692,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
     if (state.conditionState.encounter.danger) {
       staminaChange -= state.pursuit?.staminaPenalty ?? 0;
+    }
+
+    if (state.conditionState.encounter.ropeThreat?.danger) {
+      staminaChange -= state.ropeThreat?.staminaPenalty ?? 0;
     }
 
     staminaChange += currentRouteSegment.staminaModifier;

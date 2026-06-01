@@ -239,6 +239,16 @@ select {
   border-color: #a84b4b;
 }
 
+.status-pill.is-rope-threat {
+  color: #e0ad86;
+  border-color: #7e5544;
+}
+
+.status-pill.is-rope-threat-danger {
+  color: #ff9a7f;
+  border-color: #ad4f3c;
+}
+
 .status-pill.is-rescue {
   color: #9ae6b4;
   border-color: #4f7a60;
