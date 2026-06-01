@@ -36,6 +36,12 @@ export const LEVEL_CONFIGS = [
           radiusMin: 14,
           radiusMax: 24,
         },
+        resourceFruit: {
+          collectRadius: 34,
+          radius: 6,
+          staminaRestore: 7,
+          thirstRelief: 24,
+        },
       },
       zoneSequence: ["recovery", "reading", "exposure", "crux"],
       zones: {
@@ -189,6 +195,14 @@ export function validateLevelConfig(levelConfig) {
     ["drillFramesRequired", "drillRadius", "staminaCostPerFrame"].forEach((key) => {
       if (typeof routeGeneration.mechanicRules.obstacle[key] !== "number") {
         errors.push(`mechanicRules.obstacle.${key} must be a number`);
+      }
+    });
+  }
+
+  if (routeGeneration.mechanicRules?.resourceFruit) {
+    ["collectRadius", "radius", "staminaRestore", "thirstRelief"].forEach((key) => {
+      if (typeof routeGeneration.mechanicRules.resourceFruit[key] !== "number") {
+        errors.push(`mechanicRules.resourceFruit.${key} must be a number`);
       }
     });
   }

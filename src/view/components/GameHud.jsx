@@ -19,6 +19,7 @@ export function GameHud({
   const restPoseState = movement?.restPose;
   const weatherState = conditions?.weather;
   const injuryState = conditions?.injury;
+  const survivalState = conditions?.survival;
 
   if (staminaPercent <= 30) {
     staminaColor = "#e74c3c";
@@ -93,6 +94,7 @@ export function GameHud({
   const windForce = weatherState?.windForce ?? 0;
   const windDirection = windForce >= 0 ? "→" : "←";
   const windStrength = Math.round(Math.abs(windForce) * 100);
+  const thirst = Math.round(survivalState?.thirst ?? 0);
 
   return (
     <div className="ui-layer">
@@ -138,6 +140,9 @@ export function GameHud({
           </div>
           <div className={`status-pill${injuryState?.severity !== "stable" ? " is-injured" : ""}`}>
             {UI_TEXT.injuryLabel}: {injuryLabel}
+          </div>
+          <div className={`status-pill${thirst >= 70 ? " is-thirsty" : ""}`}>
+            {UI_TEXT.thirstLabel}: {thirst}%
           </div>
           <div className={launchClassName}>
             {UI_TEXT.launchLabel}: {launchLabel}

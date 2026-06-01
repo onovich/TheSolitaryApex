@@ -118,6 +118,11 @@ export const GAME_CONFIG = {
       bloodiedHoldPenalty: 0.016,
       severePenalty: 0.025,
     },
+    survival: {
+      thirstGainPerFrame: 0.002,
+      highThirstThreshold: 70,
+      staminaPenaltyScale: 0.0012,
+    },
   },
   recoveryLoop: {
     rescueWindowFrames: 96,

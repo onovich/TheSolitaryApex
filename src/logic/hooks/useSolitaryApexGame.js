@@ -71,6 +71,10 @@ export function useSolitaryApexGame() {
         severity: "stable",
         bloodiedHoldCount: 0,
       },
+      survival: {
+        thirst: 0,
+        fruitCollected: 0,
+      },
     },
     tutorialVisible: true,
     endMessage: null,

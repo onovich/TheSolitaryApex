@@ -169,6 +169,10 @@ function createInitialConditionState() {
       severity: "stable",
       bloodiedHoldCount: 0,
     },
+    survival: {
+      thirst: 0,
+      fruitCollected: 0,
+    },
   };
 }
 
@@ -370,6 +374,65 @@ function tickObstacleDrilling(state, viewportHeight) {
   }
 
   return false;
+}
+
+function getResourceRules(state) {
+  return state.mechanicRules?.resourceFruit ?? {
+    collectRadius: 34,
+    staminaRestore: 7,
+    thirstRelief: 24,
+  };
+}
+
+function tickSurvivalPressure(state) {
+  const survival = state.conditionState.survival;
+
+  survival.thirst = clamp(survival.thirst + GAME_CONFIG.conditions.survival.thirstGainPerFrame, 0, 100);
+}
+
+function collectResourceFruit(state, holdIndex) {
+  const fruit = state.holds[holdIndex];
+
+  if (!fruit || fruit.removed) {
+    return;
+  }
+
+  const resourceRules = getResourceRules(state);
+  fruit.removed = true;
+  fruit.hazardState = "collected";
+  state.conditionState.survival.thirst = clamp(state.conditionState.survival.thirst - resourceRules.thirstRelief, 0, 100);
+  state.conditionState.survival.fruitCollected += 1;
+  restoreStamina(state, resourceRules.staminaRestore);
+  pushParticles(state, fruit.x, fruit.y - state.cameraY, 18, "rgba(130, 208, 126, 0.9)");
+}
+
+function tickResourceCollection(state) {
+  if (state.draggedLimbIndex === -1) {
+    return;
+  }
+
+  const resourceRules = getResourceRules(state);
+  const targetX = state.pointer.x;
+  const targetY = state.pointer.y + state.cameraY;
+  let closestHoldIndex = -1;
+  let closestDistance = resourceRules.collectRadius;
+
+  state.holds.forEach((hold, holdIndex) => {
+    if (hold.hazardType !== "resourceFruit" || hold.removed) {
+      return;
+    }
+
+    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestHoldIndex = holdIndex;
+    }
+  });
+
+  if (closestHoldIndex !== -1) {
+    collectResourceFruit(state, closestHoldIndex);
+  }
 }
 
 function getAttachedLimbs(state) {
@@ -1444,6 +1507,7 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
   const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
   const timedSoftChance = zoneProfile?.mechanicBudget?.timedSoft ?? 0;
   const obstacleChance = zoneProfile?.mechanicBudget?.obstacle ?? 0;
+  const resourceChance = zoneProfile?.mechanicBudget?.resource ?? 0;
 
   if (fragileChance > 0 && Math.random() < fragileChance) {
     return {
@@ -1477,6 +1541,18 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
       hazardState: "solid",
       drillFrames: 0,
       radius: randomBetween(obstacleRules.radiusMin, obstacleRules.radiusMax),
+    };
+  }
+
+  if (resourceChance > 0 && Math.random() < resourceChance) {
+    const resourceRules = routeConfig.mechanicRules?.resourceFruit ?? {
+      radius: 6,
+    };
+
+    return {
+      hazardType: "resourceFruit",
+      hazardState: "ripe",
+      radius: resourceRules.radius,
     };
   }
 
@@ -1575,7 +1651,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
 }
 
 function isHoldAvailable(hold) {
-  return Boolean(hold && !hold.removed && hold.hazardType !== "obstacle");
+  return Boolean(hold && !hold.removed && hold.hazardType !== "obstacle" && hold.hazardType !== "resourceFruit");
 }
 
 export function generateWall(viewportWidth, viewportHeight, levelId) {
@@ -1788,6 +1864,7 @@ export function getUiSnapshot(state, frame) {
         windForce: state.conditionState.weather.windForce,
       },
       injury: { ...state.conditionState.injury },
+      survival: { ...state.conditionState.survival },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
@@ -2100,6 +2177,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   advanceDynoCharge(state);
   updateWeatherState(state);
+  tickSurvivalPressure(state);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
@@ -2113,6 +2191,8 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   if (tickObstacleDrilling(state, viewportHeight)) {
     return;
   }
+
+  tickResourceCollection(state);
 
   const currentRouteSegment = updateRouteState(state);
 
@@ -2224,6 +2304,12 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
     if (state.conditionState.injury.severity === "severe") {
       staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
+    }
+
+    if (state.conditionState.survival.thirst > GAME_CONFIG.conditions.survival.highThirstThreshold) {
+      staminaChange -=
+        (state.conditionState.survival.thirst - GAME_CONFIG.conditions.survival.highThirstThreshold) *
+        GAME_CONFIG.conditions.survival.staminaPenaltyScale;
     }
 
     staminaChange += currentRouteSegment.staminaModifier;

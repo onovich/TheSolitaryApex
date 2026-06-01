@@ -348,6 +348,23 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
+    if (hold.hazardType === "resourceFruit") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#78c96e";
+      ctx.fill();
+      ctx.strokeStyle = "#c9f0a1";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(hold.x - hold.radius * 0.35, screenY - hold.radius * 0.35, Math.max(1.5, hold.radius * 0.24), 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
     const holdRejected = (state.feedbackState?.dragRejectFrames ?? 0) > 0 && state.feedbackState?.holdIndex === state.holds.indexOf(hold);

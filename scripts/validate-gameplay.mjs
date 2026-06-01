@@ -377,6 +377,46 @@ function validateDrillableObstacle() {
   return { obstacleIndex };
 }
 
+function validateResourceFruit() {
+  const state = createStableState();
+  const limb = state.player.limbs[0];
+  const fruitIndex = state.holds.length - 1;
+  const fruit = state.holds[fruitIndex];
+
+  state.mechanicRules.resourceFruit = {
+    collectRadius: 34,
+    radius: 6,
+    staminaRestore: 7,
+    thirstRelief: 24,
+  };
+  state.stamina = 62;
+  state.conditionState.survival.thirst = 80;
+  fruit.hazardType = "resourceFruit";
+  fruit.hazardState = "ripe";
+  fruit.removed = false;
+  fruit.radius = 6;
+  fruit.x = limb.x + 5;
+  fruit.y = limb.y;
+
+  beginDrag(state, limb.x, limb.y - state.cameraY);
+  updatePointer(state, fruit.x, fruit.y - state.cameraY);
+  updateFrame(state, 1280, 720);
+
+  if (!fruit.removed) {
+    throw new Error("Resource fruit was not collected when a dragged limb reached it");
+  }
+
+  if (state.conditionState.survival.thirst >= 80) {
+    throw new Error("Resource fruit should relieve thirst pressure");
+  }
+
+  if (state.stamina <= 62) {
+    throw new Error("Resource fruit should restore stamina");
+  }
+
+  return { fruitIndex };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -384,6 +424,7 @@ const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
+const fruitResult = validateResourceFruit();
 
 console.log(
   [
@@ -398,5 +439,6 @@ console.log(
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
     `obstacle=${obstacleResult.obstacleIndex}`,
+    `fruit=${fruitResult.fruitIndex}`,
   ].join(" "),
 );
