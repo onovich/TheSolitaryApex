@@ -534,6 +534,34 @@ function activateEarthquakeEvent(state, eventConfig) {
   return alteredCount;
 }
 
+function activateAvalancheEvent(state, eventConfig) {
+  const candidates = state.holds
+    .map((hold, holdIndex) => ({ hold, holdIndex }))
+    .filter(
+      ({ hold }) =>
+        hold.routeRole === "noise" &&
+        hold.stanceIndex >= eventConfig.earliestStanceIndex &&
+        !hold.hazardType &&
+        !hold.removed,
+    );
+  const alteredCount = Math.min(eventConfig.affectedNoiseCount, candidates.length);
+
+  for (let index = 0; index < alteredCount; index += 1) {
+    const candidateIndex = randomInt(index, candidates.length - 1);
+    const selected = candidates[candidateIndex];
+
+    candidates[candidateIndex] = candidates[index];
+    candidates[index] = selected;
+    selected.hold.removed = true;
+    selected.hold.hazardType = "avalancheDebris";
+    selected.hold.hazardState = "buried";
+    selected.hold.eventAltered = eventConfig.id;
+    pushParticles(state, selected.hold.x, selected.hold.y - state.cameraY, 10, "rgba(218, 232, 235, 0.7)");
+  }
+
+  return alteredCount;
+}
+
 function activateEnvironmentEvent(state, eventConfig) {
   const environmentState = state.conditionState.environment;
 
@@ -545,6 +573,8 @@ function activateEnvironmentEvent(state, eventConfig) {
 
   if (eventConfig.type === "earthquake") {
     environmentState.alteredHoldCount = activateEarthquakeEvent(state, eventConfig);
+  } else if (eventConfig.type === "avalanche") {
+    environmentState.alteredHoldCount = activateAvalancheEvent(state, eventConfig);
   }
 }
 

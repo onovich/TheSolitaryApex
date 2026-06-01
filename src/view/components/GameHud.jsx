@@ -102,6 +102,10 @@ export function GameHud({
   const windDirection = windForce >= 0 ? "→" : "←";
   const windStrength = Math.round(Math.abs(windForce) * 100);
   const thirst = Math.round(survivalState?.thirst ?? 0);
+  const environmentLabels = {
+    earthquake: UI_TEXT.earthquakeLabel,
+    avalanche: UI_TEXT.avalancheLabel,
+  };
 
   return (
     <div className="ui-layer">
@@ -165,7 +169,7 @@ export function GameHud({
           </div>
           {environmentState?.activeEventId ? (
             <div className="status-pill is-environment-event">
-              {UI_TEXT.eventLabel}: {environmentState.type === "earthquake" ? UI_TEXT.earthquakeLabel : environmentState.type}
+              {UI_TEXT.eventLabel}: {environmentLabels[environmentState.type] ?? environmentState.type}
             </div>
           ) : null}
           {encounterState?.pursuitActive ? (

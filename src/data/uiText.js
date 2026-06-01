@@ -45,6 +45,7 @@ export const UI_TEXT = {
   thirstLabel: "饥渴",
   eventLabel: "环境",
   earthquakeLabel: "震动",
+  avalancheLabel: "雪崩",
   pursuitLabel: "追赶",
   ropeThreatLabel: "绳威胁",
   rescueLabel: "救援",

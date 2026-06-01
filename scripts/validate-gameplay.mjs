@@ -492,6 +492,46 @@ function validateEarthquakeEvent() {
   return { alteredCount: alteredHolds.length };
 }
 
+function validateAvalancheEvent() {
+  const state = createStableState();
+
+  state.environmentEvents = [
+    {
+      id: "test-avalanche",
+      type: "avalanche",
+      startFrame: 1,
+      durationFrames: 4,
+      affectedNoiseCount: 6,
+      earliestStanceIndex: 1,
+    },
+  ];
+
+  updateFrame(state, 1280, 720);
+
+  const alteredHolds = state.holds.filter((hold) => hold.eventAltered === "test-avalanche");
+
+  if (state.conditionState.environment.activeEventId !== "test-avalanche") {
+    throw new Error("Avalanche event did not activate at its configured start frame");
+  }
+
+  if (alteredHolds.length !== 6) {
+    throw new Error(`Avalanche should alter six noise holds, got ${alteredHolds.length}`);
+  }
+
+  if (alteredHolds.some((hold) => hold.routeRole !== "noise" || !hold.removed || hold.hazardType !== "avalancheDebris")) {
+    throw new Error("Avalanche altered a non-noise hold or failed to remove selected holds");
+  }
+
+  const goldenHoldIndices = new Set(state.goldenPath.flatMap((stance) => stance.holdIndices));
+  const alteredGoldenHold = state.holds.some((hold, holdIndex) => hold.eventAltered === "test-avalanche" && goldenHoldIndices.has(holdIndex));
+
+  if (alteredGoldenHold) {
+    throw new Error("Avalanche should not alter Golden Path holds");
+  }
+
+  return { alteredCount: alteredHolds.length };
+}
+
 function validatePursuitPressure() {
   const pursuitState = createStableState();
   const controlState = createStableState();
@@ -648,6 +688,7 @@ const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
+const avalancheResult = validateAvalancheEvent();
 const pursuitResult = validatePursuitPressure();
 const ropeThreatResult = validateRopeThreat();
 const spatialResult = validateSpatialScan();
@@ -669,6 +710,7 @@ console.log(
     `obstacle=${obstacleResult.obstacleIndex}`,
     `fruit=${fruitResult.fruitIndex}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
+    `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
     `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
     `ropeBreaks=${ropeThreatResult.brokenCount}`,

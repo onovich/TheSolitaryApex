@@ -41,6 +41,7 @@ npm run build
 - Fruit resources and thirst pressure.
 - Fruit-triggered sensory-flow overlay.
 - Earthquake event: destabilizes decoy holds without touching Golden Path.
+- Avalanche event: removes bounded decoy holds without touching Golden Path.
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
 - Rope threat: converts placed protection into a time-limited risk if left unattended.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
@@ -76,10 +77,6 @@ These tasks keep the prototype editable as mechanics accumulate.
 
 These are the best next implementation candidates because they extend existing systems without changing the whole control model.
 
-- Avalanche variant:
-  - Environment event that removes, downgrades, or temporarily hides a bounded set of non-Golden noise holds.
-  - It should read as route re-evaluation pressure, not random punishment.
-  - First pass should share the environment-event pipeline used by earthquake.
 - Route template expansion:
   - Add several named official route templates rather than just increasing random variety.
   - Suggested first set: tutorial-safe, resource-reading, exposure-pressure, pursuit-crux, rescue-encounter.

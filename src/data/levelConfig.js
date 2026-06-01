@@ -16,6 +16,14 @@ export const LEVEL_CONFIGS = [
         fragileNoiseCount: 12,
         earliestStanceIndex: 8,
       },
+      {
+        id: "first-avalanche",
+        type: "avalanche",
+        startFrame: 2100,
+        durationFrames: 180,
+        affectedNoiseCount: 10,
+        earliestStanceIndex: 14,
+      },
     ],
     pursuit: {
       startFrame: 1350,
@@ -225,13 +233,21 @@ export function validateLevelConfig(levelConfig) {
       errors.push(`${levelConfig.id} environment event id is required`);
     }
 
-    ["startFrame", "durationFrames", "fragileNoiseCount", "earliestStanceIndex"].forEach((key) => {
+    ["startFrame", "durationFrames", "earliestStanceIndex"].forEach((key) => {
       if (!Number.isInteger(eventConfig[key]) || eventConfig[key] < 0) {
         errors.push(`${eventConfig.id}.${key} must be a non-negative integer`);
       }
     });
 
-    if (!["earthquake"].includes(eventConfig.type)) {
+    if (eventConfig.type === "earthquake") {
+      if (!Number.isInteger(eventConfig.fragileNoiseCount) || eventConfig.fragileNoiseCount < 0) {
+        errors.push(`${eventConfig.id}.fragileNoiseCount must be a non-negative integer`);
+      }
+    } else if (eventConfig.type === "avalanche") {
+      if (!Number.isInteger(eventConfig.affectedNoiseCount) || eventConfig.affectedNoiseCount < 0) {
+        errors.push(`${eventConfig.id}.affectedNoiseCount must be a non-negative integer`);
+      }
+    } else {
       errors.push(`${eventConfig.id}.type is unsupported: ${eventConfig.type}`);
     }
   });

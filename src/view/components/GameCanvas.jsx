@@ -384,6 +384,25 @@ function drawScene(canvas, state, viewport) {
     ctx.stroke();
   }
 
+  if (state.conditionState?.environment?.type === "avalanche") {
+    const eventRatio =
+      state.conditionState.environment.totalFrames > 0
+        ? state.conditionState.environment.remainingFrames / state.conditionState.environment.totalFrames
+        : 0;
+    const offset = (Date.now() / 18) % 90;
+
+    ctx.save();
+    ctx.strokeStyle = `rgba(220, 235, 238, ${0.12 + eventRatio * 0.22})`;
+    ctx.lineWidth = 1.5;
+    for (let x = -viewport.height; x < viewport.width + viewport.height; x += 90) {
+      ctx.beginPath();
+      ctx.moveTo(x + offset, -20);
+      ctx.lineTo(x + offset + 120, viewport.height + 20);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   if (state.conditionState?.encounter?.pursuitActive) {
     const threatWorldY = viewport.height - state.conditionState.encounter.threatHeight * GAME_CONFIG.heightScale;
     const threatScreenY = threatWorldY - state.cameraY;
