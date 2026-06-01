@@ -138,7 +138,11 @@ GameCanvas/drawScene(): 核心渲染层。负责绘制背景、岩点、角色�
 
 不适合纯随机的内容： 主路线可达性、关键资源是否必经、危险机制首次出现时机、连续高压段长度、玩家是否能在教学期理解新规则。
 
-建议演进： 将 `GAME_CONFIG.goldenPath.contentZones` 扩展为可组合的关卡段模板。每个模板声明“目标体验、生成约束、可投放机制、禁止机制、强制验证项”，生成完成后继续跑 solvability / stamina / event-density 检查。
+当前配置方案： 关卡节奏与路线生成参数集中在 `src/data/levelConfig.js` 的 `LEVEL_CONFIGS` 中维护。每个 level 声明 `wallHeight`、`routeGeneration`、`zoneSequence` 和分区模板；每个分区模板包含目标体验、岩点类型池、干扰点数量、风压/耐力修正，以及未来脆弱点、软体点、障碍、资源点的 `mechanicBudget` 投放位。
+
+配置工具： `npm run validate:levels` 会校验关卡 ID、范围参数、岩点类型池、路段引用，并真实生成一条路线验证分区覆盖与 Golden Path 可解性。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
+
+建议演进： 在当前 `LEVEL_CONFIGS` 基础上继续扩展可组合的关卡段模板。每个模板声明“目标体验、生成约束、可投放机制、禁止机制、强制验证项”，生成完成后继续跑 solvability / stamina / event-density 检查。
 
 2. 仿真道具与战前准备 (Item / Loadout - 优先级：中)
 

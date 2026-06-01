@@ -75,3 +75,5 @@ The current repository contains the playable web prototype of The Solitary Apex.
 The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, and hand injury escalation.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
+
+Route and level pacing live in `src/data/levelConfig.js`. Use `npm run validate:levels` to check level definitions and generated-route coverage before committing route template changes.

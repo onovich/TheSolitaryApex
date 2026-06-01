@@ -1,11 +1,9 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
+import { getLevelConfig } from "../../data/levelConfig.js";
 import { GAME_OVER_TEXT } from "../../data/uiText.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
-const ROUTE_HOLD_TYPES = [0, 0, 0, 0, 1, 1];
-const NOISE_HOLD_TYPES = [0, 1, 1, 2, 2];
-const ROUTE_ZONE_SEQUENCE = ["recovery", "reading", "exposure", "crux"];
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -1179,8 +1177,8 @@ function tickChannelItem(state) {
   state.itemState.channel = null;
 }
 
-function clampRouteX(viewportWidth, value) {
-  return clamp(value, GAME_CONFIG.goldenPath.corridorPadding, viewportWidth - GAME_CONFIG.goldenPath.corridorPadding);
+function clampRouteX(viewportWidth, value, routeConfig) {
+  return clamp(value, routeConfig.corridorPadding, viewportWidth - routeConfig.corridorPadding);
 }
 
 function createSpawnHolds(centerX, viewportHeight) {
@@ -1192,12 +1190,12 @@ function createSpawnHolds(centerX, viewportHeight) {
   ];
 }
 
-function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile) {
-  const handSpread = randomBetween(GAME_CONFIG.goldenPath.handSpreadMin, GAME_CONFIG.goldenPath.handSpreadMax);
-  const footSpread = randomBetween(GAME_CONFIG.goldenPath.footSpreadMin, GAME_CONFIG.goldenPath.footSpreadMax);
-  const handOffsetY = randomBetween(GAME_CONFIG.goldenPath.handOffsetYMin, GAME_CONFIG.goldenPath.handOffsetYMax);
-  const footOffsetY = randomBetween(GAME_CONFIG.goldenPath.footOffsetYMin, GAME_CONFIG.goldenPath.footOffsetYMax);
-  const routeHoldTypes = zoneProfile?.routeHoldTypes ?? ROUTE_HOLD_TYPES;
+function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile, routeConfig) {
+  const handSpread = randomBetween(routeConfig.handSpreadMin, routeConfig.handSpreadMax);
+  const footSpread = randomBetween(routeConfig.footSpreadMin, routeConfig.footSpreadMax);
+  const handOffsetY = randomBetween(routeConfig.handOffsetYMin, routeConfig.handOffsetYMax);
+  const footOffsetY = randomBetween(routeConfig.footOffsetYMin, routeConfig.footOffsetYMax);
+  const routeHoldTypes = zoneProfile?.routeHoldTypes ?? [0, 0, 0, 0, 1, 1];
 
   return {
     centerX,
@@ -1233,31 +1231,32 @@ function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile) {
   };
 }
 
-function createGoldenPath(viewportWidth, viewportHeight) {
+function createGoldenPath(viewportWidth, viewportHeight, levelConfig) {
+  const routeConfig = levelConfig.routeGeneration;
   const centerX = viewportWidth / 2;
   const path = [];
   let stanceCenterX = centerX;
   let currentBaseY = viewportHeight - 180;
   let stanceIndex = 0;
 
-  while (currentBaseY > -GAME_CONFIG.wallHeight) {
-    currentBaseY -= randomBetween(GAME_CONFIG.goldenPath.stepYMin, GAME_CONFIG.goldenPath.stepYMax);
-    stanceCenterX = clampRouteX(viewportWidth, stanceCenterX + randomBetween(-GAME_CONFIG.goldenPath.centerDrift, GAME_CONFIG.goldenPath.centerDrift));
-    path.push(createGoldenStance(stanceCenterX, currentBaseY, stanceIndex));
+  while (currentBaseY > -levelConfig.wallHeight) {
+    currentBaseY -= randomBetween(routeConfig.stepYMin, routeConfig.stepYMax);
+    stanceCenterX = clampRouteX(viewportWidth, stanceCenterX + randomBetween(-routeConfig.centerDrift, routeConfig.centerDrift), routeConfig);
+    path.push(createGoldenStance(stanceCenterX, currentBaseY, stanceIndex, "recovery", null, routeConfig));
     stanceIndex += 1;
   }
 
   return path;
 }
 
-function createRouteSegments(stanceCount) {
+function createRouteSegments(stanceCount, routeConfig) {
   const segments = [];
   let stanceIndex = 0;
   let sequenceIndex = 0;
 
   while (stanceIndex < stanceCount) {
-    const zoneKey = ROUTE_ZONE_SEQUENCE[sequenceIndex % ROUTE_ZONE_SEQUENCE.length];
-    const zoneProfile = GAME_CONFIG.goldenPath.contentZones[zoneKey];
+    const zoneKey = routeConfig.zoneSequence[sequenceIndex % routeConfig.zoneSequence.length];
+    const zoneProfile = routeConfig.zones[zoneKey];
     const segmentLength = Math.min(
       stanceCount - stanceIndex,
       randomInt(zoneProfile.segmentSpanMin, zoneProfile.segmentSpanMax),
@@ -1286,20 +1285,20 @@ function getRouteSegmentForStance(routeSegments, stanceIndex) {
   );
 }
 
-function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile) {
+function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConfig) {
   const noiseHolds = [];
   const noiseCount = randomInt(
-    zoneProfile?.noiseCountMin ?? GAME_CONFIG.goldenPath.noiseCountMin,
-    zoneProfile?.noiseCountMax ?? GAME_CONFIG.goldenPath.noiseCountMax,
+    zoneProfile?.noiseCountMin ?? routeConfig.noiseCountMin,
+    zoneProfile?.noiseCountMax ?? routeConfig.noiseCountMax,
   );
-  const noiseHoldTypes = zoneProfile?.noiseHoldTypes ?? NOISE_HOLD_TYPES;
-  const noiseOffsetX = GAME_CONFIG.goldenPath.noiseOffsetX * (zoneProfile?.noiseOffsetXMultiplier ?? 1);
-  const noiseOffsetY = GAME_CONFIG.goldenPath.noiseOffsetY * (zoneProfile?.noiseOffsetYMultiplier ?? 1);
+  const noiseHoldTypes = zoneProfile?.noiseHoldTypes ?? [0, 1, 1, 2, 2];
+  const noiseOffsetX = routeConfig.noiseOffsetX * (zoneProfile?.noiseOffsetXMultiplier ?? 1);
+  const noiseOffsetY = routeConfig.noiseOffsetY * (zoneProfile?.noiseOffsetYMultiplier ?? 1);
 
   for (let index = 0; index < noiseCount; index += 1) {
     const offsetX = randomBetween(-noiseOffsetX, noiseOffsetX);
     const offsetY = randomBetween(-noiseOffsetY, noiseOffsetY);
-    const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX);
+    const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX, routeConfig);
     const noiseY = stance.baseY + offsetY;
     noiseHolds.push(createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
       routeRole: "noise",
@@ -1311,8 +1310,10 @@ function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile) {
   return noiseHolds;
 }
 
-export function validateGoldenPath(path) {
-  const safeReach = Math.min(GAME_CONFIG.limbProfiles.leftHand.maxReach, GAME_CONFIG.limbProfiles.rightHand.maxReach) - GAME_CONFIG.goldenPath.routeSafetyBuffer;
+export function validateGoldenPath(path, levelConfig = getLevelConfig()) {
+  const safeReach =
+    Math.min(GAME_CONFIG.limbProfiles.leftHand.maxReach, GAME_CONFIG.limbProfiles.rightHand.maxReach) -
+    levelConfig.routeGeneration.routeSafetyBuffer;
 
   return path.every((stance, index) => {
     if (index === 0) {
@@ -1324,16 +1325,24 @@ export function validateGoldenPath(path) {
   });
 }
 
-function buildWallBlueprint(viewportWidth, viewportHeight) {
+function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
+  const routeConfig = levelConfig.routeGeneration;
   const holds = [];
   const centerX = viewportWidth / 2;
   const spawnHolds = createSpawnHolds(centerX, viewportHeight);
-  const goldenPathBase = createGoldenPath(viewportWidth, viewportHeight);
-  const routeSegments = createRouteSegments(goldenPathBase.length);
+  const goldenPathBase = createGoldenPath(viewportWidth, viewportHeight, levelConfig);
+  const routeSegments = createRouteSegments(goldenPathBase.length, routeConfig);
   const goldenPath = goldenPathBase.map((baseStance) => {
     const segment = getRouteSegmentForStance(routeSegments, baseStance.stanceIndex);
-    const zoneProfile = GAME_CONFIG.goldenPath.contentZones[segment.zoneKey];
-    const stance = createGoldenStance(baseStance.centerX, baseStance.baseY, baseStance.stanceIndex, segment.zoneKey, zoneProfile);
+    const zoneProfile = routeConfig.zones[segment.zoneKey];
+    const stance = createGoldenStance(
+      baseStance.centerX,
+      baseStance.baseY,
+      baseStance.stanceIndex,
+      segment.zoneKey,
+      zoneProfile,
+      routeConfig,
+    );
     const holdIndices = [];
 
     stance.holds.forEach((hold) => {
@@ -1341,7 +1350,7 @@ function buildWallBlueprint(viewportWidth, viewportHeight) {
       holds.push(hold);
     });
 
-    createNoiseHolds(stance, viewportWidth, segment.zoneKey, zoneProfile).forEach((hold) => {
+    createNoiseHolds(stance, viewportWidth, segment.zoneKey, zoneProfile, routeConfig).forEach((hold) => {
       holds.push(hold);
     });
 
@@ -1358,14 +1367,17 @@ function buildWallBlueprint(viewportWidth, viewportHeight) {
     holds: [...spawnHolds, ...holds],
     goldenPath,
     routeSegments,
+    levelId: levelConfig.id,
+    levelLabel: levelConfig.label,
   };
 }
 
-export function generateWall(viewportWidth, viewportHeight) {
-  const blueprint = buildWallBlueprint(viewportWidth, viewportHeight);
+export function generateWall(viewportWidth, viewportHeight, levelId) {
+  const levelConfig = getLevelConfig(levelId);
+  const blueprint = buildWallBlueprint(viewportWidth, viewportHeight, levelConfig);
 
-  if (!validateGoldenPath(blueprint.goldenPath)) {
-    return generateWall(viewportWidth, viewportHeight);
+  if (!validateGoldenPath(blueprint.goldenPath, levelConfig)) {
+    return generateWall(viewportWidth, viewportHeight, levelConfig.id);
   }
 
   return blueprint;
@@ -1465,11 +1477,19 @@ function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) 
   return bestHoldIndex;
 }
 
-export function createInitialGameState(viewportWidth, viewportHeight) {
-  const { holds, goldenPath, routeSegments } = generateWall(viewportWidth, viewportHeight);
+export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
+  const {
+    holds,
+    goldenPath,
+    routeSegments,
+    levelId: activeLevelId,
+    levelLabel,
+  } = generateWall(viewportWidth, viewportHeight, levelId);
 
   return {
     isPlaying: true,
+    levelId: activeLevelId,
+    levelLabel,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
@@ -1504,6 +1524,8 @@ export function getUiSnapshot(state, frame) {
   return {
     frame,
     isPlaying: state.isPlaying,
+    levelId: state.levelId,
+    levelLabel: state.levelLabel,
     stamina: state.stamina,
     staminaRatio: state.stamina / state.staminaCap,
     staminaCap: state.staminaCap,

@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:levels": "node ./scripts/validate-level-config.mjs",
     "validate:gameplay": "node ./scripts/validate-gameplay.mjs",
-    "validate": "npm run validate:gameplay && npm run build"
+    "validate": "npm run validate:levels && npm run validate:gameplay && npm run build"
   },
   "dependencies": {
     "react": "^18.3.1",
