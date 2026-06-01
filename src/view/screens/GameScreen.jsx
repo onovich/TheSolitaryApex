@@ -22,6 +22,7 @@ export function GameScreen() {
   } = useSolitaryApexGame();
 
   const vignetteOpacity = uiState.stamina < 40 ? (1 - uiState.stamina / 40) * 0.85 : 0;
+  const sensoryOpacity = Math.min(0.36, ((uiState.conditions?.survival?.senseFrames ?? 0) / 180) * 0.36);
 
   return (
     <main className="game-shell">
@@ -35,6 +36,7 @@ export function GameScreen() {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       />
+      <div className="sensory-flow" style={{ opacity: sensoryOpacity }} />
       <div className="vignette" style={{ opacity: vignetteOpacity }} />
       <GameHud
         conditions={uiState.conditions}

@@ -74,6 +74,7 @@ export function useSolitaryApexGame() {
       survival: {
         thirst: 0,
         fruitCollected: 0,
+        senseFrames: 0,
       },
     },
     tutorialVisible: true,

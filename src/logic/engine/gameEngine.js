@@ -172,6 +172,7 @@ function createInitialConditionState() {
     survival: {
       thirst: 0,
       fruitCollected: 0,
+      senseFrames: 0,
     },
   };
 }
@@ -388,6 +389,7 @@ function tickSurvivalPressure(state) {
   const survival = state.conditionState.survival;
 
   survival.thirst = clamp(survival.thirst + GAME_CONFIG.conditions.survival.thirstGainPerFrame, 0, 100);
+  survival.senseFrames = Math.max(0, survival.senseFrames - 1);
 }
 
 function collectResourceFruit(state, holdIndex) {
@@ -402,6 +404,7 @@ function collectResourceFruit(state, holdIndex) {
   fruit.hazardState = "collected";
   state.conditionState.survival.thirst = clamp(state.conditionState.survival.thirst - resourceRules.thirstRelief, 0, 100);
   state.conditionState.survival.fruitCollected += 1;
+  state.conditionState.survival.senseFrames = GAME_CONFIG.conditions.survival.fruitSenseFrames;
   restoreStamina(state, resourceRules.staminaRestore);
   pushParticles(state, fruit.x, fruit.y - state.cameraY, 18, "rgba(130, 208, 126, 0.9)");
 }

@@ -122,6 +122,7 @@ export const GAME_CONFIG = {
       thirstGainPerFrame: 0.002,
       highThirstThreshold: 70,
       staminaPenaltyScale: 0.0012,
+      fruitSenseFrames: 180,
     },
   },
   recoveryLoop: {

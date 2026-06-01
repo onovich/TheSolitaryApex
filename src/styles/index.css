@@ -278,6 +278,34 @@ select {
   transition: opacity 0.2s ease;
 }
 
+.sensory-flow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    repeating-linear-gradient(
+      115deg,
+      rgba(159, 209, 138, 0) 0,
+      rgba(159, 209, 138, 0.08) 22px,
+      rgba(127, 209, 196, 0.05) 44px,
+      rgba(159, 209, 138, 0) 72px
+    );
+  background-size: 220% 220%;
+  animation: sensory-flow 5.5s linear infinite;
+  transition: opacity 0.25s ease;
+}
+
+@keyframes sensory-flow {
+  from {
+    background-position: 0% 0%;
+  }
+
+  to {
+    background-position: 100% 100%;
+  }
+}
+
 .dev-panel {
   position: absolute;
   right: 16px;

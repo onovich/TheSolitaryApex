@@ -414,6 +414,10 @@ function validateResourceFruit() {
     throw new Error("Resource fruit should restore stamina");
   }
 
+  if (state.conditionState.survival.senseFrames <= 0) {
+    throw new Error("Resource fruit should trigger the sensory activation window");
+  }
+
   return { fruitIndex };
 }
 
