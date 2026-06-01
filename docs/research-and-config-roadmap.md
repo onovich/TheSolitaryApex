@@ -43,6 +43,7 @@ npm run build
 - Earthquake event: destabilizes decoy holds without touching Golden Path.
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
+- Rescue targets: use protection placements as a collaboration tool without NPC AI.
 
 ## Current Design Boundaries
 
@@ -53,9 +54,7 @@ npm run build
 
 ## Next Candidate Experiments
 
-- Rescue/NPC scenario: use protection placement as a collaboration tool.
 - Rope threat: a simple event where a threat climbs the protection rope after a checkpoint is placed.
 - Avalanche variant: an environment event that removes or downgrades a bounded set of non-Golden noise holds.
 - Spatial scan playtest pass: compare readability with scan off, visual-only scan, and a temporary playable projection branch.
 - Route template expansion: add named level templates with distinct event timing and hazard budgets.
-

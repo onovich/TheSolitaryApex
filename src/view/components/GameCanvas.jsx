@@ -431,6 +431,23 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
+    if (hold.hazardType === "rescueTarget") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(holdX, screenY, hold.radius + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = hold.hazardState === "rescued" ? "#9ae6b4" : "#d7a06f";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(holdX, screenY, hold.radius, 0, Math.PI * 2);
+      ctx.fillStyle = hold.hazardState === "rescued" ? "#4f7a60" : "#6b4a32";
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(holdX, screenY, hold.radius, 0, Math.PI * 2);
     const holdRejected = (state.feedbackState?.dragRejectFrames ?? 0) > 0 && state.feedbackState?.holdIndex === state.holds.indexOf(hold);

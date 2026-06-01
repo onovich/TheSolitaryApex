@@ -239,6 +239,11 @@ select {
   border-color: #a84b4b;
 }
 
+.status-pill.is-rescue {
+  color: #9ae6b4;
+  border-color: #4f7a60;
+}
+
 .spatial-scan-pill {
   display: inline-flex;
   align-items: center;

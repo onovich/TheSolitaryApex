@@ -298,7 +298,12 @@ function validateFootDragFeel() {
   const state = createStableState();
   const footIndex = 2;
   const foot = state.player.limbs[footIndex];
-  const targetHoldIndex = state.holds.length - 1;
+  const targetHoldIndex = state.holds.findIndex((hold, index) => index > 3 && !hold.hazardType && !hold.removed);
+
+  if (targetHoldIndex === -1) {
+    throw new Error("Could not find an ordinary target hold for foot drag validation");
+  }
+
   const targetHold = state.holds[targetHoldIndex];
   const rootX = state.player.com.x + foot.reachProfile.rootOffset.x;
   const rootY = state.player.com.y + foot.reachProfile.rootOffset.y;
@@ -538,6 +543,38 @@ function validateSpatialScan() {
   };
 }
 
+function validateRescueTarget() {
+  const state = createStableState();
+  const rescueTarget = state.holds.find((hold) => hold.hazardType === "rescueTarget");
+  const initialProtection = state.inventory.protectionCam.count;
+
+  if (!rescueTarget) {
+    throw new Error("Expected generated route to include a rescue target");
+  }
+
+  rescueTarget.x = state.player.com.x + 20;
+  rescueTarget.y = state.player.com.y;
+  rescueTarget.rescueRadius = 120;
+
+  if (!useItem(state, "protectionCam")) {
+    throw new Error("Expected protection cam to attach to a nearby rescue target");
+  }
+
+  if (rescueTarget.hazardState !== "rescued") {
+    throw new Error("Protection cam did not rescue the nearby rescue target");
+  }
+
+  if (state.inventory.protectionCam.count !== initialProtection - 1) {
+    throw new Error("Rescuing a target should consume one protection cam");
+  }
+
+  if (state.itemState.checkpoint) {
+    throw new Error("Rescue target protection should not also create a player checkpoint");
+  }
+
+  return { rescueCount: state.conditionState.encounter.rescueCount };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -550,6 +587,7 @@ const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
 const pursuitResult = validatePursuitPressure();
 const spatialResult = validateSpatialScan();
+const rescueResult = validateRescueTarget();
 
 console.log(
   [
@@ -569,5 +607,6 @@ console.log(
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
     `spatialAngle=${spatialResult.angle.toFixed(2)}`,
+    `rescuedTargets=${rescueResult.rescueCount}`,
   ].join(" "),
 );

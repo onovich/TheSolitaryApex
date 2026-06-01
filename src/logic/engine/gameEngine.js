@@ -217,6 +217,7 @@ function createInitialConditionState() {
       threatHeight: 0,
       gap: Infinity,
       danger: false,
+      rescueCount: 0,
     },
   };
 }
@@ -1399,6 +1400,43 @@ function canUseItem(state, itemDefinition) {
   return true;
 }
 
+function getReachableRescueTargetIndex(state) {
+  let closestHoldIndex = -1;
+  let closestDistance = Infinity;
+
+  state.holds.forEach((hold, holdIndex) => {
+    if (hold.hazardType !== "rescueTarget" || hold.hazardState === "rescued") {
+      return;
+    }
+
+    const distance = Math.hypot(hold.x - state.player.com.x, hold.y - state.player.com.y);
+
+    if (distance <= hold.rescueRadius && distance < closestDistance) {
+      closestDistance = distance;
+      closestHoldIndex = holdIndex;
+    }
+  });
+
+  return closestHoldIndex;
+}
+
+function attachProtectionToRescueTarget(state, itemDefinition) {
+  const rescueTargetIndex = getReachableRescueTargetIndex(state);
+
+  if (rescueTargetIndex === -1 || getAttachedLimbs(state).length < itemDefinition.activation.requiresAttachedLimbsMin) {
+    return false;
+  }
+
+  const rescueTarget = state.holds[rescueTargetIndex];
+
+  rescueTarget.hazardState = "rescued";
+  rescueTarget.rescuedFrame = state.frame ?? 0;
+  rescueTarget.rescueItemId = itemDefinition.id;
+  state.conditionState.encounter.rescueCount += 1;
+  pushParticles(state, rescueTarget.x, rescueTarget.y - state.cameraY, 26, "rgba(154, 230, 180, 0.9)");
+  return true;
+}
+
 function getItemUiState(state, itemId) {
   const itemDefinition = ITEM_CATALOG[itemId];
   const active = getItemActiveState(state, itemDefinition);
@@ -1746,6 +1784,30 @@ function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConf
   return noiseHolds;
 }
 
+function createRescueTargetHolds(goldenPath, rescueTargets = []) {
+  return rescueTargets
+    .map((targetConfig) => {
+      const stance = goldenPath[targetConfig.stanceIndex];
+
+      if (!stance) {
+        return null;
+      }
+
+      return createHold(stance.centerX + targetConfig.offsetX, stance.baseY + targetConfig.offsetY, 0, {
+        routeRole: "rescueTarget",
+        routeZone: stance.zoneKey,
+        stanceIndex: stance.stanceIndex,
+        hazardType: "rescueTarget",
+        hazardState: "waiting",
+        rescueTargetId: targetConfig.id,
+        rescueRadius: targetConfig.rescueRadius,
+        radius: targetConfig.radius,
+        zLayer: 0,
+      });
+    })
+    .filter(Boolean);
+}
+
 export function validateGoldenPath(path, levelConfig = getLevelConfig()) {
   const safeReach =
     Math.min(GAME_CONFIG.limbProfiles.leftHand.maxReach, GAME_CONFIG.limbProfiles.rightHand.maxReach) -
@@ -1798,9 +1860,10 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
       holdIndices,
     };
   });
+  const rescueTargetHolds = createRescueTargetHolds(goldenPath, levelConfig.rescueTargets);
 
   return {
-    holds: [...spawnHolds, ...holds],
+    holds: [...spawnHolds, ...holds, ...rescueTargetHolds],
     goldenPath,
     routeSegments,
     levelId: levelConfig.id,
@@ -1812,7 +1875,13 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
 }
 
 function isHoldAvailable(hold) {
-  return Boolean(hold && !hold.removed && hold.hazardType !== "obstacle" && hold.hazardType !== "resourceFruit");
+  return Boolean(
+    hold &&
+      !hold.removed &&
+      hold.hazardType !== "obstacle" &&
+      hold.hazardType !== "resourceFruit" &&
+      hold.hazardType !== "rescueTarget",
+  );
 }
 
 export function generateWall(viewportWidth, viewportHeight, levelId) {
@@ -2264,6 +2333,11 @@ export function useItem(state, itemId) {
   state.inventory[itemDefinition.id].count -= 1;
 
   if (itemDefinition.activation?.type === "checkpoint") {
+    if (attachProtectionToRescueTarget(state, itemDefinition)) {
+      emitItemFeedback(state, itemDefinition);
+      return true;
+    }
+
     captureCheckpoint(state, itemDefinition);
     emitItemFeedback(state, itemDefinition);
     return true;

@@ -23,6 +23,16 @@ export const LEVEL_CONFIGS = [
       dangerGap: 18,
       staminaPenalty: 0.05,
     },
+    rescueTargets: [
+      {
+        id: "injured-climber-01",
+        stanceIndex: 18,
+        offsetX: -108,
+        offsetY: -28,
+        radius: 12,
+        rescueRadius: 150,
+      },
+    ],
     routeGeneration: {
       centerDrift: 84,
       corridorPadding: 140,
@@ -226,6 +236,18 @@ export function validateLevelConfig(levelConfig) {
       }
     });
   }
+
+  (levelConfig?.rescueTargets ?? []).forEach((targetConfig) => {
+    if (!targetConfig.id) {
+      errors.push("rescue target id is required");
+    }
+
+    ["stanceIndex", "offsetX", "offsetY", "radius", "rescueRadius"].forEach((key) => {
+      if (typeof targetConfig[key] !== "number") {
+        errors.push(`${targetConfig.id}.${key} must be a number`);
+      }
+    });
+  });
 
   const routeGeneration = levelConfig?.routeGeneration;
 

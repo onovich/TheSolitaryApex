@@ -173,6 +173,9 @@ export function GameHud({
               {UI_TEXT.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
             </div>
           ) : null}
+          {encounterState?.rescueCount > 0 ? (
+            <div className="status-pill is-rescue">{UI_TEXT.rescueLabel}: {encounterState.rescueCount}</div>
+          ) : null}
           <div className={launchClassName}>
             {UI_TEXT.launchLabel}: {launchLabel}
           </div>
