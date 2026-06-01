@@ -1,0 +1,17 @@
+﻿{
+    "schemaVersion":  1,
+    "initializedMarker":  "codex-project-git-workflow: initialized",
+    "initializedAt":  "2026-06-01 21:01:18 +08:00",
+    "projectName":  "TheSolitaryApex",
+    "repoRoot":  "D:/WebProjects/TheSolitaryApex",
+    "safeDirectory":  "D:/WebProjects/TheSolitaryApex",
+    "statusCommand":  "git -c safe.directory=D:/WebProjects/TheSolitaryApex status --short --branch",
+    "validationCommands":  [
+                               "cmd /c npm.cmd run validate"
+                           ],
+    "stagingPolicy":  "ask each time",
+    "commitCommand":  "",
+    "pushCommand":  "git -c safe.directory=D:/WebProjects/TheSolitaryApex push -u origin HEAD",
+    "docsRequirement":  "",
+    "forbiddenCommands":  ""
+}
