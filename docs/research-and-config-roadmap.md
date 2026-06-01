@@ -21,7 +21,7 @@ npm run build
 ## Primary Config Files
 
 - `src/data/levelConfig.js`
-  - Route generation seed, wall height, zone order, zone templates, hazard budgets, environment events, pursuit settings, and spatial-scan experiment values.
+  - Route authoring metadata, pressure rules, generation seed, wall height, zone order, zone templates, hazard budgets, environment events, pursuit settings, rope-threat settings, rescue targets, and spatial-scan experiment values.
 - `src/data/loadoutConfig.js`
   - Pre-run loadouts, starting item counts, and small multipliers for dyno, poor-hold pressure, and thirst pressure.
 - `src/data/gameConfig.js`
@@ -61,11 +61,12 @@ npm run build
 These tasks keep the prototype editable as mechanics accumulate.
 
 - Expand `levelConfig` into a clearer authoring contract:
-  - Named level templates with intended pace, route length, event timing, hazard budget, resource budget, and required validators.
-  - Explicit split between authored values and randomized values.
+  - Current status: each level now includes `authoring.templateId`, intended pace, authored controls, randomized controls, pressure rules, and required validators.
+  - Next step: add multiple named level templates with distinct route length, event timing, hazard budget, and resource budget.
   - Keep Golden Path reachability authored/validated rather than purely random.
 - Add stronger validation around route pacing:
-  - Event-density checks so earthquake, pursuit, rescue, fruit, and future rope threats do not stack into unreadable noise.
+  - Current status: `validate:levels` checks environment-event count and minimum spacing through `authoring.pressureRules`.
+  - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.
   - Resource-pressure checks so thirst, stamina, fruit, and loadout penalties stay recoverable.
   - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.
 - Generalize the current Dyno `DEV` panel into a small developer tuning panel:

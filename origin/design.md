@@ -138,9 +138,9 @@ GameCanvas/drawScene(): 核心渲染层。负责绘制背景、岩点、角色�
 
 不适合纯随机的内容： 主路线可达性、关键资源是否必经、危险机制首次出现时机、连续高压段长度、玩家是否能在教学期理解新规则。
 
-当前配置方案： 关卡节奏与路线生成参数集中在 `src/data/levelConfig.js` 的 `LEVEL_CONFIGS` 中维护。每个 level 声明 `wallHeight`、`routeGeneration`、`zoneSequence` 和分区模板；每个分区模板包含目标体验、岩点类型池、干扰点数量、风压/耐力修正，以及未来脆弱点、软体点、障碍、资源点的 `mechanicBudget` 投放位。
+当前配置方案： 关卡节奏与路线生成参数集中在 `src/data/levelConfig.js` 的 `LEVEL_CONFIGS` 中维护。每个 level 声明 `authoring` 元数据、`wallHeight`、`routeGeneration`、`zoneSequence` 和分区模板；`authoring` 记录模板 ID、目标节奏、手写控制项、允许随机项、压力事件间距和必跑验证项。每个分区模板包含目标体验、岩点类型池、干扰点数量、风压/耐力修正，以及脆弱点、软体点、障碍、资源点的 `mechanicBudget` 投放位。
 
-配置工具： `npm run validate:levels` 会校验关卡 ID、范围参数、岩点类型池、路段引用，并真实生成一条路线验证分区覆盖与 Golden Path 可解性。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
+配置工具： `npm run validate:levels` 会校验关卡 ID、作者元数据、范围参数、岩点类型池、路段引用、环境事件数量与间距，并真实生成一条路线验证分区覆盖、Golden Path 可解性和 seed 复现。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
 
 复现工具： 每个关卡配置包含稳定 `seed`。路线生成会用 `level id + seed + viewport` 生成可复现的随机序列；`validate:levels` 会重复生成并比对路线签名，确保调参时可以固定同一条路线观察差异。
 

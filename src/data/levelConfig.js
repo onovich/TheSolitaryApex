@@ -7,6 +7,31 @@ export const LEVEL_CONFIGS = [
     description: "Default endless prototype route with readable recovery, route-reading, exposure, and crux beats.",
     seed: "prototype-2026-06",
     wallHeight: 10000,
+    authoring: {
+      templateId: "prototype-mixed-ascent",
+      intendedPace: "Recovery, route reading, exposure pressure, and short crux spikes in one long prototype route.",
+      authoredControls: [
+        "wallHeight",
+        "zoneSequence",
+        "zoneBudgets",
+        "environmentEventTiming",
+        "pursuitTiming",
+        "ropeThreatTiming",
+        "rescueTargetPlacement",
+      ],
+      randomizedControls: [
+        "goldenPathHorizontalDrift",
+        "noiseHoldOffsets",
+        "noiseHoldTypeSelection",
+        "eligibleHazardSelection",
+        "particleMotion",
+      ],
+      pressureRules: {
+        minEnvironmentEventSpacingFrames: 360,
+        maxEnvironmentEvents: 3,
+      },
+      requiredValidators: ["validate:levels", "validate:gameplay", "build"],
+    },
     environmentEvents: [
       {
         id: "first-quake",
@@ -228,6 +253,32 @@ export function validateLevelConfig(levelConfig) {
     errors.push(`${levelConfig?.id ?? "unknown"} seed must be a non-empty string`);
   }
 
+  if (!levelConfig?.authoring) {
+    errors.push(`${levelConfig?.id ?? "unknown"} authoring metadata is required`);
+  } else {
+    if (typeof levelConfig.authoring.templateId !== "string" || levelConfig.authoring.templateId.length === 0) {
+      errors.push(`${levelConfig.id}.authoring.templateId must be a non-empty string`);
+    }
+
+    ["authoredControls", "randomizedControls", "requiredValidators"].forEach((key) => {
+      if (!Array.isArray(levelConfig.authoring[key]) || levelConfig.authoring[key].length === 0) {
+        errors.push(`${levelConfig.id}.authoring.${key} must be a non-empty array`);
+      }
+    });
+
+    const pressureRules = levelConfig.authoring.pressureRules;
+
+    if (!pressureRules) {
+      errors.push(`${levelConfig.id}.authoring.pressureRules is required`);
+    } else {
+      ["minEnvironmentEventSpacingFrames", "maxEnvironmentEvents"].forEach((key) => {
+        if (!Number.isInteger(pressureRules[key]) || pressureRules[key] < 0) {
+          errors.push(`${levelConfig.id}.authoring.pressureRules.${key} must be a non-negative integer`);
+        }
+      });
+    }
+  }
+
   (levelConfig?.environmentEvents ?? []).forEach((eventConfig) => {
     if (!eventConfig.id) {
       errors.push(`${levelConfig.id} environment event id is required`);
@@ -251,6 +302,27 @@ export function validateLevelConfig(levelConfig) {
       errors.push(`${eventConfig.id}.type is unsupported: ${eventConfig.type}`);
     }
   });
+
+  const pressureRules = levelConfig?.authoring?.pressureRules;
+  const environmentEvents = [...(levelConfig?.environmentEvents ?? [])].sort(
+    (left, right) => left.startFrame - right.startFrame,
+  );
+
+  if (pressureRules?.maxEnvironmentEvents !== undefined && environmentEvents.length > pressureRules.maxEnvironmentEvents) {
+    errors.push(`${levelConfig.id} has more environment events than authoring.pressureRules.maxEnvironmentEvents`);
+  }
+
+  if (pressureRules?.minEnvironmentEventSpacingFrames !== undefined) {
+    for (let index = 1; index < environmentEvents.length; index += 1) {
+      const previousEvent = environmentEvents[index - 1];
+      const eventConfig = environmentEvents[index];
+      const previousEndFrame = previousEvent.startFrame + previousEvent.durationFrames;
+
+      if (eventConfig.startFrame - previousEndFrame < pressureRules.minEnvironmentEventSpacingFrames) {
+        errors.push(`${eventConfig.id} starts too close to ${previousEvent.id}`);
+      }
+    }
+  }
 
   if (levelConfig?.pursuit) {
     ["startFrame", "speed", "dangerGap", "staminaPenalty"].forEach((key) => {

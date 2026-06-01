@@ -88,6 +88,6 @@ The current web build now includes guaranteed-solvable route generation, a first
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 
-Route and level pacing live in `src/data/levelConfig.js`. Each level has a stable `seed` so route changes are reproducible while tuning. Use `npm run validate:levels` to check level definitions, generated-route coverage, and seed repeatability before committing route template changes.
+Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, plus pressure rules for event spacing. Each level also has a stable `seed` so route changes are reproducible while tuning. Use `npm run validate:levels` to check level definitions, pressure rules, generated-route coverage, and seed repeatability before committing route template changes.
 
 Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.

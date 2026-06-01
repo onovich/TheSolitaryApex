@@ -62,6 +62,7 @@ LEVEL_CONFIGS.forEach((levelConfig) => {
 
   results.push({
     id: levelConfig.id,
+    templateId: levelConfig.authoring.templateId,
     ...validateGeneratedRoute(levelConfig),
   });
 });
@@ -73,7 +74,7 @@ console.log(
     `loadouts=${LOADOUT_CONFIGS.map((loadoutConfig) => loadoutConfig.id).join(",")}`,
     ...results.map(
       (result) =>
-        `${result.id}:holds=${result.holdCount}:stances=${result.stanceCount}:segments=${result.segmentCount}:zones=${result.zoneKeys.join("/")}`,
+        `${result.id}:template=${result.templateId}:holds=${result.holdCount}:stances=${result.stanceCount}:segments=${result.segmentCount}:zones=${result.zoneKeys.join("/")}`,
     ),
   ].join(" "),
 );
