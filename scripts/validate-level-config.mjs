@@ -4,6 +4,7 @@ import { LOADOUT_CONFIGS, validateLoadoutConfigs } from "../src/data/loadoutConf
 import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine.js";
 
 const CONTENT_TARGET_KEYS = ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"];
+const HAZARD_PRESSURE_KEYS = ["fragile", "timedSoft", "obstacle"];
 
 function countGeneratedContent(holds) {
   const counts = Object.fromEntries(CONTENT_TARGET_KEYS.map((key) => [key, 0]));
@@ -29,12 +30,52 @@ function validateContentTargets(levelConfig, contentCounts) {
   });
 }
 
+function getRoutePressureSummary(blueprint, contentCounts) {
+  const weighted = blueprint.routeSegments.reduce(
+    (summary, segment) => {
+      const stanceSpan = segment.endStanceIndex - segment.startStanceIndex + 1;
+
+      summary.stanceWeight += stanceSpan;
+      summary.windTotal += segment.windMultiplier * stanceSpan;
+      summary.staminaTotal += segment.staminaModifier * stanceSpan;
+      return summary;
+    },
+    {
+      stanceWeight: 0,
+      windTotal: 0,
+      staminaTotal: 0,
+    },
+  );
+  const stanceCount = Math.max(1, blueprint.goldenPath.length);
+  const hazardCount = HAZARD_PRESSURE_KEYS.reduce((total, key) => total + (contentCounts[key] ?? 0), 0);
+
+  return {
+    averageWindMultiplier: weighted.windTotal / Math.max(1, weighted.stanceWeight),
+    averageStaminaModifier: weighted.staminaTotal / Math.max(1, weighted.stanceWeight),
+    hazardPer100Stances: (hazardCount / stanceCount) * 100,
+    resourcePer100Stances: ((contentCounts.resourceFruit ?? 0) / stanceCount) * 100,
+  };
+}
+
+function validatePressureTargets(levelConfig, pressureSummary) {
+  Object.entries(levelConfig.authoring.pressureTargets).forEach(([key, targetRange]) => {
+    const value = pressureSummary[key];
+
+    if (value < targetRange.min || value > targetRange.max) {
+      throw new Error(
+        `${levelConfig.id} generated ${key} ${value.toFixed(3)}, expected ${targetRange.min}-${targetRange.max}`,
+      );
+    }
+  });
+}
+
 function validateGeneratedRoute(levelConfig) {
   const blueprint = generateWall(1280, 720, levelConfig.id);
   const repeatedBlueprint = generateWall(1280, 720, levelConfig.id);
   const zoneKeys = new Set(blueprint.routeSegments.map((segment) => segment.zoneKey));
   const contentCounts = countGeneratedContent(blueprint.holds);
   const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
+  const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
 
   levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
     if (!zoneKeys.has(zoneKey)) {
@@ -47,6 +88,7 @@ function validateGeneratedRoute(levelConfig) {
   }
 
   validateContentTargets(levelConfig, contentCounts);
+  validatePressureTargets(levelConfig, pressureSummary);
 
   const holdSignature = blueprint.holds
     .slice(0, 24)
@@ -75,6 +117,7 @@ function validateGeneratedRoute(levelConfig) {
     pursuitEnabled: Boolean(levelConfig.pursuit),
     ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
     contentCounts,
+    pressureSummary,
   };
 }
 
@@ -122,6 +165,10 @@ console.log(
     ...results.map(
       (result) =>
         `${result.id}:content=${CONTENT_TARGET_KEYS.map((key) => `${key}${result.contentCounts[key]}`).join("/")}`,
+    ),
+    ...results.map(
+      (result) =>
+        `${result.id}:pressure=wind${result.pressureSummary.averageWindMultiplier.toFixed(2)}/stamina${result.pressureSummary.averageStaminaModifier.toFixed(3)}/hazards${result.pressureSummary.hazardPer100Stances.toFixed(1)}/resources${result.pressureSummary.resourcePer100Stances.toFixed(1)}`,
     ),
   ].join(" "),
 );

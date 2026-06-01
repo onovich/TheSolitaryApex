@@ -33,6 +33,12 @@ export const LEVEL_CONFIGS = [
         resourceFruit: { min: 1, max: 7 },
         rescueTarget: { min: 1, max: 1 },
       },
+      pressureTargets: {
+        averageWindMultiplier: { min: 1, max: 1.25 },
+        averageStaminaModifier: { min: -0.002, max: 0.006 },
+        hazardPer100Stances: { min: 16, max: 27 },
+        resourcePer100Stances: { min: 1, max: 5 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 360,
         maxEnvironmentEvents: 3,
@@ -223,6 +229,7 @@ function createAuthoring({
   authoredControls = LEVEL_CONFIGS[0].authoring.authoredControls,
   randomizedControls = LEVEL_CONFIGS[0].authoring.randomizedControls,
   contentTargets = LEVEL_CONFIGS[0].authoring.contentTargets,
+  pressureTargets = LEVEL_CONFIGS[0].authoring.pressureTargets,
   pressureRules = LEVEL_CONFIGS[0].authoring.pressureRules,
 }) {
   return {
@@ -232,6 +239,9 @@ function createAuthoring({
     randomizedControls: [...randomizedControls],
     contentTargets: Object.fromEntries(
       Object.entries(contentTargets).map(([key, range]) => [key, { ...range }]),
+    ),
+    pressureTargets: Object.fromEntries(
+      Object.entries(pressureTargets).map(([key, range]) => [key, { ...range }]),
     ),
     pressureRules: { ...pressureRules },
     requiredValidators: [...LEVEL_CONFIGS[0].authoring.requiredValidators],
@@ -311,6 +321,12 @@ LEVEL_CONFIGS.push(
         obstacle: { min: 0, max: 2 },
         resourceFruit: { min: 24, max: 42 },
         rescueTarget: { min: 0, max: 0 },
+      },
+      pressureTargets: {
+        averageWindMultiplier: { min: 0.8, max: 1.05 },
+        averageStaminaModifier: { min: 0.004, max: 0.014 },
+        hazardPer100Stances: { min: 8, max: 16 },
+        resourcePer100Stances: { min: 26, max: 42 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 480,
@@ -394,6 +410,12 @@ LEVEL_CONFIGS.push(
         obstacle: { min: 1, max: 5 },
         resourceFruit: { min: 0, max: 6 },
         rescueTarget: { min: 0, max: 0 },
+      },
+      pressureTargets: {
+        averageWindMultiplier: { min: 1.05, max: 1.3 },
+        averageStaminaModifier: { min: -0.008, max: 0.002 },
+        hazardPer100Stances: { min: 28, max: 42 },
+        resourcePer100Stances: { min: 0, max: 6 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 420,
@@ -488,6 +510,12 @@ LEVEL_CONFIGS.push(
         obstacle: { min: 0, max: 3 },
         resourceFruit: { min: 6, max: 16 },
         rescueTarget: { min: 2, max: 2 },
+      },
+      pressureTargets: {
+        averageWindMultiplier: { min: 0.9, max: 1.12 },
+        averageStaminaModifier: { min: 0, max: 0.008 },
+        hazardPer100Stances: { min: 14, max: 24 },
+        resourcePer100Stances: { min: 7, max: 15 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 540,
@@ -650,6 +678,35 @@ export function validateLevelConfig(levelConfig) {
     }
 
     const pressureRules = levelConfig.authoring.pressureRules;
+    const pressureTargets = levelConfig.authoring.pressureTargets;
+
+    if (!pressureTargets) {
+      errors.push(`${levelConfig.id}.authoring.pressureTargets is required`);
+    } else {
+      [
+        "averageWindMultiplier",
+        "averageStaminaModifier",
+        "hazardPer100Stances",
+        "resourcePer100Stances",
+      ].forEach((key) => {
+        const targetRange = pressureTargets[key];
+
+        if (!targetRange) {
+          errors.push(`${levelConfig.id}.authoring.pressureTargets.${key} is required`);
+          return;
+        }
+
+        ["min", "max"].forEach((rangeKey) => {
+          if (typeof targetRange[rangeKey] !== "number") {
+            errors.push(`${levelConfig.id}.authoring.pressureTargets.${key}.${rangeKey} must be a number`);
+          }
+        });
+
+        if (targetRange.min > targetRange.max) {
+          errors.push(`${levelConfig.id}.authoring.pressureTargets.${key}.min must be <= max`);
+        }
+      });
+    }
 
     if (!pressureRules) {
       errors.push(`${levelConfig.id}.authoring.pressureRules is required`);
