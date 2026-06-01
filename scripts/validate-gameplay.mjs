@@ -13,8 +13,8 @@ import {
   useItem,
 } from "../src/logic/engine/gameEngine.js";
 
-function createStableState() {
-  const state = createInitialGameState(1280, 720);
+function createStableState(options) {
+  const state = createInitialGameState(1280, 720, options);
   state.conditionState.weather.windForce = 0;
   state.conditionState.weather.targetWindForce = 0;
   state.conditionState.weather.windPhase = 0;
@@ -131,7 +131,9 @@ function validateDragDynoAndFalls() {
     throw new Error("Dyno launch should detach all limbs");
   }
 
-  const expectedStamina = GAME_CONFIG.maxStamina - GAME_CONFIG.maxStamina * GAME_CONFIG.movement.dyno.staminaCostRatio;
+  const expectedStamina =
+    GAME_CONFIG.maxStamina -
+    GAME_CONFIG.maxStamina * GAME_CONFIG.movement.dyno.staminaCostRatio * state.loadout.modifiers.dynoCostMultiplier;
 
   if (Math.abs(state.stamina - expectedStamina) > 0.001) {
     throw new Error(`Dyno stamina cost mismatch: ${state.stamina}`);
@@ -259,6 +261,36 @@ function validateItems() {
   }
 
   return { gelDelta };
+}
+
+function validateLoadouts() {
+  const steadyState = createStableState({ loadoutId: "steadyRack" });
+  const boldState = createStableState({ loadoutId: "boldDyno" });
+  const technicalState = createStableState({ loadoutId: "technicalShoes" });
+  const steadyItems = getUiSnapshot(steadyState, 0).items;
+  const boldItems = getUiSnapshot(boldState, 0).items;
+  const technicalItems = getUiSnapshot(technicalState, 0).items;
+  const getCount = (items, itemId) => items.find((item) => item.id === itemId)?.count ?? -1;
+  const steadyDynoCost = getUiSnapshot(steadyState, 0).movement.dyno.staminaCost;
+  const boldDynoCost = getUiSnapshot(boldState, 0).movement.dyno.staminaCost;
+
+  if (getCount(steadyItems, "protectionCam") !== 3 || getCount(steadyItems, "chalk") !== 4) {
+    throw new Error("Steady loadout should start with extra protection and chalk");
+  }
+
+  if (getCount(boldItems, "protectionCam") !== 1 || !(boldDynoCost < steadyDynoCost)) {
+    throw new Error("Bold loadout should trade protection for cheaper dyno cost");
+  }
+
+  if (getCount(technicalItems, "energyGel") !== 0) {
+    throw new Error("Technical loadout should trade away the starting energy gel");
+  }
+
+  return {
+    steadyDynoCost,
+    boldDynoCost,
+    technicalGel: getCount(technicalItems, "energyGel"),
+  };
 }
 
 function validateFootDragFeel() {
@@ -424,6 +456,7 @@ function validateResourceFruit() {
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
+const loadoutResult = validateLoadouts();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -439,6 +472,7 @@ console.log(
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
+    `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,

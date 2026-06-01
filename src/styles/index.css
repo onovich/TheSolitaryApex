@@ -61,6 +61,33 @@ select {
   gap: 12px;
 }
 
+.loadout-switcher {
+  pointer-events: auto;
+  display: flex;
+  height: 38px;
+  border: 1px solid #555555;
+}
+
+.loadout-button {
+  min-width: 58px;
+  padding: 0 10px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #9a9a9a;
+  border: 0;
+  border-right: 1px solid #555555;
+  cursor: pointer;
+}
+
+.loadout-button:last-child {
+  border-right: 0;
+}
+
+.loadout-button:hover,
+.loadout-button.is-active {
+  color: #f0d58a;
+  background: rgba(240, 213, 138, 0.12);
+}
+
 .stamina-container {
   width: min(240px, calc(100vw - 140px));
 }

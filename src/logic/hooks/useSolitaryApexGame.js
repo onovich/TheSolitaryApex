@@ -11,6 +11,7 @@ import {
   updateFrame,
   updatePointer,
 } from "../engine/gameEngine.js";
+import { DEFAULT_LOADOUT_ID, LOADOUT_CONFIGS } from "../../data/loadoutConfig.js";
 
 const getViewport = () => ({
   width: window.innerWidth,
@@ -23,9 +24,15 @@ export function useSolitaryApexGame() {
   const animationFrameRef = useRef(0);
   const frameRef = useRef(0);
   const [viewport, setViewport] = useState(getViewport);
+  const [selectedLoadoutId, setSelectedLoadoutId] = useState(DEFAULT_LOADOUT_ID);
   const [uiState, setUiState] = useState(() => ({
     frame: 0,
     isPlaying: true,
+    loadout: {
+      id: DEFAULT_LOADOUT_ID,
+      label: "稳健",
+      description: "",
+    },
     stamina: 100,
     staminaRatio: 1,
     height: 0,
@@ -113,7 +120,7 @@ export function useSolitaryApexGame() {
   }, []);
 
   useEffect(() => {
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height);
+    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, { loadoutId: selectedLoadoutId });
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
 
@@ -133,7 +140,7 @@ export function useSolitaryApexGame() {
     return () => {
       window.cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [viewport.height, viewport.width]);
+  }, [selectedLoadoutId, viewport.height, viewport.width]);
 
   const toCanvasPosition = (event) => {
     const canvas = canvasRef.current;
@@ -213,10 +220,15 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
-  const restartGame = () => {
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height);
+  const restartGame = (loadoutId = selectedLoadoutId) => {
+    setSelectedLoadoutId(loadoutId);
+    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, { loadoutId });
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
+  };
+
+  const selectLoadout = (loadoutId) => {
+    restartGame(loadoutId);
   };
 
   const useInventoryItem = (itemId) => {
@@ -233,11 +245,13 @@ export function useSolitaryApexGame() {
     gameStateRef,
     viewport,
     uiState,
+    loadouts: LOADOUT_CONFIGS,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handlePointerCancel,
     restartGame,
+    selectLoadout,
     useInventoryItem,
   };
 }

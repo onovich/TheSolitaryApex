@@ -22,6 +22,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - Limb-specific reach constraints with asymmetric hand and foot movement envelopes
 - Stamina pressure that turns small mistakes into fatal ones
 - A small survival rack: chalk, protection placements, and single-hand energy gel channels
+- Three pre-run loadouts that trade safety, dyno power, and poor-hold efficiency
 - Charge-and-release dyno window for committing to longer moves
 - Rest pose detection for wide foot locks and hands-off recovery windows
 - Wind pressure and hand injury systems that steadily destabilize bad decisions
@@ -77,8 +78,10 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, and a fruit-triggered sensory-flow overlay.
+The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, and three selectable loadouts.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 
 Route and level pacing live in `src/data/levelConfig.js`. Use `npm run validate:levels` to check level definitions and generated-route coverage before committing route template changes.
+
+Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.

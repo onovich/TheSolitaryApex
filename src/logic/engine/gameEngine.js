@@ -1,6 +1,7 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
+import { getLoadoutConfig } from "../../data/loadoutConfig.js";
 import { GAME_OVER_TEXT } from "../../data/uiText.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
@@ -388,7 +389,11 @@ function getResourceRules(state) {
 function tickSurvivalPressure(state) {
   const survival = state.conditionState.survival;
 
-  survival.thirst = clamp(survival.thirst + GAME_CONFIG.conditions.survival.thirstGainPerFrame, 0, 100);
+  survival.thirst = clamp(
+    survival.thirst + GAME_CONFIG.conditions.survival.thirstGainPerFrame * state.loadout.modifiers.thirstGainMultiplier,
+    0,
+    100,
+  );
   survival.senseFrames = Math.max(0, survival.senseFrames - 1);
 }
 
@@ -459,7 +464,7 @@ function restoreStamina(state, amount) {
 }
 
 function getDynoStaminaCost(state) {
-  return state.staminaCap * GAME_CONFIG.movement.dyno.staminaCostRatio;
+  return state.staminaCap * GAME_CONFIG.movement.dyno.staminaCostRatio * state.loadout.modifiers.dynoCostMultiplier;
 }
 
 function getCheckpointAnchorHoldIndex(state) {
@@ -953,13 +958,17 @@ function getDynoReachRatio(state) {
 
 function getDynamicReachProfile(state, limb) {
   const dynoRatio = limb.isHand ? getDynoReachRatio(state) : 0;
+  const dynoReachMultiplier = state.loadout.modifiers.dynoReachMultiplier;
 
   return {
     ...limb.reachProfile,
-    maxReach: limb.reachProfile.maxReach + GAME_CONFIG.movement.dyno.reachBonusMax * dynoRatio,
-    minHorizontalOffset: limb.reachProfile.minHorizontalOffset - GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio,
-    maxHorizontalOffset: limb.reachProfile.maxHorizontalOffset + GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio,
-    minVerticalOffset: limb.reachProfile.minVerticalOffset - GAME_CONFIG.movement.dyno.verticalBonusMax * dynoRatio,
+    maxReach: limb.reachProfile.maxReach + GAME_CONFIG.movement.dyno.reachBonusMax * dynoRatio * dynoReachMultiplier,
+    minHorizontalOffset:
+      limb.reachProfile.minHorizontalOffset - GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio * dynoReachMultiplier,
+    maxHorizontalOffset:
+      limb.reachProfile.maxHorizontalOffset + GAME_CONFIG.movement.dyno.lateralBonusMax * dynoRatio * dynoReachMultiplier,
+    minVerticalOffset:
+      limb.reachProfile.minVerticalOffset - GAME_CONFIG.movement.dyno.verticalBonusMax * dynoRatio * dynoReachMultiplier,
   };
 }
 
@@ -1161,10 +1170,10 @@ function decayDynoState(state) {
   }
 }
 
-function createInitialInventory() {
+function createInitialInventory(loadout) {
   return Object.values(ITEM_CATALOG).reduce((inventory, itemDefinition) => {
     inventory[itemDefinition.id] = {
-      count: itemDefinition.initialCount,
+      count: loadout.itemCounts[itemDefinition.id] ?? itemDefinition.initialCount,
       acquisition: itemDefinition.acquisition,
       persistence: itemDefinition.persistence,
       purpose: itemDefinition.purpose,
@@ -1771,19 +1780,22 @@ function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) 
 }
 
 export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
+  const loadout = getLoadoutConfig(typeof levelId === "object" ? levelId.loadoutId : undefined);
+  const activeLevelId = typeof levelId === "object" ? levelId.levelId : levelId;
   const {
     holds,
     goldenPath,
     routeSegments,
-    levelId: activeLevelId,
+    levelId: resolvedLevelId,
     levelLabel,
     mechanicRules,
-  } = generateWall(viewportWidth, viewportHeight, levelId);
+  } = generateWall(viewportWidth, viewportHeight, activeLevelId);
 
   return {
     isPlaying: true,
-    levelId: activeLevelId,
+    levelId: resolvedLevelId,
     levelLabel,
+    loadout,
     mechanicRules,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
@@ -1799,7 +1811,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
       y: viewportHeight / 2,
     },
     particles: [],
-    inventory: createInitialInventory(),
+    inventory: createInitialInventory(loadout),
     activeEffects: [],
     itemState: createInitialItemState(),
     movementState: createInitialMovementState(),
@@ -1821,6 +1833,11 @@ export function getUiSnapshot(state, frame) {
     isPlaying: state.isPlaying,
     levelId: state.levelId,
     levelLabel: state.levelLabel,
+    loadout: {
+      id: state.loadout.id,
+      label: state.loadout.label,
+      description: state.loadout.description,
+    },
     stamina: state.stamina,
     staminaRatio: state.stamina / state.staminaCap,
     staminaCap: state.staminaCap,
@@ -2013,8 +2030,13 @@ export function releaseDynoCharge(state) {
     releaseHoldAttachment(state, limb);
   });
 
-  state.movementState.bodyVelocity.x = normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio;
-  state.movementState.bodyVelocity.y = Math.min(normalizedDirectionY, -0.35) * GAME_CONFIG.movement.dyno.launchVelocity.y * effectiveChargeRatio;
+  state.movementState.bodyVelocity.x =
+    normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio * state.loadout.modifiers.dynoLaunchMultiplier;
+  state.movementState.bodyVelocity.y =
+    Math.min(normalizedDirectionY, -0.35) *
+    GAME_CONFIG.movement.dyno.launchVelocity.y *
+    effectiveChargeRatio *
+    state.loadout.modifiers.dynoLaunchMultiplier;
   state.stamina = clamp(state.stamina - getDynoStaminaCost(state), 0, state.staminaCap);
   pushParticles(state, state.player.com.x, state.player.com.y - state.cameraY, 14, "#f0d58a");
   return true;
@@ -2289,7 +2311,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
     attachedLimbs.forEach((limb) => {
       const hold = state.holds[limb.attachedHoldIndex];
-      staminaChange -= GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0;
+      staminaChange -= (GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0) * state.loadout.modifiers.holdPenaltyMultiplier;
 
       if (limb.isHand && hold.bloodied) {
         staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty;

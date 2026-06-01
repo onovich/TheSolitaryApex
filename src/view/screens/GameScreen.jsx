@@ -11,6 +11,7 @@ export function GameScreen() {
   const {
     canvasRef,
     gameStateRef,
+    loadouts,
     viewport,
     uiState,
     handlePointerDown,
@@ -18,6 +19,7 @@ export function GameScreen() {
     handlePointerUp,
     handlePointerCancel,
     restartGame,
+    selectLoadout,
     useInventoryItem,
   } = useSolitaryApexGame();
 
@@ -42,7 +44,10 @@ export function GameScreen() {
         conditions={uiState.conditions}
         height={uiState.height}
         items={uiState.items}
+        loadout={uiState.loadout}
+        loadouts={loadouts}
         movement={uiState.movement}
+        onSelectLoadout={selectLoadout}
         onUseItem={useInventoryItem}
         fall={uiState.fall}
         recovery={uiState.recovery}

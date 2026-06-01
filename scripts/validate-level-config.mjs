@@ -1,4 +1,6 @@
 import { LEVEL_CONFIGS, validateLevelConfig } from "../src/data/levelConfig.js";
+import { ITEM_ORDER } from "../src/data/itemCatalog.js";
+import { LOADOUT_CONFIGS, validateLoadoutConfigs } from "../src/data/loadoutConfig.js";
 import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine.js";
 
 function validateGeneratedRoute(levelConfig) {
@@ -25,6 +27,11 @@ function validateGeneratedRoute(levelConfig) {
 
 const ids = new Set();
 const results = [];
+const loadoutErrors = validateLoadoutConfigs(ITEM_ORDER);
+
+if (loadoutErrors.length > 0) {
+  throw new Error(`loadout config errors:\n${loadoutErrors.map((error) => `- ${error}`).join("\n")}`);
+}
 
 LEVEL_CONFIGS.forEach((levelConfig) => {
   if (ids.has(levelConfig.id)) {
@@ -49,10 +56,10 @@ console.log(
   [
     "validate-level-config:ok",
     `levels=${results.map((result) => result.id).join(",")}`,
+    `loadouts=${LOADOUT_CONFIGS.map((loadoutConfig) => loadoutConfig.id).join(",")}`,
     ...results.map(
       (result) =>
         `${result.id}:holds=${result.holdCount}:stances=${result.stanceCount}:segments=${result.segmentCount}:zones=${result.zoneKeys.join("/")}`,
     ),
   ].join(" "),
 );
-
