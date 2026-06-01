@@ -62,11 +62,12 @@ npm run build
 These tasks keep the prototype editable as mechanics accumulate.
 
 - Expand `levelConfig` into a clearer authoring contract:
-  - Current status: each level now includes `authoring.templateId`, intended pace, authored controls, randomized controls, pressure rules, and required validators.
+  - Current status: each level now includes `authoring.templateId`, intended pace, authored controls, randomized controls, content targets, pressure rules, and required validators.
   - Current status: four named level templates now cover mixed prototype, resource reading, pursuit crux, and rescue encounter pacing.
   - Next step: add per-template target ranges for expected stamina pressure and resource recovery.
   - Keep Golden Path reachability authored/validated rather than purely random.
 - Add stronger validation around route pacing:
+  - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
   - Current status: `validate:levels` checks environment-event count and minimum spacing through `authoring.pressureRules`.
   - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, and rope-threat usage.
   - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.

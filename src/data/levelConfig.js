@@ -26,6 +26,13 @@ export const LEVEL_CONFIGS = [
         "eligibleHazardSelection",
         "particleMotion",
       ],
+      contentTargets: {
+        fragile: { min: 14, max: 28 },
+        timedSoft: { min: 2, max: 8 },
+        obstacle: { min: 0, max: 3 },
+        resourceFruit: { min: 1, max: 7 },
+        rescueTarget: { min: 1, max: 1 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 360,
         maxEnvironmentEvents: 3,
@@ -215,6 +222,7 @@ function createAuthoring({
   intendedPace,
   authoredControls = LEVEL_CONFIGS[0].authoring.authoredControls,
   randomizedControls = LEVEL_CONFIGS[0].authoring.randomizedControls,
+  contentTargets = LEVEL_CONFIGS[0].authoring.contentTargets,
   pressureRules = LEVEL_CONFIGS[0].authoring.pressureRules,
 }) {
   return {
@@ -222,6 +230,9 @@ function createAuthoring({
     intendedPace,
     authoredControls: [...authoredControls],
     randomizedControls: [...randomizedControls],
+    contentTargets: Object.fromEntries(
+      Object.entries(contentTargets).map(([key, range]) => [key, { ...range }]),
+    ),
     pressureRules: { ...pressureRules },
     requiredValidators: [...LEVEL_CONFIGS[0].authoring.requiredValidators],
   };
@@ -294,6 +305,13 @@ LEVEL_CONFIGS.push(
     authoring: createAuthoring({
       templateId: "resource-reading",
       intendedPace: "Longer reading beats with more fruit choices and lighter environmental pressure.",
+      contentTargets: {
+        fragile: { min: 8, max: 18 },
+        timedSoft: { min: 0, max: 5 },
+        obstacle: { min: 0, max: 2 },
+        resourceFruit: { min: 24, max: 42 },
+        rescueTarget: { min: 0, max: 0 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 480,
         maxEnvironmentEvents: 2,
@@ -370,6 +388,13 @@ LEVEL_CONFIGS.push(
     authoring: createAuthoring({
       templateId: "pursuit-crux",
       intendedPace: "Earlier pursuit pressure, tighter crux segments, and fewer recovery resources.",
+      contentTargets: {
+        fragile: { min: 18, max: 34 },
+        timedSoft: { min: 7, max: 16 },
+        obstacle: { min: 1, max: 5 },
+        resourceFruit: { min: 0, max: 6 },
+        rescueTarget: { min: 0, max: 0 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 420,
         maxEnvironmentEvents: 3,
@@ -457,6 +482,13 @@ LEVEL_CONFIGS.push(
     authoring: createAuthoring({
       templateId: "rescue-encounter",
       intendedPace: "Moderate route pressure with protection decisions pulled toward rescue targets.",
+      contentTargets: {
+        fragile: { min: 10, max: 22 },
+        timedSoft: { min: 0, max: 6 },
+        obstacle: { min: 0, max: 3 },
+        resourceFruit: { min: 6, max: 16 },
+        rescueTarget: { min: 2, max: 2 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 540,
         maxEnvironmentEvents: 2,
@@ -591,6 +623,31 @@ export function validateLevelConfig(levelConfig) {
         errors.push(`${levelConfig.id}.authoring.${key} must be a non-empty array`);
       }
     });
+
+    const contentTargets = levelConfig.authoring.contentTargets;
+
+    if (!contentTargets) {
+      errors.push(`${levelConfig.id}.authoring.contentTargets is required`);
+    } else {
+      ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"].forEach((key) => {
+        const targetRange = contentTargets[key];
+
+        if (!targetRange) {
+          errors.push(`${levelConfig.id}.authoring.contentTargets.${key} is required`);
+          return;
+        }
+
+        ["min", "max"].forEach((rangeKey) => {
+          if (!Number.isInteger(targetRange[rangeKey]) || targetRange[rangeKey] < 0) {
+            errors.push(`${levelConfig.id}.authoring.contentTargets.${key}.${rangeKey} must be a non-negative integer`);
+          }
+        });
+
+        if (targetRange.min > targetRange.max) {
+          errors.push(`${levelConfig.id}.authoring.contentTargets.${key}.min must be <= max`);
+        }
+      });
+    }
 
     const pressureRules = levelConfig.authoring.pressureRules;
 

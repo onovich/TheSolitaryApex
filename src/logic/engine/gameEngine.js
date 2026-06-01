@@ -1832,14 +1832,14 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
   const obstacleChance = zoneProfile?.mechanicBudget?.obstacle ?? 0;
   const resourceChance = zoneProfile?.mechanicBudget?.resource ?? 0;
 
-  if (fragileChance > 0 && Math.random() < fragileChance) {
+  if (fragileChance > 0 && randomSource() < fragileChance) {
     return {
       hazardType: "fragile",
       hazardState: "intact",
     };
   }
 
-  if (timedSoftChance > 0 && Math.random() < timedSoftChance) {
+  if (timedSoftChance > 0 && randomSource() < timedSoftChance) {
     const timedSoftRules = routeConfig.mechanicRules?.timedSoft ?? {
       collapseFramesMin: 150,
       collapseFramesMax: 240,
@@ -1853,7 +1853,7 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
     };
   }
 
-  if (obstacleChance > 0 && Math.random() < obstacleChance) {
+  if (obstacleChance > 0 && randomSource() < obstacleChance) {
     const obstacleRules = routeConfig.mechanicRules?.obstacle ?? {
       radiusMin: 14,
       radiusMax: 24,
@@ -1867,7 +1867,7 @@ function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
     };
   }
 
-  if (resourceChance > 0 && Math.random() < resourceChance) {
+  if (resourceChance > 0 && randomSource() < resourceChance) {
     const resourceRules = routeConfig.mechanicRules?.resourceFruit ?? {
       radius: 6,
     };
