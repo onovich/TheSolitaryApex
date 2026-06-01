@@ -263,6 +263,18 @@ function createInitialFeedbackState() {
   };
 }
 
+function createInitialSpatialScanState(levelConfig) {
+  const spatialConfig = levelConfig.routeGeneration.spatialExperiment;
+
+  return {
+    enabled: false,
+    available: Boolean(spatialConfig?.enabled),
+    angle: 0,
+    maxAngle: spatialConfig?.maxAngle ?? 0,
+    projectionScale: spatialConfig?.projectionScale ?? 0,
+  };
+}
+
 function createInitialItemState() {
   return {
     checkpoint: null,
@@ -1565,24 +1577,28 @@ function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile, r
         routeZone: zoneKey,
         lane: "leftHand",
         stanceIndex,
+        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.leftHand ?? 0,
       }),
       createHold(centerX + handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
         routeZone: zoneKey,
         lane: "rightHand",
         stanceIndex,
+        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.rightHand ?? 0,
       }),
       createHold(centerX - footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
         routeZone: zoneKey,
         lane: "leftFoot",
         stanceIndex,
+        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.leftFoot ?? 0,
       }),
       createHold(centerX + footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
         routeRole: "golden",
         routeZone: zoneKey,
         lane: "rightFoot",
         stanceIndex,
+        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.rightFoot ?? 0,
       }),
     ],
   };
@@ -1718,6 +1734,10 @@ function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConf
         routeRole: "noise",
         routeZone: zoneKey,
         stanceIndex: stance.stanceIndex,
+        zLayer: randomBetween(
+          routeConfig.spatialExperiment?.noiseDepthMin ?? 0,
+          routeConfig.spatialExperiment?.noiseDepthMax ?? 0,
+        ),
         ...getNoiseHoldHazardMeta(zoneProfile, routeConfig),
       }),
     );
@@ -1955,6 +1975,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     recoveryState: createInitialRecoveryState(),
     fallState: createInitialFallState(),
     feedbackState: createInitialFeedbackState(),
+    spatialScan: createInitialSpatialScanState(getLevelConfig(resolvedLevelId)),
     routeState: createInitialRouteState(routeSegments),
     tutorialVisible: true,
     endMessage: null,
@@ -2001,6 +2022,7 @@ export function getUiSnapshot(state, frame) {
       limbIndex: state.feedbackState.limbIndex,
       holdIndex: state.feedbackState.holdIndex,
     },
+    spatialScan: { ...state.spatialScan },
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
@@ -2036,6 +2058,16 @@ export function updatePointer(state, screenX, screenY) {
   if (state.draggedLimbIndex !== -1) {
     updateDragConstraintFeedback(state, screenX, screenY + state.cameraY);
   }
+}
+
+export function setSpatialScan(state, enabled, angle = state.spatialScan.angle) {
+  if (!state.spatialScan.available) {
+    return false;
+  }
+
+  state.spatialScan.enabled = Boolean(enabled);
+  state.spatialScan.angle = clamp(Number(angle) || 0, -state.spatialScan.maxAngle, state.spatialScan.maxAngle);
+  return true;
 }
 
 export function beginDrag(state, screenX, screenY) {

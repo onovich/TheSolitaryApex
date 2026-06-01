@@ -12,7 +12,9 @@ export function GameHud({
   onUseItem,
   recovery,
   route,
+  spatialScan,
   staminaRatio,
+  onUpdateSpatialScan,
   tutorialVisible,
 }) {
   const staminaPercent = Math.max(0, Math.min(100, staminaRatio * 100));
@@ -174,6 +176,31 @@ export function GameHud({
           <div className={launchClassName}>
             {UI_TEXT.launchLabel}: {launchLabel}
           </div>
+          {spatialScan?.available ? (
+            <div className={`status-pill spatial-scan-pill${spatialScan.enabled ? " is-spatial-scan" : ""}`}>
+              {UI_TEXT.spatialScanLabel}
+              <button
+                type="button"
+                onClick={() => onUpdateSpatialScan(!spatialScan.enabled, spatialScan.angle)}
+              >
+                {spatialScan.enabled ? "ON" : "OFF"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateSpatialScan(true, spatialScan.angle - 0.25)}
+                disabled={!spatialScan.enabled}
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateSpatialScan(true, spatialScan.angle + 0.25)}
+                disabled={!spatialScan.enabled}
+              >
+                +
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
       {tutorialVisible ? <div className="tutorial">{UI_TEXT.tutorial}</div> : null}

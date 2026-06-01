@@ -20,6 +20,7 @@ export function GameScreen() {
     handlePointerCancel,
     restartGame,
     selectLoadout,
+    updateSpatialScan,
     useInventoryItem,
   } = useSolitaryApexGame();
 
@@ -52,7 +53,9 @@ export function GameScreen() {
         fall={uiState.fall}
         recovery={uiState.recovery}
         route={uiState.route}
+        spatialScan={uiState.spatialScan}
         staminaRatio={uiState.staminaRatio}
+        onUpdateSpatialScan={updateSpatialScan}
         tutorialVisible={uiState.tutorialVisible}
       />
       <MessageOverlay endMessage={uiState.endMessage} onRestart={restartGame} />

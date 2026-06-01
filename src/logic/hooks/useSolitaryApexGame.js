@@ -7,6 +7,7 @@ import {
   endBodyAction,
   getUiSnapshot,
   releaseDrag,
+  setSpatialScan,
   useItem,
   updateFrame,
   updatePointer,
@@ -53,6 +54,13 @@ export function useSolitaryApexGame() {
       mode: "none",
       reeling: false,
       anchorHoldIndex: -1,
+    },
+    spatialScan: {
+      enabled: false,
+      available: false,
+      angle: 0,
+      maxAngle: 0,
+      projectionScale: 0,
     },
     movement: {
       dyno: {
@@ -253,6 +261,15 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
+  const updateSpatialScan = (enabled, angle) => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    setSpatialScan(gameStateRef.current, enabled, angle);
+    commitUiState();
+  };
+
   return {
     canvasRef,
     gameStateRef,
@@ -265,6 +282,7 @@ export function useSolitaryApexGame() {
     handlePointerCancel,
     restartGame,
     selectLoadout,
+    updateSpatialScan,
     useInventoryItem,
   };
 }

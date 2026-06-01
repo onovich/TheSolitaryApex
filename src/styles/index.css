@@ -239,6 +239,33 @@ select {
   border-color: #a84b4b;
 }
 
+.spatial-scan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.spatial-scan-pill button {
+  min-width: 28px;
+  height: 20px;
+  padding: 0 6px;
+  background: transparent;
+  color: currentColor;
+  border: 1px solid currentColor;
+  cursor: pointer;
+}
+
+.spatial-scan-pill button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.status-pill.is-spatial-scan {
+  color: #b7d5ff;
+  border-color: #526d92;
+}
+
 .status-pill.is-launch-ready {
   color: #f0d58a;
   border-color: #8e7840;

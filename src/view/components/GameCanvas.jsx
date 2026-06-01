@@ -35,6 +35,37 @@ function getCheckpointAnchor(state) {
   };
 }
 
+function getSpatialX(state, hold) {
+  if (!state.spatialScan?.enabled || typeof hold?.zLayer !== "number") {
+    return hold.x;
+  }
+
+  return hold.x + hold.zLayer * state.spatialScan.angle * state.spatialScan.projectionScale;
+}
+
+function getRenderedLimbPosition(state, limb) {
+  if (limb.attachedHoldIndex === -1) {
+    return {
+      x: limb.x,
+      y: limb.y,
+    };
+  }
+
+  const hold = state.holds[limb.attachedHoldIndex];
+
+  if (!hold || hold.removed) {
+    return {
+      x: limb.x,
+      y: limb.y,
+    };
+  }
+
+  return {
+    x: getSpatialX(state, hold),
+    y: hold.y,
+  };
+}
+
 function drawCheckpointRope(ctx, state) {
   const anchor = state.fallState?.active
     ? state.fallState.anchorHoldIndex !== -1
@@ -48,18 +79,20 @@ function drawCheckpointRope(ctx, state) {
 
   const bodyX = state.player.com.x;
   const bodyY = state.player.com.y - state.cameraY;
+  const anchorHold = state.holds[state.itemState?.checkpoint?.anchorHoldIndex];
+  const anchorX = anchorHold ? getSpatialX(state, anchorHold) : anchor.x;
   const anchorScreenY = anchor.y - state.cameraY;
-  const distance = Math.hypot(bodyX - anchor.x, bodyY - anchorScreenY);
+  const distance = Math.hypot(bodyX - anchorX, bodyY - anchorScreenY);
   const sag = state.fallState?.mode === "hanging" ? Math.min(28, distance * 0.08) : Math.min(64, distance * 0.16);
-  const swing = (bodyX - anchor.x) * 0.24;
+  const swing = (bodyX - anchorX) * 0.24;
 
   ctx.save();
   ctx.lineWidth = state.fallState?.active ? 2.8 : 2;
   ctx.strokeStyle = state.fallState?.active ? GAME_CONFIG.palette.ropeActive : GAME_CONFIG.palette.rope;
   ctx.beginPath();
-  ctx.moveTo(anchor.x, anchorScreenY);
+  ctx.moveTo(anchorX, anchorScreenY);
   ctx.bezierCurveTo(
-    anchor.x + swing * 0.2,
+    anchorX + swing * 0.2,
     anchorScreenY + sag,
     bodyX - swing * 0.35,
     bodyY + sag,
@@ -70,7 +103,7 @@ function drawCheckpointRope(ctx, state) {
 
   ctx.fillStyle = state.fallState?.active ? GAME_CONFIG.palette.ropeActive : GAME_CONFIG.palette.rope;
   ctx.beginPath();
-  ctx.arc(anchor.x, anchorScreenY, 4, 0, Math.PI * 2);
+  ctx.arc(anchorX, anchorScreenY, 4, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -221,7 +254,8 @@ function drawPlayer(ctx, state, viewportHeight) {
   ctx.lineWidth = 2;
 
   state.player.limbs.forEach((limb, index) => {
-    const limbScreenY = limb.y - state.cameraY;
+    const renderedLimb = getRenderedLimbPosition(state, limb);
+    const limbScreenY = renderedLimb.y - state.cameraY;
     const limbRejected = rejectAlpha > 0 && rejectLimbIndex === index;
 
     if (limbRejected) {
@@ -234,11 +268,11 @@ function drawPlayer(ctx, state, viewportHeight) {
 
     ctx.beginPath();
     ctx.moveTo(state.player.com.x, bodyScreenY);
-    ctx.lineTo(limb.x, limbScreenY);
+    ctx.lineTo(renderedLimb.x, limbScreenY);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.arc(limb.x, limbScreenY, 8, 0, Math.PI * 2);
+    ctx.arc(renderedLimb.x, limbScreenY, 8, 0, Math.PI * 2);
 
     if (state.draggedLimbIndex === index) {
       ctx.fillStyle = limbRejected ? `rgba(255, 100, 100, ${0.6 + rejectAlpha * 0.4})` : "rgba(255, 255, 255, 0.8)";
@@ -341,6 +375,8 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
+    const holdX = getSpatialX(state, hold);
+
     if (hold.hazardType === "obstacle") {
       const drillRatio = Math.max(0, Math.min(1, (hold.drillFrames ?? 0) / (state.mechanicRules?.obstacle?.drillFramesRequired ?? 54)));
       const sides = 5;
@@ -350,7 +386,7 @@ function drawScene(canvas, state, viewport) {
       for (let index = 0; index < sides; index += 1) {
         const angle = -Math.PI / 2 + (Math.PI * 2 * index) / sides;
         const radius = hold.radius * (index % 2 === 0 ? 1 : 0.78);
-        const x = hold.x + Math.cos(angle) * radius;
+        const x = holdX + Math.cos(angle) * radius;
         const y = screenY + Math.sin(angle) * radius;
 
         if (index === 0) {
@@ -368,7 +404,7 @@ function drawScene(canvas, state, viewport) {
 
       if (drillRatio > 0) {
         ctx.beginPath();
-        ctx.arc(hold.x, screenY, hold.radius + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * drillRatio);
+        ctx.arc(holdX, screenY, hold.radius + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * drillRatio);
         ctx.strokeStyle = "rgba(240, 213, 138, 0.75)";
         ctx.lineWidth = 2;
         ctx.stroke();
@@ -381,14 +417,14 @@ function drawScene(canvas, state, viewport) {
     if (hold.hazardType === "resourceFruit") {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
+      ctx.arc(holdX, screenY, hold.radius, 0, Math.PI * 2);
       ctx.fillStyle = "#78c96e";
       ctx.fill();
       ctx.strokeStyle = "#c9f0a1";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(hold.x - hold.radius * 0.35, screenY - hold.radius * 0.35, Math.max(1.5, hold.radius * 0.24), 0, Math.PI * 2);
+      ctx.arc(holdX - hold.radius * 0.35, screenY - hold.radius * 0.35, Math.max(1.5, hold.radius * 0.24), 0, Math.PI * 2);
       ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
       ctx.fill();
       ctx.restore();
@@ -396,7 +432,7 @@ function drawScene(canvas, state, viewport) {
     }
 
     ctx.beginPath();
-    ctx.arc(hold.x, screenY, hold.radius, 0, Math.PI * 2);
+    ctx.arc(holdX, screenY, hold.radius, 0, Math.PI * 2);
     const holdRejected = (state.feedbackState?.dragRejectFrames ?? 0) > 0 && state.feedbackState?.holdIndex === state.holds.indexOf(hold);
     ctx.fillStyle = holdRejected
       ? `rgba(255, 100, 100, ${0.25 + getRejectFlashAlpha(state) * 0.45})`

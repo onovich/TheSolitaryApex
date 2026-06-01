@@ -26,6 +26,19 @@ export const LEVEL_CONFIGS = [
     routeGeneration: {
       centerDrift: 84,
       corridorPadding: 140,
+      spatialExperiment: {
+        enabled: true,
+        maxAngle: 1,
+        projectionScale: 34,
+        goldenLaneDepths: {
+          leftHand: -0.25,
+          rightHand: 0.25,
+          leftFoot: -0.18,
+          rightFoot: 0.18,
+        },
+        noiseDepthMin: -1,
+        noiseDepthMax: 1,
+      },
       stepYMin: 76,
       stepYMax: 104,
       handSpreadMin: 42,
@@ -224,6 +237,18 @@ export function validateLevelConfig(levelConfig) {
   ["stepY", "handSpread", "footSpread", "handOffsetY", "footOffsetY", "noiseCount"].forEach((rangeName) => {
     assertRange(errors, routeGeneration, `${rangeName}Min`, `${rangeName}Max`);
   });
+
+  if (routeGeneration.spatialExperiment) {
+    const spatial = routeGeneration.spatialExperiment;
+
+    ["maxAngle", "projectionScale", "noiseDepthMin", "noiseDepthMax"].forEach((key) => {
+      if (typeof spatial[key] !== "number") {
+        errors.push(`spatialExperiment.${key} must be a number`);
+      }
+    });
+
+    assertRange(errors, spatial, "noiseDepthMin", "noiseDepthMax");
+  }
 
   if (routeGeneration.mechanicRules?.timedSoft) {
     assertRange(

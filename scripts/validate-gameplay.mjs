@@ -8,6 +8,7 @@ import {
   getUiSnapshot,
   releaseDynoCharge,
   releaseDrag,
+  setSpatialScan,
   updateFrame,
   updatePointer,
   useItem,
@@ -513,6 +514,30 @@ function validatePursuitPressure() {
   return { gap: pursuitState.conditionState.encounter.gap };
 }
 
+function validateSpatialScan() {
+  const state = createStableState();
+  const layeredHold = state.holds.find((hold) => typeof hold.zLayer === "number" && hold.zLayer !== 0);
+
+  if (!layeredHold) {
+    throw new Error("Expected generated holds to include spatial z layers");
+  }
+
+  if (!setSpatialScan(state, true, 4)) {
+    throw new Error("Spatial scan should be available for the prototype level");
+  }
+
+  const snapshot = getUiSnapshot(state, 0);
+
+  if (!snapshot.spatialScan.enabled || snapshot.spatialScan.angle > snapshot.spatialScan.maxAngle) {
+    throw new Error("Spatial scan did not enable or clamp the scan angle");
+  }
+
+  return {
+    zLayer: layeredHold.zLayer,
+    angle: snapshot.spatialScan.angle,
+  };
+}
+
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -524,6 +549,7 @@ const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
 const pursuitResult = validatePursuitPressure();
+const spatialResult = validateSpatialScan();
 
 console.log(
   [
@@ -542,5 +568,6 @@ console.log(
     `fruit=${fruitResult.fruitIndex}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
+    `spatialAngle=${spatialResult.angle.toFixed(2)}`,
   ].join(" "),
 );
