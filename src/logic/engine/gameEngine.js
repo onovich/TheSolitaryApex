@@ -1441,9 +1441,9 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   return closestHoldIndex;
 }
 
-function findClosestReachableHoldToOrigin(state, limb, originX, originY) {
-  let closestHoldIndex = -1;
-  let closestDistance = Infinity;
+function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) {
+  let bestHoldIndex = -1;
+  let bestScore = Infinity;
 
   state.holds.forEach((hold, index) => {
     if (!canLimbReachTarget(state, limb, hold.x, hold.y)) {
@@ -1451,14 +1451,18 @@ function findClosestReachableHoldToOrigin(state, limb, originX, originY) {
     }
 
     const distance = Math.hypot(hold.x - originX, hold.y - originY);
+    const upwardGain = Math.max(0, originY - hold.y);
+    const downwardPenalty = Math.max(0, hold.y - originY) * 1.1;
+    const reusePenalty = usedHoldIndices.has(index) ? 500 : 0;
+    const score = distance - upwardGain * 1.25 + downwardPenalty + reusePenalty;
 
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestHoldIndex = index;
+    if (score < bestScore) {
+      bestScore = score;
+      bestHoldIndex = index;
     }
   });
 
-  return closestHoldIndex;
+  return bestHoldIndex;
 }
 
 export function createInitialGameState(viewportWidth, viewportHeight) {
@@ -1785,11 +1789,12 @@ function updateParticles(state) {
 
 function attemptDynoAutoAttach(state, viewportHeight) {
   const dynoState = state.movementState.dyno;
+  const usedHoldIndices = new Set();
   let attachedCount = 0;
 
   state.player.limbs.forEach((limb, index) => {
     const origin = dynoState.originalLimbPositions[index] ?? { x: limb.x, y: limb.y };
-    const holdIndex = findClosestReachableHoldToOrigin(state, limb, origin.x, origin.y);
+    const holdIndex = findBestDynoAttachHold(state, limb, origin.x, origin.y, usedHoldIndices);
 
     if (holdIndex === -1) {
       limb.attachedHoldIndex = -1;
@@ -1797,6 +1802,7 @@ function attemptDynoAutoAttach(state, viewportHeight) {
     }
 
     const hold = state.holds[holdIndex];
+    usedHoldIndices.add(holdIndex);
     limb.attachedHoldIndex = holdIndex;
     limb.x = hold.x;
     limb.y = hold.y;

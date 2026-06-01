@@ -1,7 +1,11 @@
 import { GameHud } from "../components/GameHud";
 import { GameCanvas } from "../components/GameCanvas";
+import { DeveloperPanel } from "../components/DeveloperPanel";
 import { MessageOverlay } from "../components/MessageOverlay";
+import { applySavedDynoTuning } from "../../dev/dynoTuning";
 import { useSolitaryApexGame } from "../../logic/hooks/useSolitaryApexGame";
+
+applySavedDynoTuning();
 
 export function GameScreen() {
   const {
@@ -45,6 +49,7 @@ export function GameScreen() {
         tutorialVisible={uiState.tutorialVisible}
       />
       <MessageOverlay endMessage={uiState.endMessage} onRestart={restartGame} />
+      <DeveloperPanel />
     </main>
   );
 }

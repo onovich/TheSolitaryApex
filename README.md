@@ -40,7 +40,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 
 - Mouse or touch: drag each limb ring to a new hold
 - Click or tap the chalk button: consume one chalk charge
-- Hold the dyno button or press Space: charge a longer explosive move, then release to commit
+- After placing protection, hold the climber body and pull downward to charge a dyno, then release to commit
 - Restart after a fall to begin another ascent
 
 ## Why It Feels Different
@@ -73,3 +73,5 @@ npm run build
 The current repository contains the playable web prototype of The Solitary Apex.
 
 The current web build now includes guaranteed-solvable route generation, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, and hand injury escalation.
+
+For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
