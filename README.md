@@ -66,6 +66,15 @@ Most climbing games sell momentum. The Solitary Apex sells hesitation.
 
 ## Local Development
 
+Windows manual test launchers:
+
+```bat
+StartLocalTest.cmd
+OpenOnlineTest.cmd
+```
+
+`StartLocalTest.cmd` starts the Vite dev server, automatically chooses a fallback port if the preferred port is busy, and opens the local test URL. `OpenOnlineTest.cmd` opens the live demo URL from this repository.
+
 ```bash
 npm install
 npm run dev
