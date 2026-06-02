@@ -41,15 +41,15 @@ function formatRange(range) {
   return `${range.min} - ${range.max}`;
 }
 
-function getWindDirectionLabel(force) {
+function getWindDirectionKey(force) {
   if (Math.abs(force) < 0.001) {
-    return "Calm";
+    return "calm";
   }
 
-  return force > 0 ? "Right" : "Left";
+  return force > 0 ? "right" : "left";
 }
 
-export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug }) {
+export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug, devText }) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(getDynoTuningSnapshot);
   const [windDebugEnabled, setWindDebugEnabled] = useState(Boolean(weatherState?.debugOverrideActive));
@@ -57,7 +57,6 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
   const [message, setMessage] = useState("");
   const levelConfig = getLevelConfig(activeLevelId);
   const authoring = levelConfig.authoring;
-
   useEffect(() => {
     setWindDebugEnabled(Boolean(weatherState?.debugOverrideActive));
     setWindDebugForce(weatherState?.debugOverrideForce ?? 0);
@@ -78,24 +77,24 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
 
   const saveValues = () => {
     saveDynoTuning(values);
-    setMessage("Saved locally");
+    setMessage(devText.savedLocalMessage);
   };
 
   const resetValues = () => {
     setValues(resetDynoTuning());
-    setMessage("Reset");
+    setMessage(devText.resetMessage);
   };
 
   const copyConfig = () => {
     copyToClipboard(formatDynoConfig(values))
-      .then(() => setMessage("Copied config"))
-      .catch(() => setMessage("Copy failed"));
+      .then(() => setMessage(devText.copiedConfigMessage))
+      .catch(() => setMessage(devText.copyFailedMessage));
   };
 
   const copyLevelConfig = () => {
     copyToClipboard(formatLevelConfig(levelConfig))
-      .then(() => setMessage("Copied level config"))
-      .catch(() => setMessage("Copy failed"));
+      .then(() => setMessage(devText.copiedLevelConfigMessage))
+      .catch(() => setMessage(devText.copyFailedMessage));
   };
 
   const commitWindDebug = (enabled, force) => {
@@ -109,110 +108,118 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
   return (
     <aside className={`dev-panel${open ? " is-open" : ""}`}>
       <button className="dev-panel-toggle" type="button" onClick={() => setOpen((current) => !current)}>
-        DEV
+        {devText.toggleLabel}
       </button>
       {open ? (
         <div className="dev-panel-body">
           <div className="dev-panel-section">
             <div className="dev-panel-header">
-              <span>Level config</span>
+              <span>{devText.levelConfigTitle}</span>
               {message ? <span className="dev-panel-message">{message}</span> : null}
             </div>
             <div className="dev-panel-summary">
               <div>
-                <span>Level</span>
+                <span>{devText.levelLabel}</span>
                 <strong>{levelConfig.label}</strong>
               </div>
               <div>
-                <span>Template</span>
+                <span>{devText.templateLabel}</span>
                 <strong>{authoring.templateId}</strong>
               </div>
               <div>
-                <span>Seed</span>
+                <span>{devText.seedLabel}</span>
                 <strong>{levelConfig.seed}</strong>
               </div>
               <div>
-                <span>Events</span>
-                <strong>{levelConfig.environmentEvents.map((eventConfig) => eventConfig.type).join(", ") || "none"}</strong>
+                <span>{devText.eventsLabel}</span>
+                <strong>
+                  {levelConfig.environmentEvents.map((eventConfig) => devText.eventTypeLabels[eventConfig.type] ?? eventConfig.type).join(", ") ||
+                    devText.noneLabel}
+                </strong>
               </div>
               <div>
-                <span>Rescues</span>
+                <span>{devText.rescuesLabel}</span>
                 <strong>{levelConfig.rescueTargets.length}</strong>
               </div>
               <div>
-                <span>Blockers</span>
+                <span>{devText.blockersLabel}</span>
                 <strong>{levelConfig.laneBlockers?.length ?? 0}</strong>
               </div>
               <div>
-                <span>Pursuit</span>
-                <strong>{levelConfig.pursuit ? "on" : "off"}</strong>
+                <span>{devText.pursuitLabel}</span>
+                <strong>{levelConfig.pursuit ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div>
-                <span>Rope threat</span>
-                <strong>{levelConfig.ropeThreat ? "on" : "off"}</strong>
+                <span>{devText.ropeThreatLabel}</span>
+                <strong>{levelConfig.ropeThreat ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div>
-                <span>Wind target</span>
+                <span>{devText.windTargetLabel}</span>
                 <strong>{formatRange(authoring.pressureTargets.averageWindMultiplier)}</strong>
               </div>
               <div>
-                <span>Hazard density</span>
+                <span>{devText.hazardDensityLabel}</span>
                 <strong>{formatRange(authoring.pressureTargets.hazardPer100Stances)}</strong>
               </div>
               <div>
-                <span>Resource density</span>
+                <span>{devText.resourceDensityLabel}</span>
                 <strong>{formatRange(authoring.pressureTargets.resourcePer100Stances)}</strong>
               </div>
               <div>
-                <span>Fruit stamina</span>
+                <span>{devText.fruitStaminaLabel}</span>
                 <strong>{formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances)}</strong>
               </div>
               <div>
-                <span>Thirst relief</span>
+                <span>{devText.thirstReliefLabel}</span>
                 <strong>{formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances)}</strong>
               </div>
               <div>
-                <span>Worst thirst</span>
+                <span>{devText.worstThirstLabel}</span>
                 <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain)}</strong>
               </div>
               <div>
-                <span>Net relief</span>
+                <span>{devText.netReliefLabel}</span>
                 <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}</strong>
               </div>
               <div>
-                <span>Pressure window</span>
+                <span>{devText.pressureWindowLabel}</span>
                 <strong>
-                  {authoring.pressureRules.maxPressureEventsPerWindow}/{authoring.pressureRules.pressureEventWindowFrames}f
+                  {authoring.pressureRules.maxPressureEventsPerWindow}/{authoring.pressureRules.pressureEventWindowFrames}
+                  {devText.framesSuffix}
                 </strong>
               </div>
               <div>
-                <span>Fruit window</span>
+                <span>{devText.fruitWindowLabel}</span>
                 <strong>
-                  {authoring.pressureRules.maxResourceFruitsPerWindow}/{authoring.pressureRules.resourceWindowFrames}f
+                  {authoring.pressureRules.maxResourceFruitsPerWindow}/{authoring.pressureRules.resourceWindowFrames}
+                  {devText.framesSuffix}
                 </strong>
               </div>
               <div>
-                <span>Fruit gap</span>
-                <strong>&lt;={authoring.pressureRules.maxResourceGapFrames}f</strong>
+                <span>{devText.fruitGapLabel}</span>
+                <strong>
+                  &lt;={authoring.pressureRules.maxResourceGapFrames}
+                  {devText.framesSuffix}
+                </strong>
               </div>
               <div>
-                <span>Golden bans</span>
+                <span>{devText.goldenBansLabel}</span>
                 <strong>{authoring.goldenPathRules.forbidHazards.length}</strong>
               </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
             <div className="dev-panel-actions">
               <button type="button" onClick={copyLevelConfig}>
-                Copy level config
+                {devText.copyLevelConfigLabel}
               </button>
             </div>
           </div>
           <div className="dev-panel-section">
             <div className="dev-panel-header">
-              <span>Wind debug</span>
+              <span>{devText.windDebugTitle}</span>
             </div>
             <label className="dev-panel-toggle-row">
-              <span>Override</span>
+              <span>{devText.overrideLabel}</span>
               <input
                 type="checkbox"
                 checked={windDebugEnabled}
@@ -221,17 +228,17 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
             </label>
             <div className="dev-panel-wind-actions">
               <button type="button" onClick={() => commitWindDebug(true, -Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
-                Left
+                {devText.directionLabels.left}
               </button>
               <button type="button" onClick={() => commitWindDebug(true, 0)}>
-                Calm
+                {devText.directionLabels.calm}
               </button>
               <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
-                Right
+                {devText.directionLabels.right}
               </button>
             </div>
             <label className="dev-panel-control">
-              <span>Wind force</span>
+              <span>{devText.windForceLabel}</span>
               <input
                 type="range"
                 min={-0.24}
@@ -250,17 +257,21 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
               />
             </label>
             <p className="dev-panel-note">
-              {windDebugEnabled ? `Override active: ${getWindDirectionLabel(windDebugForce)} ${Math.round(Math.abs(windDebugForce) * 100)}%` : "Route-driven wind active"}
+              {windDebugEnabled
+                ? `${devText.overrideActivePrefix}: ${devText.directionLabels[getWindDirectionKey(windDebugForce)]} ${Math.round(
+                    Math.abs(windDebugForce) * 100,
+                  )}%`
+                : devText.routeDrivenWindActiveLabel}
             </p>
           </div>
           <div className="dev-panel-section">
             <div className="dev-panel-header">
-              <span>Dyno tuning</span>
+              <span>{devText.dynoTuningTitle}</span>
             </div>
             <div className="dev-panel-controls">
               {DYNO_TUNING_FIELDS.map((field) => (
                 <label className="dev-panel-control" key={field.key}>
-                  <span>{field.label}</span>
+                  <span>{devText.dynoFieldLabels[field.key] ?? field.label}</span>
                   <input
                     type="range"
                     min={field.min}
@@ -282,13 +293,13 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug 
             </div>
             <div className="dev-panel-actions">
               <button type="button" onClick={saveValues}>
-                Save local
+                {devText.saveLocalLabel}
               </button>
               <button type="button" onClick={copyConfig}>
-                Copy config
+                {devText.copyConfigLabel}
               </button>
               <button type="button" onClick={resetValues}>
-                Reset
+                {devText.resetLabel}
               </button>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { GameHud } from "../components/GameHud";
 import { GameCanvas } from "../components/GameCanvas";
 import { DeveloperPanel } from "../components/DeveloperPanel";
 import { MessageOverlay } from "../components/MessageOverlay";
+import { getDevPanelTextBundle } from "../../data/devPanelText";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, getTextBundle, normalizeLanguage } from "../../data/uiText";
 import { applySavedDynoTuning } from "../../dev/dynoTuning";
 import { useSolitaryApexGame } from "../../logic/hooks/useSolitaryApexGame";
@@ -41,6 +42,7 @@ export function GameScreen() {
     useInventoryItem,
   } = useSolitaryApexGame();
   const text = getTextBundle(language);
+  const devText = getDevPanelTextBundle(language);
 
   const vignetteOpacity = uiState.stamina < 40 ? (1 - uiState.stamina / 40) * 0.85 : 0;
   const sensoryOpacity = Math.min(0.36, ((uiState.conditions?.survival?.senseFrames ?? 0) / 180) * 0.36);
@@ -99,6 +101,7 @@ export function GameScreen() {
         activeLevelId={uiState.levelId}
         weatherState={uiState.conditions?.weather}
         onUpdateWindDebug={updateWindDebug}
+        devText={devText}
       />
     </main>
   );

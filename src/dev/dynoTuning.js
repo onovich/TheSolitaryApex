@@ -222,4 +222,3 @@ export function formatDynoConfig(values) {
     2,
   );
 }
-
