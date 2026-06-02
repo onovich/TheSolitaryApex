@@ -185,39 +185,18 @@ function drawParticles(ctx, particles) {
   ctx.globalAlpha = 1;
 }
 
-const WIND_PARTICLE_MARGIN = 120;
-const WIND_TRAIL_LENGTH = 12;
 const windFlowState = {
-  particles: [],
+  seeds: [],
   width: 0,
   height: 0,
-  lastTimestamp: 0,
 };
 
-function createWindHistoryPoint(x, y) {
-  return { x, y };
-}
-
-function resetWindParticle(particle, viewport, direction, seedOffset = 0) {
-  const edgeOffset = Math.random() * WIND_PARTICLE_MARGIN;
-  const spawnX = direction > 0 ? -edgeOffset : viewport.width + edgeOffset;
-  const spawnY = Math.random() * (viewport.height + WIND_PARTICLE_MARGIN) - WIND_PARTICLE_MARGIN * 0.5;
-
-  particle.x = spawnX;
-  particle.y = spawnY;
-  particle.age = 0;
-  particle.maxAge = 90 + Math.random() * 80;
-  particle.depth = Math.random();
-  particle.seed = Math.random() * Math.PI * 2 + seedOffset;
-  particle.history = Array.from({ length: WIND_TRAIL_LENGTH }, () => createWindHistoryPoint(spawnX, spawnY));
-}
-
-function ensureWindParticles(viewport, strength, direction) {
-  const targetCount = Math.round(54 + strength * 42);
+function ensureWindSeeds(viewport, strength) {
+  const targetCount = Math.round(12 + strength * 8);
   const needsReset =
     windFlowState.width !== viewport.width ||
     windFlowState.height !== viewport.height ||
-    windFlowState.particles.length !== targetCount;
+    windFlowState.seeds.length !== targetCount;
 
   if (!needsReset) {
     return;
@@ -225,21 +204,13 @@ function ensureWindParticles(viewport, strength, direction) {
 
   windFlowState.width = viewport.width;
   windFlowState.height = viewport.height;
-  windFlowState.particles = Array.from({ length: targetCount }, (_, index) => {
-    const particle = {
-      x: 0,
-      y: 0,
-      age: 0,
-      maxAge: 0,
-      depth: 0,
-      seed: index * 0.37,
-      history: [],
-    };
-
-    resetWindParticle(particle, viewport, direction, index * 0.37);
-    particle.age = Math.random() * particle.maxAge;
-    return particle;
-  });
+  windFlowState.seeds = Array.from({ length: targetCount }, (_, index) => ({
+    lane: (index + 0.5) / targetCount,
+    drift: Math.random() * Math.PI * 2,
+    depth: 0.4 + Math.random() * 0.8,
+    phase: Math.random() * Math.PI * 2,
+    speed: 0.8 + Math.random() * 0.65,
+  }));
 }
 
 function sampleWindVector(x, y, time, windForce, viewport, depth, seed) {
@@ -268,78 +239,77 @@ function drawWindFlow(ctx, state, viewport) {
   const windForce = state.conditionState?.weather?.windForce ?? 0;
 
   if (Math.abs(windForce) < 0.004) {
-    windFlowState.lastTimestamp = 0;
     return;
   }
 
   const direction = windForce >= 0 ? 1 : -1;
   const strength = Math.min(1, Math.abs(windForce) / 0.18);
   const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const deltaSeconds = windFlowState.lastTimestamp > 0 ? Math.min(0.033, (now - windFlowState.lastTimestamp) / 1000) : 1 / 60;
   const time = now / 1000;
 
-  ensureWindParticles(viewport, strength, direction);
-  windFlowState.lastTimestamp = now;
-
-  windFlowState.particles.forEach((particle) => {
-    particle.age += 1;
-    const flow = sampleWindVector(particle.x, particle.y, time, windForce, viewport, particle.depth, particle.seed);
-    particle.x += flow.vx * deltaSeconds;
-    particle.y += flow.vy * deltaSeconds;
-    particle.history.push(createWindHistoryPoint(particle.x, particle.y));
-
-    if (particle.history.length > WIND_TRAIL_LENGTH) {
-      particle.history.shift();
-    }
-
-    const outOfBounds =
-      particle.x < -WIND_PARTICLE_MARGIN * 1.5 ||
-      particle.x > viewport.width + WIND_PARTICLE_MARGIN * 1.5 ||
-      particle.y < -WIND_PARTICLE_MARGIN ||
-      particle.y > viewport.height + WIND_PARTICLE_MARGIN;
-
-    if (outOfBounds || particle.age >= particle.maxAge) {
-      resetWindParticle(particle, viewport, direction, particle.seed);
-    }
-  });
+  ensureWindSeeds(viewport, strength);
 
   ctx.save();
   ctx.globalCompositeOperation = "screen";
 
-  windFlowState.particles.forEach((particle) => {
-    if (particle.history.length < 2) {
+  windFlowState.seeds.forEach((seed, index) => {
+    const cycleWidth = viewport.width + 220;
+    const travel = (time * (44 + strength * 34) * seed.speed + index * 71) % cycleWidth;
+    let x = direction > 0 ? -110 + travel : viewport.width + 110 - travel;
+    let y =
+      seed.lane * viewport.height +
+      Math.sin(time * 0.42 + seed.phase) * (10 + strength * 18) +
+      Math.cos(time * 0.28 + seed.drift) * 14 * seed.depth;
+    const baseAlpha = (0.05 + strength * 0.08) * (0.8 + seed.depth * 0.25);
+    const baseWidth = 0.6 + seed.depth * 0.45;
+    const steps = 15;
+    const stepDistance = 10 + seed.depth * 2.5 + strength * 2.5;
+    const points = [{ x, y }];
+
+    for (let step = 0; step < steps; step += 1) {
+      const flow = sampleWindVector(x, y, time + step * 0.03, windForce, viewport, seed.depth, seed.phase);
+      const flowLength = Math.max(1, Math.hypot(flow.vx, flow.vy));
+      x += (flow.vx / flowLength) * stepDistance;
+      y += (flow.vy / flowLength) * stepDistance * 0.9;
+
+      if (x < -140 || x > viewport.width + 140 || y < -90 || y > viewport.height + 90) {
+        break;
+      }
+
+      points.push({ x, y });
+    }
+
+    if (points.length < 3) {
       return;
     }
 
-    const baseAlpha = (0.018 + strength * 0.055) * (0.72 + particle.depth * 0.46);
-    const glowAlpha = baseAlpha * 0.36;
-    const baseWidth = 0.75 + particle.depth * 1.2;
-
     ctx.beginPath();
-    particle.history.forEach((point, index) => {
-      if (index === 0) {
-        ctx.moveTo(point.x, point.y);
-      } else {
-        ctx.lineTo(point.x, point.y);
-      }
-    });
-    ctx.lineWidth = baseWidth * 1.8;
-    ctx.strokeStyle = `rgba(118, 154, 166, ${glowAlpha})`;
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let pointIndex = 1; pointIndex < points.length - 1; pointIndex += 1) {
+      const point = points[pointIndex];
+      const nextPoint = points[pointIndex + 1];
+      const controlX = (point.x + nextPoint.x) * 0.5;
+      const controlY = (point.y + nextPoint.y) * 0.5;
+      ctx.quadraticCurveTo(point.x, point.y, controlX, controlY);
+    }
+    const tailPoint = points[points.length - 1];
+    ctx.lineTo(tailPoint.x, tailPoint.y);
+    ctx.lineWidth = baseWidth * 2.2;
+    ctx.strokeStyle = `rgba(118, 154, 166, ${baseAlpha * 0.16})`;
     ctx.stroke();
 
-    for (let index = 1; index < particle.history.length; index += 1) {
-      const previousPoint = particle.history[index - 1];
-      const point = particle.history[index];
-      const segmentRatio = index / (particle.history.length - 1);
-      const alpha = baseAlpha * segmentRatio ** 1.85;
-      const lineWidth = baseWidth * (0.28 + segmentRatio * 0.92);
-      const brightness = 188 + Math.round(segmentRatio * 34);
+    for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
+      const previousPoint = points[pointIndex - 1];
+      const point = points[pointIndex];
+      const segmentRatio = pointIndex / (points.length - 1);
+      const alpha = baseAlpha * (0.2 + segmentRatio * 0.8);
+      const brightness = 196 + Math.round(segmentRatio * 28);
 
       ctx.beginPath();
       ctx.moveTo(previousPoint.x, previousPoint.y);
       ctx.lineTo(point.x, point.y);
-      ctx.lineWidth = lineWidth;
-      ctx.strokeStyle = `rgba(${brightness}, ${brightness + 18}, ${brightness + 24}, ${alpha})`;
+      ctx.lineWidth = baseWidth * (0.55 + segmentRatio * 0.7);
+      ctx.strokeStyle = `rgba(${brightness}, ${brightness + 14}, ${brightness + 18}, ${alpha})`;
       ctx.stroke();
     }
   });
@@ -525,7 +495,7 @@ function drawScene(canvas, state, viewport) {
     ctx.translate(Math.sin(Date.now() / 34) * shake, Math.cos(Date.now() / 41) * shake * 0.7);
   }
 
-  ctx.strokeStyle = GAME_CONFIG.palette.wallGrid;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.055)";
   ctx.lineWidth = 1;
 
   for (let x = 0; x < viewport.width; x += 100) {

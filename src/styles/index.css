@@ -542,6 +542,32 @@ select {
   gap: 8px;
 }
 
+.dev-panel-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #c8c8c8;
+  font-size: 0.76rem;
+}
+
+.dev-panel-toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #f0d58a;
+}
+
+.dev-panel-wind-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.dev-panel-wind-actions button {
+  min-height: 32px;
+}
+
 .dev-panel-control {
   display: grid;
   grid-template-columns: 112px minmax(120px, 1fr) 74px;

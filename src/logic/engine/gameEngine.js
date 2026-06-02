@@ -206,6 +206,8 @@ function createInitialConditionState() {
       windPhase: randomBetween(0, Math.PI * 2),
       targetWindForce: 0,
       windForce: 0,
+      debugOverrideActive: false,
+      debugOverrideForce: 0,
     },
     injury: {
       handStrain: 0,
@@ -1403,9 +1405,10 @@ function getRestPoseState(state) {
 function updateWeatherState(state) {
   const weatherState = state.conditionState.weather;
   weatherState.windPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed;
-  weatherState.targetWindForce =
-    Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
-    Math.sin(weatherState.windPhase * 2.2) * GAME_CONFIG.conditions.weather.gustForce;
+  weatherState.targetWindForce = weatherState.debugOverrideActive
+    ? weatherState.debugOverrideForce
+    : Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
+      Math.sin(weatherState.windPhase * 2.2) * GAME_CONFIG.conditions.weather.gustForce;
 
   weatherState.windForce += (weatherState.targetWindForce - weatherState.windForce) * GAME_CONFIG.conditions.weather.smoothing;
 
@@ -1619,6 +1622,25 @@ function canUseItem(state, itemDefinition) {
 
   if (activation.type === "channel") {
     return !state.itemState.channel && (!activation.requiresSingleHandHang || isSingleHandHang(state));
+  }
+
+  return true;
+}
+
+export function setWindDebugOverride(state, enabled, force = 0) {
+  const weatherState = state.conditionState?.weather;
+
+  if (!weatherState) {
+    return false;
+  }
+
+  const normalizedForce = clamp(Number(force) || 0, -0.24, 0.24);
+  weatherState.debugOverrideActive = Boolean(enabled);
+  weatherState.debugOverrideForce = normalizedForce;
+
+  if (weatherState.debugOverrideActive) {
+    weatherState.targetWindForce = normalizedForce;
+    weatherState.windForce = normalizedForce;
   }
 
   return true;
@@ -2406,6 +2428,8 @@ export function getUiSnapshot(state, frame) {
     conditions: {
       weather: {
         windForce: state.conditionState.weather.windForce,
+        debugOverrideActive: state.conditionState.weather.debugOverrideActive,
+        debugOverrideForce: state.conditionState.weather.debugOverrideForce,
       },
       injury: { ...state.conditionState.injury },
       survival: { ...state.conditionState.survival },

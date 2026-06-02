@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getLevelConfig } from "../../data/levelConfig";
 import {
   applyDynoTuning,
@@ -41,12 +41,27 @@ function formatRange(range) {
   return `${range.min} - ${range.max}`;
 }
 
-export function DeveloperPanel({ activeLevelId }) {
+function getWindDirectionLabel(force) {
+  if (Math.abs(force) < 0.001) {
+    return "Calm";
+  }
+
+  return force > 0 ? "Right" : "Left";
+}
+
+export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug }) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(getDynoTuningSnapshot);
+  const [windDebugEnabled, setWindDebugEnabled] = useState(Boolean(weatherState?.debugOverrideActive));
+  const [windDebugForce, setWindDebugForce] = useState(weatherState?.debugOverrideForce ?? 0);
   const [message, setMessage] = useState("");
   const levelConfig = getLevelConfig(activeLevelId);
   const authoring = levelConfig.authoring;
+
+  useEffect(() => {
+    setWindDebugEnabled(Boolean(weatherState?.debugOverrideActive));
+    setWindDebugForce(weatherState?.debugOverrideForce ?? 0);
+  }, [weatherState?.debugOverrideActive, weatherState?.debugOverrideForce]);
 
   const commitValues = (nextValues) => {
     setValues(nextValues);
@@ -81,6 +96,14 @@ export function DeveloperPanel({ activeLevelId }) {
     copyToClipboard(formatLevelConfig(levelConfig))
       .then(() => setMessage("Copied level config"))
       .catch(() => setMessage("Copy failed"));
+  };
+
+  const commitWindDebug = (enabled, force) => {
+    const nextForce = Number(force);
+    const normalizedForce = Number.isFinite(nextForce) ? Math.max(-0.24, Math.min(0.24, nextForce)) : 0;
+    setWindDebugEnabled(enabled);
+    setWindDebugForce(normalizedForce);
+    onUpdateWindDebug?.(enabled, normalizedForce);
   };
 
   return (
@@ -183,6 +206,52 @@ export function DeveloperPanel({ activeLevelId }) {
                 Copy level config
               </button>
             </div>
+          </div>
+          <div className="dev-panel-section">
+            <div className="dev-panel-header">
+              <span>Wind debug</span>
+            </div>
+            <label className="dev-panel-toggle-row">
+              <span>Override</span>
+              <input
+                type="checkbox"
+                checked={windDebugEnabled}
+                onChange={(event) => commitWindDebug(event.target.checked, windDebugForce)}
+              />
+            </label>
+            <div className="dev-panel-wind-actions">
+              <button type="button" onClick={() => commitWindDebug(true, -Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
+                Left
+              </button>
+              <button type="button" onClick={() => commitWindDebug(true, 0)}>
+                Calm
+              </button>
+              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
+                Right
+              </button>
+            </div>
+            <label className="dev-panel-control">
+              <span>Wind force</span>
+              <input
+                type="range"
+                min={-0.24}
+                max={0.24}
+                step={0.01}
+                value={windDebugForce}
+                onChange={(event) => commitWindDebug(windDebugEnabled || Math.abs(Number(event.target.value)) > 0.001, event.target.value)}
+              />
+              <input
+                type="number"
+                min={-0.24}
+                max={0.24}
+                step={0.01}
+                value={windDebugForce}
+                onChange={(event) => commitWindDebug(windDebugEnabled || Math.abs(Number(event.target.value)) > 0.001, event.target.value)}
+              />
+            </label>
+            <p className="dev-panel-note">
+              {windDebugEnabled ? `Override active: ${getWindDirectionLabel(windDebugForce)} ${Math.round(Math.abs(windDebugForce) * 100)}%` : "Route-driven wind active"}
+            </p>
           </div>
           <div className="dev-panel-section">
             <div className="dev-panel-header">

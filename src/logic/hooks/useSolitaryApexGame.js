@@ -8,6 +8,7 @@ import {
   getUiSnapshot,
   releaseDrag,
   setSpatialScan,
+  setWindDebugOverride,
   useItem,
   updateFrame,
   updatePointer,
@@ -85,6 +86,8 @@ export function useSolitaryApexGame() {
     conditions: {
       weather: {
         windForce: 0,
+        debugOverrideActive: false,
+        debugOverrideForce: 0,
       },
       injury: {
         handStrain: 0,
@@ -352,6 +355,15 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
+  const updateWindDebug = (enabled, force) => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    setWindDebugOverride(gameStateRef.current, enabled, force);
+    commitUiState();
+  };
+
   return {
     canvasRef,
     gameStateRef,
@@ -368,6 +380,7 @@ export function useSolitaryApexGame() {
     selectLevel,
     selectLoadout,
     updateSpatialScan,
+    updateWindDebug,
     useInventoryItem,
   };
 }

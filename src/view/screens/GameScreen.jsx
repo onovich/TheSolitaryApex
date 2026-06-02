@@ -37,6 +37,7 @@ export function GameScreen() {
     selectLevel,
     selectLoadout,
     updateSpatialScan,
+    updateWindDebug,
     useInventoryItem,
   } = useSolitaryApexGame();
   const text = getTextBundle(language);
@@ -94,7 +95,11 @@ export function GameScreen() {
         tutorialVisible={uiState.tutorialVisible}
       />
       <MessageOverlay endMessage={uiState.endMessage} language={language} onRestart={restartGame} text={text} />
-      <DeveloperPanel activeLevelId={uiState.levelId} />
+      <DeveloperPanel
+        activeLevelId={uiState.levelId}
+        weatherState={uiState.conditions?.weather}
+        onUpdateWindDebug={updateWindDebug}
+      />
     </main>
   );
 }
