@@ -116,6 +116,7 @@ export const GAME_CONFIG = {
       bloodiedThreshold: 0.32,
       severeThreshold: 0.78,
       bloodiedHoldPenalty: 0.016,
+      bloodiedChalkPenaltyMultiplier: 0.35,
       severePenalty: 0.025,
     },
     survival: {

@@ -523,26 +523,54 @@ function validateBloodiedHoldPressure() {
   }
 
   const bloodiedState = createStableState();
+  const chalkedBloodiedState = createStableState();
+  const chalkedCleanState = createStableState();
   const controlState = createStableState();
   const bloodiedHand = bloodiedState.player.limbs[0];
+  const chalkedBloodiedHand = chalkedBloodiedState.player.limbs[0];
+  const chalkedCleanHand = chalkedCleanState.player.limbs[0];
   const controlHand = controlState.player.limbs[0];
 
   bloodiedState.stamina = 84;
+  chalkedBloodiedState.stamina = 84;
+  chalkedCleanState.stamina = 84;
   controlState.stamina = 84;
   bloodiedState.holds[bloodiedHand.attachedHoldIndex].bloodied = true;
   bloodiedState.holds[bloodiedHand.attachedHoldIndex].type = 1;
+  chalkedBloodiedState.holds[chalkedBloodiedHand.attachedHoldIndex].bloodied = true;
+  chalkedBloodiedState.holds[chalkedBloodiedHand.attachedHoldIndex].type = 1;
+  chalkedCleanState.holds[chalkedCleanHand.attachedHoldIndex].type = 1;
   controlState.holds[controlHand.attachedHoldIndex].type = 1;
 
+  if (!useItem(chalkedBloodiedState, "chalk")) {
+    throw new Error("Chalk should be usable before checking bloodied hold mitigation");
+  }
+
+  if (!useItem(chalkedCleanState, "chalk")) {
+    throw new Error("Chalk should be usable before checking clean hold control pressure");
+  }
+
   updateFrame(bloodiedState, 1280, 720);
+  updateFrame(chalkedBloodiedState, 1280, 720);
+  updateFrame(chalkedCleanState, 1280, 720);
   updateFrame(controlState, 1280, 720);
 
   if (bloodiedState.stamina >= controlState.stamina) {
     throw new Error("Bloodied holds should add stamina pressure compared with an equivalent clean hold");
   }
 
+  if (chalkedBloodiedState.stamina <= bloodiedState.stamina) {
+    throw new Error("Chalk should mitigate bloodied hold stamina pressure");
+  }
+
+  if (chalkedBloodiedState.stamina >= chalkedCleanState.stamina) {
+    throw new Error("Chalk should mitigate but not erase bloodied hold pressure");
+  }
+
   return {
     bloodiedHoldCount: markingState.conditionState.injury.bloodiedHoldCount,
     staminaDelta: controlState.stamina - bloodiedState.stamina,
+    chalkMitigation: (controlState.stamina - bloodiedState.stamina) - (chalkedCleanState.stamina - chalkedBloodiedState.stamina),
   };
 }
 
@@ -891,6 +919,7 @@ console.log(
     `fruit=${fruitResult.fruitIndex}`,
     `bloodiedHolds=${bloodiedResult.bloodiedHoldCount}`,
     `bloodiedPenalty=${bloodiedResult.staminaDelta.toFixed(3)}`,
+    `bloodiedChalk=${bloodiedResult.chalkMitigation.toFixed(3)}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,

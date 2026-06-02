@@ -1671,6 +1671,10 @@ function getEffectValue(state, effectType) {
   }, 0);
 }
 
+function hasEffectType(state, effectType) {
+  return state.activeEffects.some((effect) => effect.type === effectType);
+}
+
 function tickActiveEffects(state) {
   state.activeEffects = state.activeEffects
     .map((effect) => ({
@@ -2804,7 +2808,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
       staminaChange -= (GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0) * state.loadout.modifiers.holdPenaltyMultiplier;
 
       if (limb.isHand && hold.bloodied) {
-        staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty;
+        const chalkMultiplier = hasEffectType(state, "staminaRecoveryBonus")
+          ? GAME_CONFIG.conditions.injury.bloodiedChalkPenaltyMultiplier
+          : 1;
+        staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty * chalkMultiplier;
       }
     });
 

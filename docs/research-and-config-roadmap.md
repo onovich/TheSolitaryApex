@@ -44,7 +44,7 @@ npm run report:levels
 - Route zones: recovery, reading, exposure, crux.
 - Runtime Dyno tuning panel.
 - Selectable loadouts: steady, bold dyno, technical, rescue support.
-- Bloodied regrip holds: hand strain can contaminate poorer holds, and regripping them adds stamina pressure.
+- Bloodied regrip holds: hand strain can contaminate poorer holds, regripping them adds stamina pressure, and chalk mitigates the bloodied regrip penalty.
 - Fragile holds: collapse after departure.
 - Timed soft holds: collapse while loaded.
 - Drillable obstacles: sustained limb drilling at stamina cost.
@@ -94,7 +94,7 @@ These tasks keep the prototype editable as mechanics accumulate.
 These are the best next implementation candidates because they extend existing systems without changing the whole control model.
 
 - Extend resource routing only if route design needs richer local scarcity tactics, such as required detours, fruit decay, or level-specific resource corridors.
-- Extend bloodied holds only if route design needs richer hand-injury tactics, such as bandage items, chalk mitigation, or level-specific sharp-hold clusters.
+- Extend bloodied holds only if route design needs richer hand-injury tactics, such as bandage items or level-specific sharp-hold clusters.
 
 ### P2 - Systems That Need Design Discussion First
 
