@@ -115,6 +115,10 @@ export function useSolitaryApexGame() {
       },
       encounter: {
         pursuitActive: false,
+        pursuitTriggered: false,
+        pursuitCompleted: false,
+        pursuitPhase: "idle",
+        pursuitFrames: 0,
         threatHeight: 0,
         gap: Infinity,
         danger: false,

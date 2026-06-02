@@ -347,6 +347,89 @@ function drawWindFlow(ctx, state, viewport) {
   ctx.restore();
 }
 
+function drawPursuitLava(ctx, state, viewport) {
+  const pursuitState = state.conditionState?.encounter;
+
+  if (!pursuitState?.pursuitActive) {
+    return;
+  }
+
+  const threatWorldY = viewport.height - pursuitState.threatHeight * GAME_CONFIG.heightScale;
+  const threatScreenY = threatWorldY - state.cameraY;
+
+  if (threatScreenY > viewport.height + 80) {
+    return;
+  }
+
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const time = now / 1000;
+  const dangerBoost = pursuitState.danger ? 1 : 0;
+  const baseY = Math.max(-40, Math.min(viewport.height + 40, threatScreenY));
+  const amplitude = 7 + dangerBoost * 4;
+  const secondaryAmplitude = 4 + dangerBoost * 2;
+  const step = 18;
+  const topPoints = [];
+
+  for (let x = -30; x <= viewport.width + 30; x += step) {
+    const waveY =
+      baseY +
+      Math.sin(x * 0.021 + time * 3.2) * amplitude +
+      Math.cos(x * 0.013 - time * 2.15) * secondaryAmplitude;
+
+    topPoints.push({ x, y: waveY });
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(topPoints[0].x, viewport.height + 60);
+  ctx.lineTo(topPoints[0].x, topPoints[0].y);
+  for (let index = 1; index < topPoints.length; index += 1) {
+    const previousPoint = topPoints[index - 1];
+    const point = topPoints[index];
+    const controlX = (previousPoint.x + point.x) * 0.5;
+    const controlY = (previousPoint.y + point.y) * 0.5;
+    ctx.quadraticCurveTo(previousPoint.x, previousPoint.y, controlX, controlY);
+  }
+  const tailPoint = topPoints[topPoints.length - 1];
+  ctx.quadraticCurveTo(tailPoint.x, tailPoint.y, viewport.width + 30, tailPoint.y);
+  ctx.lineTo(viewport.width + 30, viewport.height + 60);
+  ctx.closePath();
+
+  const lavaGradient = ctx.createLinearGradient(0, Math.max(0, baseY - 12), 0, viewport.height + 40);
+  lavaGradient.addColorStop(0, pursuitState.danger ? "rgba(214, 66, 52, 0.42)" : "rgba(182, 58, 48, 0.34)");
+  lavaGradient.addColorStop(0.45, pursuitState.danger ? "rgba(170, 32, 26, 0.28)" : "rgba(148, 34, 28, 0.24)");
+  lavaGradient.addColorStop(1, "rgba(92, 14, 16, 0.2)");
+  ctx.fillStyle = lavaGradient;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(topPoints[0].x, topPoints[0].y);
+  for (let index = 1; index < topPoints.length; index += 1) {
+    const previousPoint = topPoints[index - 1];
+    const point = topPoints[index];
+    const controlX = (previousPoint.x + point.x) * 0.5;
+    const controlY = (previousPoint.y + point.y) * 0.5;
+    ctx.quadraticCurveTo(previousPoint.x, previousPoint.y, controlX, controlY);
+  }
+  ctx.strokeStyle = pursuitState.danger ? "rgba(132, 16, 16, 0.9)" : "rgba(108, 18, 18, 0.82)";
+  ctx.lineWidth = pursuitState.danger ? 3.5 : 3;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(topPoints[0].x, topPoints[0].y - 3);
+  for (let index = 1; index < topPoints.length; index += 1) {
+    const previousPoint = topPoints[index - 1];
+    const point = topPoints[index];
+    const controlX = (previousPoint.x + point.x) * 0.5;
+    const controlY = (previousPoint.y + point.y) * 0.5 - 2;
+    ctx.quadraticCurveTo(previousPoint.x, previousPoint.y - 3, controlX, controlY);
+  }
+  ctx.strokeStyle = pursuitState.danger ? "rgba(255, 170, 124, 0.35)" : "rgba(238, 142, 110, 0.24)";
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawPlayer(ctx, state, viewportHeight) {
   if (!state.player) {
     return;
@@ -515,14 +598,15 @@ function drawScene(canvas, state, viewport) {
   ctx.fillRect(0, 0, viewport.width, viewport.height);
   ctx.save();
 
-  if (state.conditionState?.environment?.type === "earthquake") {
+  if (state.conditionState?.environment?.type === "earthquake" || state.conditionState?.environment?.type === "avalanche") {
     const eventRatio =
       state.conditionState.environment.totalFrames > 0
         ? state.conditionState.environment.remainingFrames / state.conditionState.environment.totalFrames
         : 0;
-    const shake = 5 * eventRatio;
+    const isAvalanche = state.conditionState.environment.type === "avalanche";
+    const shake = (isAvalanche ? 3.8 : 5) * eventRatio;
 
-    ctx.translate(Math.sin(Date.now() / 34) * shake, Math.cos(Date.now() / 41) * shake * 0.7);
+    ctx.translate(Math.sin(Date.now() / 34) * shake, Math.cos(Date.now() / 41) * shake * (isAvalanche ? 0.45 : 0.7));
   }
 
   ctx.strokeStyle = "rgba(255, 255, 255, 0.055)";
@@ -536,43 +620,7 @@ function drawScene(canvas, state, viewport) {
   }
 
   drawWindFlow(ctx, state, viewport);
-
-  if (state.conditionState?.environment?.type === "avalanche") {
-    const eventRatio =
-      state.conditionState.environment.totalFrames > 0
-        ? state.conditionState.environment.remainingFrames / state.conditionState.environment.totalFrames
-        : 0;
-    const offset = (Date.now() / 18) % 90;
-
-    ctx.save();
-    ctx.strokeStyle = `rgba(220, 235, 238, ${0.12 + eventRatio * 0.22})`;
-    ctx.lineWidth = 1.5;
-    for (let x = -viewport.height; x < viewport.width + viewport.height; x += 90) {
-      ctx.beginPath();
-      ctx.moveTo(x + offset, -20);
-      ctx.lineTo(x + offset + 120, viewport.height + 20);
-      ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  if (state.conditionState?.encounter?.pursuitActive) {
-    const threatWorldY = viewport.height - state.conditionState.encounter.threatHeight * GAME_CONFIG.heightScale;
-    const threatScreenY = threatWorldY - state.cameraY;
-
-    if (threatScreenY > -40 && threatScreenY < viewport.height + 80) {
-      ctx.save();
-      ctx.strokeStyle = state.conditionState.encounter.danger ? "rgba(255, 110, 110, 0.8)" : "rgba(180, 90, 90, 0.45)";
-      ctx.lineWidth = state.conditionState.encounter.danger ? 3 : 2;
-      ctx.setLineDash([12, 8]);
-      ctx.beginPath();
-      ctx.moveTo(0, threatScreenY);
-      ctx.lineTo(viewport.width, threatScreenY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-  }
+  drawPursuitLava(ctx, state, viewport);
 
   state.holds.forEach((hold) => {
     if (hold.removed) {

@@ -83,6 +83,8 @@ export const LEVEL_CONFIGS = [
     pursuit: {
       startFrame: 1350,
       speed: 0.035,
+      durationFrames: 720,
+      retreatSpeed: 0.05,
       dangerGap: 18,
       staminaPenalty: 0.05,
     },
@@ -501,6 +503,8 @@ LEVEL_CONFIGS.push(
     pursuit: {
       startFrame: 820,
       speed: 0.048,
+      durationFrames: 660,
+      retreatSpeed: 0.07,
       dangerGap: 20,
       staminaPenalty: 0.065,
     },
@@ -905,7 +909,7 @@ export function validateLevelConfig(levelConfig) {
   }
 
   if (levelConfig?.pursuit) {
-    ["startFrame", "speed", "dangerGap", "staminaPenalty"].forEach((key) => {
+    ["startFrame", "speed", "durationFrames", "retreatSpeed", "dangerGap", "staminaPenalty"].forEach((key) => {
       if (typeof levelConfig.pursuit[key] !== "number" || levelConfig.pursuit[key] < 0) {
         errors.push(`pursuit.${key} must be a non-negative number`);
       }

@@ -688,6 +688,8 @@ function validatePursuitPressure() {
   pursuitState.pursuit = {
     startFrame: 1,
     speed: 0.2,
+    durationFrames: 120,
+    retreatSpeed: 0.2,
     dangerGap: 999,
     staminaPenalty: 0.5,
   };
@@ -710,6 +712,8 @@ function validatePursuitPressure() {
   caughtState.pursuit = {
     startFrame: 1,
     speed: 100,
+    durationFrames: 120,
+    retreatSpeed: 100,
     dangerGap: 10,
     staminaPenalty: 0.5,
   };
