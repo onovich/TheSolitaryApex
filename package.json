@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "validate:levels": "node ./scripts/validate-level-config.mjs",
     "validate:gameplay": "node ./scripts/validate-gameplay.mjs",
+    "report:levels": "node ./scripts/report-level-config.mjs",
     "validate": "npm run validate:levels && npm run validate:gameplay && npm run build"
   },
   "dependencies": {

@@ -91,4 +91,6 @@ For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus
 
 Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, content targets for generated mechanic counts, pressure targets for route feel, plus pressure rules for event spacing. Each level also has a stable `seed` so route changes are reproducible while tuning. The HUD level switcher restarts into any configured official template. The in-game `DEV` panel shows the active level's authoring summary and can copy the full level config snippet. Use `npm run validate:levels` to check level definitions, content targets, pressure targets, pressure rules, generated-route coverage, seed repeatability, and a short per-template pressure summary before committing route template changes.
 
+For a readable tuning handoff, `npm run report:levels` prints a Markdown report with each level's route shape, encounters, generated content counts, pressure summary, and configured pressure targets.
+
 Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.
