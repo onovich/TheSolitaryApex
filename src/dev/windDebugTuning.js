@@ -1,7 +1,7 @@
-const WIND_LINE_DEBUG_LIMITS = {
-  length: { min: 6, max: 32, step: 1 },
+export const WIND_LINE_DEBUG_LIMITS = {
+  length: { min: 32, max: 100, step: 1 },
   gradientCurve: { min: 0.35, max: 2.2, step: 0.01 },
-  speedMultiplier: { min: 0.25, max: 3, step: 0.01 },
+  speedMultiplier: { min: 3, max: 20, step: 0.01 },
   sparsity: { min: 0.45, max: 2.4, step: 0.01 },
   curvature: { min: 0, max: 2.4, step: 0.01 },
 };
@@ -35,10 +35,10 @@ export const WIND_LINE_DEBUG_FIELDS = [
 ];
 
 const DEFAULT_WIND_LINE_DEBUG_TUNING = {
-  length: 15,
-  gradientCurve: 0.92,
-  speedMultiplier: 1,
-  sparsity: 1,
+  length: 32,
+  gradientCurve: 1.39,
+  speedMultiplier: 3,
+  sparsity: 2.1,
   curvature: 1,
 };
 
@@ -73,4 +73,13 @@ export function sanitizeWindLineDebugPatch(patch, currentValues = getDefaultWind
   });
 
   return nextValues;
+}
+
+export function getEffectiveWindLineCurvature(values) {
+  const speedMin = WIND_LINE_DEBUG_LIMITS.speedMultiplier.min;
+  const speed = Math.max(speedMin, Number(values?.speedMultiplier) || speedMin);
+  const curvature = clamp(Number(values?.curvature) || 0, WIND_LINE_DEBUG_LIMITS.curvature.min, WIND_LINE_DEBUG_LIMITS.curvature.max);
+  const speedFalloff = Math.pow(speedMin / speed, 0.68);
+
+  return curvature * speedFalloff;
 }

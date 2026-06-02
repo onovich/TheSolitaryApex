@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { GAME_CONFIG } from "../../data/gameConfig";
-import { getDefaultWindLineDebugTuning } from "../../dev/windDebugTuning";
+import { getDefaultWindLineDebugTuning, getEffectiveWindLineCurvature } from "../../dev/windDebugTuning";
 import { getHoldAnchorPosition } from "../../logic/spatialProjection.js";
 
 function getRejectFlashAlpha(state) {
@@ -214,9 +214,9 @@ function ensureWindSeeds(viewport, strength, sparsity) {
   }));
 }
 
-function sampleWindVector(x, y, time, windForce, viewport, depth, seed, curvature) {
-  const strength = Math.min(1, Math.abs(windForce) / 0.18);
-  const direction = windForce >= 0 ? 1 : -1;
+function sampleWindVector(x, y, time, baseWind, viewport, depth, seed, curvature) {
+  const strength = Math.min(1, Math.hypot(baseWind.x, baseWind.y) / 0.18);
+  const baseAngle = Math.atan2(baseWind.y, baseWind.x);
   const normalizedX = x / Math.max(1, viewport.width);
   const normalizedY = y / Math.max(1, viewport.height);
   const layeredWave =
@@ -225,27 +225,35 @@ function sampleWindVector(x, y, time, windForce, viewport, depth, seed, curvatur
   const curl =
     Math.sin((normalizedX * 2.6 + normalizedY * 1.8 + time * 0.11 + seed) * Math.PI * 2) * 0.16 +
     Math.cos((normalizedX * 1.2 - normalizedY * 2.9 - time * 0.09 + seed * 0.6) * Math.PI * 2) * 0.1;
-  const angle = (direction > 0 ? 0 : Math.PI) + (layeredWave + curl) * curvature * (0.24 + strength * 0.42);
+  const angle = baseAngle + (layeredWave + curl) * curvature * (0.24 + strength * 0.42);
   const speedBand = 0.82 + 0.22 * Math.sin((normalizedX * 1.8 + normalizedY * 2.4 + time * 0.08 + seed) * Math.PI * 2);
   const speed = (26 + strength * 52) * (0.72 + depth * 0.48) * speedBand;
   const verticalLift = Math.sin(normalizedX * Math.PI * 4.8 - time * 0.14 + seed) * strength * (4 + depth * 3);
 
   return {
     vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed * 0.42 + verticalLift,
+    vy: Math.sin(angle) * speed * 0.42 + verticalLift + baseWind.y * 26,
   };
 }
 
 function drawWindFlow(ctx, state, viewport) {
-  const windForce = state.conditionState?.weather?.windForce ?? 0;
+  const wind = {
+    x: state.conditionState?.weather?.windX ?? 0,
+    y: state.conditionState?.weather?.windY ?? 0,
+  };
   const windLineTuning = state.debugState?.windLine ?? getDefaultWindLineDebugTuning();
+  const effectiveCurvature = getEffectiveWindLineCurvature(windLineTuning);
+  const magnitude = Math.hypot(wind.x, wind.y);
 
-  if (Math.abs(windForce) < 0.004) {
+  if (magnitude < 0.004) {
     return;
   }
 
-  const direction = windForce >= 0 ? 1 : -1;
-  const strength = Math.min(1, Math.abs(windForce) / 0.18);
+  const strength = Math.min(1, magnitude / 0.18);
+  const baseDirectionX = wind.x / Math.max(magnitude, 0.0001);
+  const baseDirectionY = wind.y / Math.max(magnitude, 0.0001);
+  const normalX = -baseDirectionY;
+  const normalY = baseDirectionX;
   const now = typeof performance !== "undefined" ? performance.now() : Date.now();
   const time = now / 1000;
   const animatedTime = time * windLineTuning.speedMultiplier;
@@ -256,13 +264,21 @@ function drawWindFlow(ctx, state, viewport) {
   ctx.globalCompositeOperation = "screen";
 
   windFlowState.seeds.forEach((seed, index) => {
-    const cycleWidth = viewport.width + 220;
-    const travel = (animatedTime * (44 + strength * 34) * seed.speed + index * 71) % cycleWidth;
-    let x = direction > 0 ? -110 + travel : viewport.width + 110 - travel;
-    let y =
-      seed.lane * viewport.height +
+    const cycleLength = Math.hypot(viewport.width, viewport.height) + 280;
+    const crossSpan = Math.hypot(viewport.width, viewport.height) + 180;
+    const travel = (animatedTime * (44 + strength * 34) * seed.speed + index * 71) % cycleLength;
+    const offsetAlongNormal =
+      (seed.lane - 0.5) * crossSpan +
       Math.sin(animatedTime * 0.42 + seed.phase) * (10 + strength * 18) +
       Math.cos(animatedTime * 0.28 + seed.drift) * 14 * seed.depth;
+    let x =
+      viewport.width * 0.5 +
+      normalX * offsetAlongNormal -
+      baseDirectionX * (cycleLength * 0.5 - travel);
+    let y =
+      viewport.height * 0.5 +
+      normalY * offsetAlongNormal -
+      baseDirectionY * (cycleLength * 0.5 - travel);
     const baseAlpha = (0.05 + strength * 0.08) * (0.8 + seed.depth * 0.25);
     const baseWidth = 0.6 + seed.depth * 0.45;
     const steps = Math.round(windLineTuning.length);
@@ -274,11 +290,11 @@ function drawWindFlow(ctx, state, viewport) {
         x,
         y,
         animatedTime + step * 0.03,
-        windForce,
+        wind,
         viewport,
         seed.depth,
         seed.phase,
-        windLineTuning.curvature,
+        effectiveCurvature,
       );
       const flowLength = Math.max(1, Math.hypot(flow.vx, flow.vy));
       x += (flow.vx / flowLength) * stepDistance;

@@ -42,12 +42,14 @@ function formatRange(range) {
   return `${range.min} - ${range.max}`;
 }
 
-function getWindDirectionKey(force) {
-  if (Math.abs(force) < 0.001) {
-    return "calm";
+function normalizeAngle(angle) {
+  const normalized = Number(angle) % 360;
+
+  if (!Number.isFinite(normalized)) {
+    return 0;
   }
 
-  return force > 0 ? "right" : "left";
+  return normalized < 0 ? normalized + 360 : normalized;
 }
 
 export function DeveloperPanel({
@@ -63,6 +65,7 @@ export function DeveloperPanel({
   const [values, setValues] = useState(getDynoTuningSnapshot);
   const [windDebugEnabled, setWindDebugEnabled] = useState(Boolean(weatherState?.debugOverrideActive));
   const [windDebugForce, setWindDebugForce] = useState(weatherState?.debugOverrideForce ?? 0);
+  const [windDebugAngle, setWindDebugAngle] = useState(weatherState?.debugOverrideAngle ?? 0);
   const [windLineValues, setWindLineValues] = useState(debugState?.windLine ?? getDefaultWindLineDebugTuning());
   const [invincibleEnabled, setInvincibleEnabled] = useState(Boolean(debugState?.invincible));
   const [message, setMessage] = useState("");
@@ -71,7 +74,8 @@ export function DeveloperPanel({
   useEffect(() => {
     setWindDebugEnabled(Boolean(weatherState?.debugOverrideActive));
     setWindDebugForce(weatherState?.debugOverrideForce ?? 0);
-  }, [weatherState?.debugOverrideActive, weatherState?.debugOverrideForce]);
+    setWindDebugAngle(weatherState?.debugOverrideAngle ?? 0);
+  }, [weatherState?.debugOverrideActive, weatherState?.debugOverrideForce, weatherState?.debugOverrideAngle]);
   useEffect(() => {
     setWindLineValues(debugState?.windLine ?? getDefaultWindLineDebugTuning());
     setInvincibleEnabled(Boolean(debugState?.invincible));
@@ -119,12 +123,14 @@ export function DeveloperPanel({
       .catch(() => setMessage(devText.copyFailedMessage));
   };
 
-  const commitWindDebug = (enabled, force) => {
+  const commitWindDebug = (enabled, force, angle = windDebugAngle) => {
     const nextForce = Number(force);
-    const normalizedForce = Number.isFinite(nextForce) ? Math.max(-0.24, Math.min(0.24, nextForce)) : 0;
+    const normalizedForce = Number.isFinite(nextForce) ? Math.max(0, Math.min(0.24, nextForce)) : 0;
+    const normalizedAngle = normalizeAngle(angle);
     setWindDebugEnabled(enabled);
     setWindDebugForce(normalizedForce);
-    onUpdateWindDebug?.(enabled, normalizedForce);
+    setWindDebugAngle(normalizedAngle);
+    onUpdateWindDebug?.(enabled, normalizedForce, normalizedAngle);
   };
 
   const commitWindLineValue = (key, value) => {
@@ -267,13 +273,19 @@ export function DeveloperPanel({
               />
             </label>
             <div className="dev-panel-wind-actions">
-              <button type="button" onClick={() => commitWindDebug(true, -Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
+              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, windDebugForce || 0.08), 180)}>
                 {devText.directionLabels.left}
               </button>
-              <button type="button" onClick={() => commitWindDebug(true, 0)}>
+              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, windDebugForce || 0.08), 270)}>
+                {devText.directionLabels.up}
+              </button>
+              <button type="button" onClick={() => commitWindDebug(true, 0, windDebugAngle)}>
                 {devText.directionLabels.calm}
               </button>
-              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, Math.abs(windDebugForce) || 0.08))}>
+              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, windDebugForce || 0.08), 90)}>
+                {devText.directionLabels.down}
+              </button>
+              <button type="button" onClick={() => commitWindDebug(true, Math.max(0.02, windDebugForce || 0.08), 0)}>
                 {devText.directionLabels.right}
               </button>
             </div>
@@ -281,7 +293,7 @@ export function DeveloperPanel({
               <span>{devText.windForceLabel}</span>
               <input
                 type="range"
-                min={-0.24}
+                min={0}
                 max={0.24}
                 step={0.01}
                 value={windDebugForce}
@@ -289,18 +301,35 @@ export function DeveloperPanel({
               />
               <input
                 type="number"
-                min={-0.24}
+                min={0}
                 max={0.24}
                 step={0.01}
                 value={windDebugForce}
                 onChange={(event) => commitWindDebug(windDebugEnabled || Math.abs(Number(event.target.value)) > 0.001, event.target.value)}
               />
             </label>
+            <label className="dev-panel-control">
+              <span>{devText.windAngleLabel}</span>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                step={1}
+                value={windDebugAngle}
+                onChange={(event) => commitWindDebug(windDebugEnabled || windDebugForce > 0.001, windDebugForce, event.target.value)}
+              />
+              <input
+                type="number"
+                min={0}
+                max={360}
+                step={1}
+                value={windDebugAngle}
+                onChange={(event) => commitWindDebug(windDebugEnabled || windDebugForce > 0.001, windDebugForce, event.target.value)}
+              />
+            </label>
             <p className="dev-panel-note">
               {windDebugEnabled
-                ? `${devText.overrideActivePrefix}: ${devText.directionLabels[getWindDirectionKey(windDebugForce)]} ${Math.round(
-                    Math.abs(windDebugForce) * 100,
-                  )}%`
+                ? `${devText.overrideActivePrefix}: ${Math.round(windDebugForce * 100)}% / ${Math.round(windDebugAngle)}deg`
                 : devText.routeDrivenWindActiveLabel}
             </p>
             <div className="dev-panel-header">

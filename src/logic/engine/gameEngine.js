@@ -12,6 +12,38 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
+function normalizeDegrees(angle) {
+  const normalized = Number(angle) % 360;
+
+  if (!Number.isFinite(normalized)) {
+    return 0;
+  }
+
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
+function getWindVectorFromPolar(force, angleDegrees) {
+  const angle = (normalizeDegrees(angleDegrees) * Math.PI) / 180;
+
+  return {
+    x: Math.cos(angle) * force,
+    y: Math.sin(angle) * force,
+  };
+}
+
+function updateWeatherDerivedState(weatherState) {
+  weatherState.windForce = Math.hypot(weatherState.windX, weatherState.windY);
+  weatherState.windAngle = weatherState.windForce > 0.0001 ? normalizeDegrees((Math.atan2(weatherState.windY, weatherState.windX) * 180) / Math.PI) : 0;
+}
+
+function getScaledWindVector(weatherState, multiplier = 1) {
+  return {
+    x: weatherState.windX * multiplier,
+    y: weatherState.windY * multiplier,
+    magnitude: weatherState.windForce * Math.abs(multiplier),
+  };
+}
+
 function randomBetween(min, max) {
   return randomSource() * (max - min) + min;
 }
@@ -209,10 +241,16 @@ function createInitialConditionState() {
   return {
     weather: {
       windPhase: randomBetween(0, Math.PI * 2),
-      targetWindForce: 0,
+      windDirectionPhase: randomBetween(0, Math.PI * 2),
       windForce: 0,
+      windAngle: 0,
+      windX: 0,
+      windY: 0,
+      targetWindX: 0,
+      targetWindY: 0,
       debugOverrideActive: false,
       debugOverrideForce: 0,
+      debugOverrideAngle: 0,
     },
     injury: {
       handStrain: 0,
@@ -1288,8 +1326,11 @@ function updateFallState(state, viewportWidth, viewportHeight) {
   }
 
   if (fallState.mode === "hanging") {
-    const windSway = state.conditionState.weather.windForce * 40 * GAME_CONFIG.recoveryLoop.ropeSwayStrength;
-    const targetX = anchorPosition.x + windSway;
+    const hangingWind = getScaledWindVector(
+      state.conditionState.weather,
+      40 * GAME_CONFIG.recoveryLoop.ropeSwayStrength,
+    );
+    const targetX = anchorPosition.x + hangingWind.x;
     const checkpointBodyDistance = checkpoint
       ? Math.hypot(checkpoint.com.x - anchorPosition.x, checkpoint.com.y - anchorPosition.y)
       : GAME_CONFIG.recoveryLoop.ropeReelThreshold;
@@ -1300,7 +1341,7 @@ function updateFallState(state, viewportWidth, viewportHeight) {
     }
 
     state.player.com.x += (targetX - state.player.com.x) * 0.1;
-    state.player.com.y += (anchorPosition.y + fallState.ropeLength - state.player.com.y) * 0.2;
+    state.player.com.y += (anchorPosition.y + fallState.ropeLength + hangingWind.y * 0.35 - state.player.com.y) * 0.2;
     updateSuspendedLimbs(state, 0.18);
     restoreStamina(
       state,
@@ -1429,16 +1470,30 @@ function getRestPoseState(state) {
 function updateWeatherState(state) {
   const weatherState = state.conditionState.weather;
   weatherState.windPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed;
-  weatherState.targetWindForce = weatherState.debugOverrideActive
-    ? weatherState.debugOverrideForce
-    : Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
+  weatherState.windDirectionPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed * 0.42;
+
+  if (weatherState.debugOverrideActive) {
+    const debugTarget = getWindVectorFromPolar(weatherState.debugOverrideForce, weatherState.debugOverrideAngle);
+    weatherState.targetWindX = debugTarget.x;
+    weatherState.targetWindY = debugTarget.y;
+  } else {
+    weatherState.targetWindX =
+      Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
       Math.sin(weatherState.windPhase * 2.2) * GAME_CONFIG.conditions.weather.gustForce;
-
-  weatherState.windForce += (weatherState.targetWindForce - weatherState.windForce) * GAME_CONFIG.conditions.weather.smoothing;
-
-  if (Math.abs(weatherState.windForce) < GAME_CONFIG.conditions.weather.deadzone) {
-    weatherState.windForce = 0;
+    weatherState.targetWindY =
+      Math.sin(weatherState.windDirectionPhase * 1.4 + 0.85) * GAME_CONFIG.conditions.weather.baseForce * 0.72 +
+      Math.cos(weatherState.windDirectionPhase * 2.05 - 0.4) * GAME_CONFIG.conditions.weather.gustForce * 0.48;
   }
+
+  weatherState.windX += (weatherState.targetWindX - weatherState.windX) * GAME_CONFIG.conditions.weather.smoothing;
+  weatherState.windY += (weatherState.targetWindY - weatherState.windY) * GAME_CONFIG.conditions.weather.smoothing;
+
+  if (Math.hypot(weatherState.windX, weatherState.windY) < GAME_CONFIG.conditions.weather.deadzone) {
+    weatherState.windX = 0;
+    weatherState.windY = 0;
+  }
+
+  updateWeatherDerivedState(weatherState);
 }
 
 function updateInjuryState(state, attachedLimbs) {
@@ -1651,20 +1706,25 @@ function canUseItem(state, itemDefinition) {
   return true;
 }
 
-export function setWindDebugOverride(state, enabled, force = 0) {
+export function setWindDebugOverride(state, enabled, force = 0, angle = state.conditionState?.weather?.debugOverrideAngle ?? 0) {
   const weatherState = state.conditionState?.weather;
 
   if (!weatherState) {
     return false;
   }
 
-  const normalizedForce = clamp(Number(force) || 0, -0.24, 0.24);
+  const normalizedForce = clamp(Math.abs(Number(force) || 0), 0, 0.24);
   weatherState.debugOverrideActive = Boolean(enabled);
   weatherState.debugOverrideForce = normalizedForce;
+  weatherState.debugOverrideAngle = normalizeDegrees(angle);
 
   if (weatherState.debugOverrideActive) {
-    weatherState.targetWindForce = normalizedForce;
-    weatherState.windForce = normalizedForce;
+    const debugVector = getWindVectorFromPolar(normalizedForce, weatherState.debugOverrideAngle);
+    weatherState.targetWindX = debugVector.x;
+    weatherState.targetWindY = debugVector.y;
+    weatherState.windX = debugVector.x;
+    weatherState.windY = debugVector.y;
+    updateWeatherDerivedState(weatherState);
   }
 
   return true;
@@ -2564,8 +2624,12 @@ export function getUiSnapshot(state, frame) {
     conditions: {
       weather: {
         windForce: state.conditionState.weather.windForce,
+        windAngle: state.conditionState.weather.windAngle,
+        windX: state.conditionState.weather.windX,
+        windY: state.conditionState.weather.windY,
         debugOverrideActive: state.conditionState.weather.debugOverrideActive,
         debugOverrideForce: state.conditionState.weather.debugOverrideForce,
+        debugOverrideAngle: state.conditionState.weather.debugOverrideAngle,
       },
       injury: { ...state.conditionState.injury },
       survival: { ...state.conditionState.survival },
@@ -2963,9 +3027,10 @@ function updateDynoAutoAttachState(state, viewportHeight) {
 
 function updateDynoFlightState(state, currentRouteSegment, viewportHeight) {
   const previousVelocityY = state.movementState.bodyVelocity.y;
-  const windForce = state.conditionState.weather.windForce * currentRouteSegment.windMultiplier;
+  const airborneWind = getScaledWindVector(state.conditionState.weather, currentRouteSegment.windMultiplier);
 
-  state.movementState.bodyVelocity.x += windForce * GAME_CONFIG.movement.dyno.airborneWindInfluence;
+  state.movementState.bodyVelocity.x += airborneWind.x * GAME_CONFIG.movement.dyno.airborneWindInfluence;
+  state.movementState.bodyVelocity.y += airborneWind.y * GAME_CONFIG.movement.dyno.airborneWindInfluence * 0.65;
   state.movementState.bodyVelocity.y = Math.min(
     state.movementState.bodyVelocity.y + GAME_CONFIG.movement.dyno.flightGravity,
     GAME_CONFIG.movement.dyno.maxFallSpeed,
@@ -3077,11 +3142,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   state.movementState.restPose = getRestPoseState(state);
   updateInjuryState(state, attachedLimbs);
   const windResistance = state.movementState.restPose.active ? GAME_CONFIG.conditions.weather.restResistance : 1;
-  const effectiveWindForce =
-    state.conditionState.weather.windForce *
-    windResistance *
-    currentRouteSegment.windMultiplier *
-    getRecoveryWindMultiplier(state);
+  const effectiveWind = getScaledWindVector(
+    state.conditionState.weather,
+    windResistance * currentRouteSegment.windMultiplier * getRecoveryWindMultiplier(state),
+  );
 
   let totalX = 0;
   let totalY = 0;
@@ -3093,8 +3157,11 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   const targetComX =
     totalX / attachedLimbs.length +
-    effectiveWindForce * GAME_CONFIG.conditions.weather.swayStrength * (5 - attachedLimbs.length);
-  const targetComY = totalY / attachedLimbs.length + GAME_CONFIG.bodyOffsetY;
+    effectiveWind.x * GAME_CONFIG.conditions.weather.swayStrength * (5 - attachedLimbs.length);
+  const targetComY =
+    totalY / attachedLimbs.length +
+    GAME_CONFIG.bodyOffsetY +
+    effectiveWind.y * GAME_CONFIG.conditions.weather.swayStrength * 0.55 * Math.max(1, 5 - attachedLimbs.length);
   state.player.com.x += (targetComX - state.player.com.x) * 0.2;
   state.player.com.y += (targetComY - state.player.com.y) * 0.2;
 
@@ -3107,8 +3174,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
       return;
     }
 
-    limb.x += (state.player.com.x - limb.x) * 0.1 + effectiveWindForce * GAME_CONFIG.conditions.weather.suspendedLimbPush;
-    limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.1;
+    limb.x += (state.player.com.x - limb.x) * 0.1 + effectiveWind.x * GAME_CONFIG.conditions.weather.suspendedLimbPush;
+    limb.y +=
+      (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.1 +
+      effectiveWind.y * GAME_CONFIG.conditions.weather.suspendedLimbPush * 0.7;
   });
 
   let staminaChange = 0;
@@ -3147,7 +3216,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     }
 
     staminaChange -=
-      Math.abs(effectiveWindForce) *
+      effectiveWind.magnitude *
       GAME_CONFIG.conditions.weather.staminaPenaltyScale *
       Math.max(0, 4 - attachedLimbs.length);
 

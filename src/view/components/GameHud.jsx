@@ -106,7 +106,7 @@ export function GameHud({
   const fallLabel = fallLabels[fall?.mode] ?? text.fallLabel;
 
   const windForce = weatherState?.windForce ?? 0;
-  const windDirection = windForce >= 0 ? "→" : "←";
+  const windAngle = Math.round(weatherState?.windAngle ?? 0);
   const windStrength = Math.round(Math.abs(windForce) * 100);
   const thirst = Math.round(survivalState?.thirst ?? 0);
   const environmentLabels = {
@@ -199,7 +199,7 @@ export function GameHud({
           ) : null}
           <div className={`status-pill${restPoseState?.active ? " is-resting" : ""}`}>{restLabel}</div>
           <div className={`status-pill${windStrength > 12 ? " is-windy" : ""}`}>
-            {text.windLabel}: {windDirection} {windStrength}%
+            {text.windLabel}: {windStrength}% / {windAngle}deg
           </div>
           <div className={`status-pill${injuryState?.severity !== "stable" ? " is-injured" : ""}`}>
             {text.injuryLabel}: {injuryLabel}

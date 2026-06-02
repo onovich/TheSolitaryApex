@@ -89,8 +89,12 @@ export function useSolitaryApexGame() {
     conditions: {
       weather: {
         windForce: 0,
+        windAngle: 0,
+        windX: 0,
+        windY: 0,
         debugOverrideActive: false,
         debugOverrideForce: 0,
+        debugOverrideAngle: 0,
       },
       injury: {
         handStrain: 0,
@@ -362,12 +366,12 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
-  const updateWindDebug = (enabled, force) => {
+  const updateWindDebug = (enabled, force, angle) => {
     if (!gameStateRef.current) {
       return;
     }
 
-    setWindDebugOverride(gameStateRef.current, enabled, force);
+    setWindDebugOverride(gameStateRef.current, enabled, force, angle);
     commitUiState();
   };
 
