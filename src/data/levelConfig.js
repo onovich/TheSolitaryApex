@@ -42,6 +42,8 @@ export const LEVEL_CONFIGS = [
       pressureRules: {
         minEnvironmentEventSpacingFrames: 360,
         maxEnvironmentEvents: 3,
+        majorEncounterWindowFrames: 900,
+        maxMajorEncountersPerWindow: 3,
       },
       requiredValidators: ["validate:levels", "validate:gameplay", "build"],
     },
@@ -245,7 +247,10 @@ function createAuthoring({
     pressureTargets: Object.fromEntries(
       Object.entries(pressureTargets).map(([key, range]) => [key, { ...range }]),
     ),
-    pressureRules: { ...pressureRules },
+    pressureRules: {
+      ...LEVEL_CONFIGS[0].authoring.pressureRules,
+      ...pressureRules,
+    },
     requiredValidators: [...LEVEL_CONFIGS[0].authoring.requiredValidators],
   };
 }
@@ -717,7 +722,12 @@ export function validateLevelConfig(levelConfig) {
     if (!pressureRules) {
       errors.push(`${levelConfig.id}.authoring.pressureRules is required`);
     } else {
-      ["minEnvironmentEventSpacingFrames", "maxEnvironmentEvents"].forEach((key) => {
+      [
+        "minEnvironmentEventSpacingFrames",
+        "maxEnvironmentEvents",
+        "majorEncounterWindowFrames",
+        "maxMajorEncountersPerWindow",
+      ].forEach((key) => {
         if (!Number.isInteger(pressureRules[key]) || pressureRules[key] < 0) {
           errors.push(`${levelConfig.id}.authoring.pressureRules.${key} must be a non-negative integer`);
         }

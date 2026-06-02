@@ -27,6 +27,10 @@ function formatTargets(authoring) {
   ].join("<br>");
 }
 
+function formatTimeline(majorEncounters) {
+  return majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join("<br>") || "none";
+}
+
 const rows = LEVEL_CONFIGS.map((levelConfig) => ({
   levelConfig,
   analysis: analyzeLevelConfig(levelConfig),
@@ -34,8 +38,8 @@ const rows = LEVEL_CONFIGS.map((levelConfig) => ({
 
 console.log("# Level Config Report");
 console.log("");
-console.log("| Level | Template | Pace | Route | Encounters | Content | Pressure | Targets |");
-console.log("| --- | --- | --- | --- | --- | --- | --- | --- |");
+console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Targets |");
+console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 rows.forEach(({ levelConfig, analysis }) => {
   const encounters = [
@@ -58,6 +62,7 @@ rows.forEach(({ levelConfig, analysis }) => {
       levelConfig.authoring.intendedPace,
       route,
       encounters,
+      formatTimeline(analysis.majorEncounters),
       formatContentCounts(analysis.contentCounts),
       formatPressureSummary(analysis.pressureSummary),
       formatTargets(levelConfig.authoring),

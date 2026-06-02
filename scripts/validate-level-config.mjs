@@ -52,5 +52,9 @@ console.log(
       (result) =>
         `${result.id}:pressure=wind${result.pressureSummary.averageWindMultiplier.toFixed(2)}/stamina${result.pressureSummary.averageStaminaModifier.toFixed(3)}/hazards${result.pressureSummary.hazardPer100Stances.toFixed(1)}/resources${result.pressureSummary.resourcePer100Stances.toFixed(1)}`,
     ),
+    ...results.map(
+      (result) =>
+        `${result.id}:timeline=${result.majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join("/") || "none"}`,
+    ),
   ].join(" "),
 );

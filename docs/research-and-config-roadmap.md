@@ -75,8 +75,8 @@ These tasks keep the prototype editable as mechanics accumulate.
 - Add stronger validation around route pacing:
   - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
   - Current status: `validate:levels` checks weighted route pressure against per-template `authoring.pressureTargets`.
-  - Current status: `validate:levels` checks environment-event count and minimum spacing through `authoring.pressureRules`.
-  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, and resource density.
+  - Current status: `validate:levels` checks environment-event count, spacing, and major encounter density through `authoring.pressureRules`.
+  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, and major encounter timeline.
   - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff.
   - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.
   - Resource-pressure checks so thirst, stamina, fruit, and loadout penalties stay recoverable.

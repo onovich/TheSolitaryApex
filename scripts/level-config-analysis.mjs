@@ -2,6 +2,7 @@ import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine
 
 export const CONTENT_TARGET_KEYS = ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"];
 export const HAZARD_PRESSURE_KEYS = ["fragile", "timedSoft", "obstacle"];
+const ESTIMATED_FRAMES_PER_STANCE = 72;
 
 export function countGeneratedContent(holds) {
   const counts = Object.fromEntries(CONTENT_TARGET_KEYS.map((key) => [key, 0]));
@@ -66,6 +67,51 @@ function validatePressureTargets(levelConfig, pressureSummary) {
   });
 }
 
+function getMajorEncounterTimeline(levelConfig) {
+  return [
+    ...levelConfig.environmentEvents.map((eventConfig) => ({
+      id: eventConfig.id,
+      type: eventConfig.type,
+      frame: eventConfig.startFrame,
+    })),
+    ...(levelConfig.pursuit
+      ? [
+          {
+            id: "pursuit",
+            type: "pursuit",
+            frame: levelConfig.pursuit.startFrame,
+          },
+        ]
+      : []),
+    ...levelConfig.rescueTargets.map((targetConfig) => ({
+      id: targetConfig.id,
+      type: "rescue",
+      frame: targetConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE,
+    })),
+  ].sort((left, right) => left.frame - right.frame);
+}
+
+function validateMajorEncounterDensity(levelConfig, majorEncounters) {
+  const { majorEncounterWindowFrames, maxMajorEncountersPerWindow } = levelConfig.authoring.pressureRules;
+
+  if (majorEncounterWindowFrames <= 0 || maxMajorEncountersPerWindow <= 0) {
+    return;
+  }
+
+  majorEncounters.forEach((encounter, encounterIndex) => {
+    const windowEndFrame = encounter.frame + majorEncounterWindowFrames;
+    const encountersInWindow = majorEncounters
+      .slice(encounterIndex)
+      .filter((candidate) => candidate.frame <= windowEndFrame);
+
+    if (encountersInWindow.length > maxMajorEncountersPerWindow) {
+      throw new Error(
+        `${levelConfig.id} has ${encountersInWindow.length} major encounters within ${majorEncounterWindowFrames} frames starting at ${encounter.id}`,
+      );
+    }
+  });
+}
+
 export function analyzeLevelConfig(levelConfig) {
   const blueprint = generateWall(1280, 720, levelConfig.id);
   const repeatedBlueprint = generateWall(1280, 720, levelConfig.id);
@@ -73,6 +119,7 @@ export function analyzeLevelConfig(levelConfig) {
   const contentCounts = countGeneratedContent(blueprint.holds);
   const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
   const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
+  const majorEncounters = getMajorEncounterTimeline(levelConfig);
 
   levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
     if (!zoneKeys.has(zoneKey)) {
@@ -86,6 +133,7 @@ export function analyzeLevelConfig(levelConfig) {
 
   validateContentTargets(levelConfig, contentCounts);
   validatePressureTargets(levelConfig, pressureSummary);
+  validateMajorEncounterDensity(levelConfig, majorEncounters);
 
   const holdSignature = blueprint.holds
     .slice(0, 24)
@@ -115,5 +163,6 @@ export function analyzeLevelConfig(levelConfig) {
     ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
     contentCounts,
     pressureSummary,
+    majorEncounters,
   };
 }
