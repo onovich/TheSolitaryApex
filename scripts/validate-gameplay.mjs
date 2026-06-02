@@ -142,12 +142,45 @@ function validateDragDynoAndFalls() {
     throw new Error(`Dyno stamina cost mismatch: ${state.stamina}`);
   }
 
-  for (let index = 0; index < 120 && state.movementState.dyno.flightActive; index += 1) {
+  for (
+    let index = 0;
+    index < 120 && !state.movementState.dyno.autoAttachActive && state.movementState.dyno.flightActive;
+    index += 1
+  ) {
     updateFrame(state, 1280, 720);
   }
 
-  if (state.movementState.dyno.flightActive) {
-    throw new Error("Dyno flight never resolved at the apex");
+  if (!state.movementState.dyno.autoAttachActive) {
+    throw new Error("Dyno flight never entered the landing attach phase");
+  }
+
+  const frozenBody = { ...state.player.com };
+  const landingLimbPositions = state.player.limbs.map((limb) => ({ x: limb.x, y: limb.y, attachedHoldIndex: limb.attachedHoldIndex }));
+  updateFrame(state, 1280, 720);
+
+  if (Math.abs(state.player.com.x - frozenBody.x) > 0.001 || Math.abs(state.player.com.y - frozenBody.y) > 0.001) {
+    throw new Error("Dyno landing phase should keep the body fixed while limbs search for holds");
+  }
+
+  const landingLimbMoved = state.player.limbs.some((limb, index) => {
+    const previousLimb = landingLimbPositions[index];
+    return Math.abs(limb.x - previousLimb.x) > 0.001 || Math.abs(limb.y - previousLimb.y) > 0.001;
+  });
+
+  if (!landingLimbMoved) {
+    throw new Error("Dyno landing phase should animate at least one limb toward a hold");
+  }
+
+  if (state.player.limbs.some((limb, index) => limb.attachedHoldIndex !== landingLimbPositions[index].attachedHoldIndex)) {
+    throw new Error("Dyno landing phase should not instantly attach limbs on its first transition frame");
+  }
+
+  for (let index = 0; index < 120 && state.movementState.dyno.autoAttachActive; index += 1) {
+    updateFrame(state, 1280, 720);
+  }
+
+  if (state.movementState.dyno.autoAttachActive || state.movementState.dyno.flightActive) {
+    throw new Error("Dyno landing phase never completed");
   }
 
   state.player.limbs.forEach((limb) => {

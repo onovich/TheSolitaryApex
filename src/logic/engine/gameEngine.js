@@ -117,6 +117,11 @@ function resetDynoState(dynoState) {
   dynoState.pullDistance = 0;
   dynoState.flightActive = false;
   dynoState.originalLimbPositions = [];
+  dynoState.autoAttachActive = false;
+  dynoState.autoAttachFrame = 0;
+  dynoState.autoAttachFrames = 0;
+  dynoState.autoAttachBodyPosition = { x: 0, y: 0 };
+  dynoState.pendingLandingTargets = [];
 }
 
 function setGameOver(state, reason) {
@@ -176,6 +181,14 @@ function createInitialMovementState() {
       pullDistance: 0,
       flightActive: false,
       originalLimbPositions: [],
+      autoAttachActive: false,
+      autoAttachFrame: 0,
+      autoAttachFrames: 0,
+      autoAttachBodyPosition: {
+        x: 0,
+        y: 0,
+      },
+      pendingLandingTargets: [],
     },
     restPose: {
       active: false,
@@ -906,10 +919,15 @@ function finishDynoFlight(state) {
   const dynoState = state.movementState.dyno;
 
   dynoState.flightActive = false;
+  dynoState.autoAttachActive = false;
+  dynoState.autoAttachFrame = 0;
+  dynoState.autoAttachFrames = 0;
   dynoState.reachBonusRatio = 0;
   dynoState.pullDistance = 0;
   dynoState.activeFrames = 0;
   dynoState.originalLimbPositions = [];
+  dynoState.autoAttachBodyPosition = { x: 0, y: 0 };
+  dynoState.pendingLandingTargets = [];
   dynoState.launchVector = {
     x: 0,
     y: -1,
@@ -1002,7 +1020,7 @@ function getDynoAvailabilityReason(state) {
     return "disabled";
   }
 
-  if (dynoState.flightActive) {
+  if (dynoState.flightActive || dynoState.autoAttachActive) {
     return "airborne";
   }
 
@@ -1302,6 +1320,10 @@ function getDynoReachRatio(state) {
   }
 
   if (dynoState.flightActive) {
+    return dynoState.reachBonusRatio;
+  }
+
+  if (dynoState.autoAttachActive) {
     return dynoState.reachBonusRatio;
   }
 
@@ -2246,7 +2268,7 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   return closestHoldIndex;
 }
 
-function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) {
+function findClosestLandingAttachHold(state, limb, targetX, targetY, usedHoldIndices) {
   let bestHoldIndex = -1;
   let bestScore = Infinity;
 
@@ -2261,11 +2283,8 @@ function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) 
       return;
     }
 
-    const distance = Math.hypot(holdAnchor.x - originX, holdAnchor.y - originY);
-    const upwardGain = Math.max(0, originY - holdAnchor.y);
-    const downwardPenalty = Math.max(0, holdAnchor.y - originY) * 1.1;
-    const reusePenalty = usedHoldIndices.has(index) ? 500 : 0;
-    const score = distance - upwardGain * 1.25 + downwardPenalty + reusePenalty;
+    const reusePenalty = usedHoldIndices.has(index) ? 18 : 0;
+    const score = Math.hypot(holdAnchor.x - targetX, holdAnchor.y - targetY) + reusePenalty;
 
     if (score < bestScore) {
       bestScore = score;
@@ -2373,7 +2392,7 @@ export function getUiSnapshot(state, frame) {
     movement: {
       dyno: {
         charging: state.movementState.dyno.charging,
-        active: state.movementState.dyno.flightActive,
+        active: state.movementState.dyno.flightActive || state.movementState.dyno.autoAttachActive,
         preparing: state.movementState.dyno.pointerActive && !state.movementState.dyno.charging,
         chargeRatio: getDynoChargeRatio(state),
         cooldownFrames: state.movementState.dyno.cooldownFrames,
@@ -2424,7 +2443,12 @@ export function setSpatialScan(state, enabled, angle = state.spatialScan.angle) 
 }
 
 export function beginDrag(state, screenX, screenY) {
-  if (!state.isPlaying || (state.fallState?.active && state.fallState.mode !== "hanging")) {
+  if (
+    !state.isPlaying ||
+    state.movementState?.dyno?.flightActive ||
+    state.movementState?.dyno?.autoAttachActive ||
+    (state.fallState?.active && state.fallState.mode !== "hanging")
+  ) {
     return false;
   }
 
@@ -2457,6 +2481,10 @@ export function beginBodyAction(state, screenX, screenY) {
   }
 
   if (!state.isPlaying) {
+    return false;
+  }
+
+  if (state.movementState?.dyno?.flightActive || state.movementState?.dyno?.autoAttachActive) {
     return false;
   }
 
@@ -2499,7 +2527,7 @@ export function cancelBodyAction(state) {
 }
 
 export function beginDynoCharge(state, screenX = state.pointer.x, screenY = state.pointer.y) {
-  if (!state.isPlaying || state.fallState?.active || !canStartDyno(state)) {
+  if (!state.isPlaying || state.fallState?.active || state.movementState?.dyno?.autoAttachActive || !canStartDyno(state)) {
     return false;
   }
 
@@ -2515,7 +2543,7 @@ export function beginDynoCharge(state, screenX = state.pointer.x, screenY = stat
 }
 
 export function releaseDynoCharge(state) {
-  if (!state.isPlaying || state.fallState?.active) {
+  if (!state.isPlaying || state.fallState?.active || state.movementState?.dyno?.autoAttachActive) {
     return false;
   }
 
@@ -2656,24 +2684,102 @@ function updateParticles(state) {
   }
 }
 
-function attemptDynoAutoAttach(state, viewportHeight) {
+function attemptDynoAutoAttach(state) {
   const dynoState = state.movementState.dyno;
   const usedHoldIndices = new Set();
-  let attachedCount = 0;
+  const landingTargets = state.player.limbs.map((limb, limbIndex) => {
+    const holdIndex = findClosestLandingAttachHold(state, limb, limb.x, limb.y, usedHoldIndices);
 
-  state.player.limbs.forEach((limb, index) => {
-    const origin = dynoState.originalLimbPositions[index] ?? { x: limb.x, y: limb.y };
-    const holdIndex = findBestDynoAttachHold(state, limb, origin.x, origin.y, usedHoldIndices);
+    if (holdIndex !== -1) {
+      usedHoldIndices.add(holdIndex);
+    }
 
-    if (holdIndex === -1) {
-      limb.attachedHoldIndex = -1;
+    const hold = holdIndex !== -1 ? state.holds[holdIndex] : null;
+    const holdAnchor = hold ? getHoldAnchorPosition(state, hold) : null;
+
+    return {
+      limbIndex,
+      targetHoldIndex: holdIndex,
+      startX: limb.x,
+      startY: limb.y,
+      targetX: holdAnchor?.x ?? limb.x,
+      targetY: holdAnchor?.y ?? limb.y,
+    };
+  });
+
+  dynoState.flightActive = false;
+  dynoState.autoAttachActive = true;
+  dynoState.autoAttachFrame = 0;
+  dynoState.autoAttachFrames = GAME_CONFIG.movement.dyno.autoAttachFrames;
+  dynoState.autoAttachBodyPosition = {
+    x: state.player.com.x,
+    y: state.player.com.y,
+  };
+  dynoState.pendingLandingTargets = landingTargets;
+  dynoState.pullDistance = 0;
+  dynoState.originalLimbPositions = [];
+  state.movementState.bodyVelocity = { x: 0, y: 0 };
+  return true;
+}
+
+function updateDynoAutoAttachState(state, viewportHeight) {
+  const dynoState = state.movementState.dyno;
+
+  if (!dynoState.autoAttachActive) {
+    return false;
+  }
+
+  state.player.com.x = dynoState.autoAttachBodyPosition.x;
+  state.player.com.y = dynoState.autoAttachBodyPosition.y;
+  state.movementState.bodyVelocity = { x: 0, y: 0 };
+  dynoState.autoAttachFrame += 1;
+
+  const progress = clamp(dynoState.autoAttachFrame / Math.max(1, dynoState.autoAttachFrames), 0, 1);
+  const easedProgress = 1 - (1 - progress) ** 3;
+
+  dynoState.pendingLandingTargets.forEach((target) => {
+    const limb = state.player.limbs[target.limbIndex];
+
+    if (!limb) {
       return;
     }
 
-    const hold = state.holds[holdIndex];
-    usedHoldIndices.add(holdIndex);
-    limb.attachedHoldIndex = holdIndex;
+    if (target.targetHoldIndex === -1) {
+      limb.x += (state.player.com.x - limb.x) * 0.08;
+      limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.08;
+      return;
+    }
+
+    limb.x = target.startX + (target.targetX - target.startX) * easedProgress;
+    limb.y = target.startY + (target.targetY - target.startY) * easedProgress;
+  });
+
+  if (progress < 1) {
+    return true;
+  }
+
+  let attachedCount = 0;
+
+  dynoState.pendingLandingTargets.forEach((target) => {
+    const limb = state.player.limbs[target.limbIndex];
+
+    if (!limb || target.targetHoldIndex === -1) {
+      return;
+    }
+
+    const hold = state.holds[target.targetHoldIndex];
+
+    if (!isHoldAvailable(hold)) {
+      return;
+    }
+
     const holdAnchor = getHoldAnchorPosition(state, hold);
+
+    if (!canLimbReachTarget(state, limb, holdAnchor.x, holdAnchor.y)) {
+      return;
+    }
+
+    limb.attachedHoldIndex = target.targetHoldIndex;
     limb.x = holdAnchor.x;
     limb.y = holdAnchor.y;
     attachedCount += 1;
@@ -2706,7 +2812,7 @@ function updateDynoFlightState(state, currentRouteSegment, viewportHeight) {
   updateDetachedLimbs(state, GAME_CONFIG.movement.dyno.airborneLimbStiffness);
 
   if (previousVelocityY < 0 && state.movementState.bodyVelocity.y >= 0) {
-    attemptDynoAutoAttach(state, viewportHeight);
+    attemptDynoAutoAttach(state);
   }
 }
 
@@ -2762,6 +2868,16 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   if (state.movementState.dyno.flightActive) {
     updateDynoFlightState(state, currentRouteSegment, viewportHeight);
+    tickActiveEffects(state);
+    decayDynoState(state);
+    tickChannelItem(state);
+    tickRecoveryState(state);
+    updateHeightAndCamera(state, viewportHeight);
+    return;
+  }
+
+  if (state.movementState.dyno.autoAttachActive) {
+    updateDynoAutoAttachState(state, viewportHeight);
     tickActiveEffects(state);
     decayDynoState(state);
     tickChannelItem(state);

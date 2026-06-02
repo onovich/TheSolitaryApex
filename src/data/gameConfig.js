@@ -74,6 +74,7 @@ export const GAME_CONFIG = {
       maxFallSpeed: 18,
       airborneWindInfluence: 0.18,
       airborneLimbStiffness: 0.18,
+      autoAttachFrames: 12,
       launchVelocity: {
         x: 12.4,
         y: 18.8,
