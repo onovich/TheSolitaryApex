@@ -302,13 +302,15 @@ function drawWindFlow(ctx, state, viewport) {
       const previousPoint = points[pointIndex - 1];
       const point = points[pointIndex];
       const segmentRatio = pointIndex / (points.length - 1);
-      const alpha = baseAlpha * (0.2 + segmentRatio * 0.8);
-      const brightness = 196 + Math.round(segmentRatio * 28);
+      const envelope = Math.sin(segmentRatio * Math.PI);
+      const alpha = baseAlpha * envelope ** 0.92;
+      const widthEnvelope = 0.82 + envelope * 0.32;
+      const brightness = 196 + Math.round(envelope * 28);
 
       ctx.beginPath();
       ctx.moveTo(previousPoint.x, previousPoint.y);
       ctx.lineTo(point.x, point.y);
-      ctx.lineWidth = baseWidth * (0.55 + segmentRatio * 0.7);
+      ctx.lineWidth = baseWidth * widthEnvelope;
       ctx.strokeStyle = `rgba(${brightness}, ${brightness + 14}, ${brightness + 18}, ${alpha})`;
       ctx.stroke();
     }
