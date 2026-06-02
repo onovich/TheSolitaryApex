@@ -52,7 +52,7 @@ npm run report:levels
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
 - Rope threat: converts placed protection into a time-limited risk if left unattended.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
-- Rescue targets: use protection placements as a collaboration tool without NPC AI.
+- Rescue targets: use protection placements as a collaboration tool with temporary burden pressure and without NPC AI.
 
 ## Current Design Boundaries
 
@@ -94,10 +94,6 @@ These are the best next implementation candidates because they extend existing s
   - Add several named official route templates rather than just increasing random variety.
   - Suggested first set: tutorial-safe, resource-reading, exposure-pressure, pursuit-crux, rescue-encounter.
   - Each template should declare allowed mechanics and forbidden mechanics.
-- Rescue target second pass:
-  - Test whether rescue should become a sustained burden after attaching protection, or remain a one-click semantic conversion.
-  - If adding burden, start with a temporary stamina/weight pressure rather than full NPC AI.
-
 ### P2 - Systems That Need Design Discussion First
 
 These are valuable, but they can easily distort the core rhythm if implemented too early.

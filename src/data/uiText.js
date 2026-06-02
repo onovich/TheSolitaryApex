@@ -49,6 +49,7 @@ export const UI_TEXT = {
   pursuitLabel: "追赶",
   ropeThreatLabel: "绳威胁",
   rescueLabel: "救援",
+  rescueBurdenLabel: "救援负重",
   spatialScanLabel: "空间",
   tutorial: "拖拽手脚圆环移动到上方岩点。\n先打保护点，再长按身体并向下反拉完成弹射。",
   restart: "重新攀登",

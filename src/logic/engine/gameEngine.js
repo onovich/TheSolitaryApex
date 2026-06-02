@@ -218,6 +218,13 @@ function createInitialConditionState() {
       gap: Infinity,
       danger: false,
       rescueCount: 0,
+      rescueBurden: {
+        active: false,
+        remainingFrames: 0,
+        totalFrames: 0,
+        staminaPenalty: 0,
+        targetId: null,
+      },
       ropeThreat: {
         armed: false,
         active: false,
@@ -709,6 +716,38 @@ function tickRopeThreatState(state) {
 
   if (ropeThreatState.progress >= ropeThreatConfig.disableProgress) {
     breakCheckpointFromRopeThreat(state);
+  }
+}
+
+function startRescueBurden(state, rescueTarget) {
+  const burdenFrames = rescueTarget.burdenFrames ?? 0;
+  const staminaPenalty = rescueTarget.burdenStaminaPenalty ?? 0;
+  const rescueBurden = state.conditionState.encounter.rescueBurden;
+
+  if (burdenFrames <= 0 || staminaPenalty <= 0 || !rescueBurden) {
+    return;
+  }
+
+  rescueBurden.active = true;
+  rescueBurden.remainingFrames = burdenFrames;
+  rescueBurden.totalFrames = burdenFrames;
+  rescueBurden.staminaPenalty = staminaPenalty;
+  rescueBurden.targetId = rescueTarget.rescueTargetId ?? null;
+}
+
+function tickRescueBurdenState(state) {
+  const rescueBurden = state.conditionState.encounter.rescueBurden;
+
+  if (!rescueBurden?.active) {
+    return;
+  }
+
+  rescueBurden.remainingFrames = Math.max(0, rescueBurden.remainingFrames - 1);
+
+  if (rescueBurden.remainingFrames === 0) {
+    rescueBurden.active = false;
+    rescueBurden.staminaPenalty = 0;
+    rescueBurden.targetId = null;
   }
 }
 
@@ -1562,6 +1601,7 @@ function attachProtectionToRescueTarget(state, itemDefinition) {
   rescueTarget.rescuedFrame = state.frame ?? 0;
   rescueTarget.rescueItemId = itemDefinition.id;
   state.conditionState.encounter.rescueCount += 1;
+  startRescueBurden(state, rescueTarget);
   pushParticles(state, rescueTarget.x, rescueTarget.y - state.cameraY, 26, "rgba(154, 230, 180, 0.9)");
   return true;
 }
@@ -1931,6 +1971,8 @@ function createRescueTargetHolds(goldenPath, rescueTargets = []) {
         hazardState: "waiting",
         rescueTargetId: targetConfig.id,
         rescueRadius: targetConfig.rescueRadius,
+        burdenFrames: targetConfig.burdenFrames,
+        burdenStaminaPenalty: targetConfig.staminaPenalty,
         radius: targetConfig.radius,
         zLayer: 0,
       });
@@ -2586,6 +2628,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickEnvironmentEvents(state);
   tickPursuitState(state, viewportHeight);
   tickRopeThreatState(state);
+  tickRescueBurdenState(state);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
@@ -2726,6 +2769,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
     if (state.conditionState.encounter.ropeThreat?.danger) {
       staminaChange -= state.ropeThreat?.staminaPenalty ?? 0;
+    }
+
+    if (state.conditionState.encounter.rescueBurden?.active) {
+      staminaChange -= state.conditionState.encounter.rescueBurden.staminaPenalty;
     }
 
     staminaChange += currentRouteSegment.staminaModifier;

@@ -84,6 +84,8 @@ export const LEVEL_CONFIGS = [
         offsetY: -28,
         radius: 12,
         rescueRadius: 150,
+        burdenFrames: 360,
+        staminaPenalty: 0.045,
       },
     ],
     routeGeneration: {
@@ -548,6 +550,8 @@ LEVEL_CONFIGS.push(
         offsetY: -24,
         radius: 12,
         rescueRadius: 150,
+        burdenFrames: 300,
+        staminaPenalty: 0.035,
       },
       {
         id: "injured-climber-high",
@@ -556,6 +560,8 @@ LEVEL_CONFIGS.push(
         offsetY: -30,
         radius: 12,
         rescueRadius: 155,
+        burdenFrames: 420,
+        staminaPenalty: 0.05,
       },
     ],
     routeGeneration: cloneRouteGeneration({
@@ -793,7 +799,7 @@ export function validateLevelConfig(levelConfig) {
       errors.push("rescue target id is required");
     }
 
-    ["stanceIndex", "offsetX", "offsetY", "radius", "rescueRadius"].forEach((key) => {
+    ["stanceIndex", "offsetX", "offsetY", "radius", "rescueRadius", "burdenFrames", "staminaPenalty"].forEach((key) => {
       if (typeof targetConfig[key] !== "number") {
         errors.push(`${targetConfig.id}.${key} must be a number`);
       }

@@ -37,7 +37,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - A configurable pursuit pressure line that rewards sustained upward movement
 - A configurable rope threat that climbs placed protection and can disable stale checkpoints
 - An optional spatial-scan experiment for visual-only pseudo-3D route reading
-- Rescue targets that let protection placements act as collaboration tools
+- Rescue targets that let protection placements act as collaboration tools with temporary burden pressure
 - Two clear failure states: losing balance or climbing to exhaustion
 - Minimal, oppressive presentation focused on isolation and height
 
@@ -85,7 +85,7 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, four selectable official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets.
+The current web build now includes guaranteed-solvable route generation, four selectable official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets with temporary burden pressure.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 

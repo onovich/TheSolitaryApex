@@ -685,16 +685,24 @@ function validateSpatialScan() {
 
 function validateRescueTarget() {
   const state = createStableState();
+  const controlState = createStableState();
   const rescueTarget = state.holds.find((hold) => hold.hazardType === "rescueTarget");
+  const controlTarget = controlState.holds.find((hold) => hold.hazardType === "rescueTarget");
   const initialProtection = state.inventory.protectionCam.count;
 
-  if (!rescueTarget) {
+  if (!rescueTarget || !controlTarget) {
     throw new Error("Expected generated route to include a rescue target");
   }
 
-  rescueTarget.x = state.player.com.x + 20;
-  rescueTarget.y = state.player.com.y;
-  rescueTarget.rescueRadius = 120;
+  [state, controlState].forEach((targetState) => {
+    const target = targetState.holds.find((hold) => hold.hazardType === "rescueTarget");
+    target.x = targetState.player.com.x + 20;
+    target.y = targetState.player.com.y;
+    target.rescueRadius = 120;
+    target.burdenFrames = 4;
+    target.burdenStaminaPenalty = 0.5;
+    targetState.stamina = 82;
+  });
 
   if (!useItem(state, "protectionCam")) {
     throw new Error("Expected protection cam to attach to a nearby rescue target");
@@ -712,7 +720,32 @@ function validateRescueTarget() {
     throw new Error("Rescue target protection should not also create a player checkpoint");
   }
 
-  return { rescueCount: state.conditionState.encounter.rescueCount };
+  if (!state.conditionState.encounter.rescueBurden.active) {
+    throw new Error("Rescue target should start a temporary rescue burden");
+  }
+
+  useItem(controlState, "protectionCam");
+  controlState.conditionState.encounter.rescueBurden.active = false;
+  controlState.conditionState.encounter.rescueBurden.staminaPenalty = 0;
+  updateFrame(state, 1280, 720);
+  updateFrame(controlState, 1280, 720);
+
+  if (state.stamina >= controlState.stamina) {
+    throw new Error("Rescue burden should add stamina pressure compared with a rescued control state");
+  }
+
+  for (let index = 0; index < 6; index += 1) {
+    updateFrame(state, 1280, 720);
+  }
+
+  if (state.conditionState.encounter.rescueBurden.active) {
+    throw new Error("Rescue burden should end after its configured frame window");
+  }
+
+  return {
+    rescueCount: state.conditionState.encounter.rescueCount,
+    burdenEnded: !state.conditionState.encounter.rescueBurden.active,
+  };
 }
 
 const routeResult = validateRouteContent();
@@ -757,5 +790,6 @@ console.log(
     `ropeBreaks=${ropeThreatResult.brokenCount}`,
     `spatialAngle=${spatialResult.angle.toFixed(2)}`,
     `rescuedTargets=${rescueResult.rescueCount}`,
+    `rescueBurdenEnded=${rescueResult.burdenEnded}`,
   ].join(" "),
 );

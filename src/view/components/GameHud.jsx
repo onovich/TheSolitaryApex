@@ -201,6 +201,11 @@ export function GameHud({
           {encounterState?.rescueCount > 0 ? (
             <div className="status-pill is-rescue">{UI_TEXT.rescueLabel}: {encounterState.rescueCount}</div>
           ) : null}
+          {encounterState?.rescueBurden?.active ? (
+            <div className="status-pill is-rescue-burden">
+              {UI_TEXT.rescueBurdenLabel}: {encounterState.rescueBurden.remainingFrames}
+            </div>
+          ) : null}
           <div className={launchClassName}>
             {UI_TEXT.launchLabel}: {launchLabel}
           </div>

@@ -107,6 +107,13 @@ export function useSolitaryApexGame() {
         threatHeight: 0,
         gap: Infinity,
         danger: false,
+        rescueBurden: {
+          active: false,
+          remainingFrames: 0,
+          totalFrames: 0,
+          staminaPenalty: 0,
+          targetId: null,
+        },
         ropeThreat: {
           armed: false,
           active: false,

@@ -263,6 +263,11 @@ select {
   border-color: #4f7a60;
 }
 
+.status-pill.is-rescue-burden {
+  color: #d7a06f;
+  border-color: #7c5740;
+}
+
 .spatial-scan-pill {
   display: inline-flex;
   align-items: center;
