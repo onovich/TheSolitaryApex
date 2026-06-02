@@ -67,67 +67,94 @@ npm run report:levels
 
 ## Overall R&D Todo
 
-### P0 - Config And Tooling Backbone
+The current direction is to keep shipping small, validated mechanics while improving the config and tuning workflow enough that future level edits stay safe.
 
-These tasks keep the prototype editable as mechanics accumulate.
+### P0 - Keep The Prototype Editable
 
-- Expand `levelConfig` into a clearer authoring contract:
-  - Current status: each level now includes `authoring.templateId`, intended pace, authored controls, randomized controls, content targets, pressure targets, pressure rules, and required validators.
-  - Current status: four named level templates now cover mixed prototype, resource reading, pursuit crux, and rescue encounter pacing.
-  - Next step: add per-template target ranges for expected stamina pressure and resource recovery.
-  - Keep Golden Path reachability authored/validated rather than purely random.
-- Add stronger validation around route pacing:
-  - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
-  - Current status: `validate:levels` checks weighted route pressure against per-template `authoring.pressureTargets`.
-  - Current status: `validate:levels` checks resource-pressure recovery against per-template `authoring.resourcePressureTargets`, including fruit stamina recovery, thirst relief, worst-loadout thirst gain, and worst-loadout net relief.
-  - Current status: `validate:levels` checks Golden Path hazard isolation against per-template `authoring.goldenPathRules`, so fragile, timed soft, obstacle, resource, rescue, and blocker markers do not land on authored main-route holds.
-  - Current status: `validate:levels` checks environment-event count, spacing, major encounter density, wider pressure-event windows, resource-fruit window density, and maximum resource gap through `authoring.pressureRules`.
-  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, Golden Path safety, wind, stamina, hazard density, resource density, resource recovery, event density, resource gap, and major encounter timeline.
-  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with dedicated Golden Path, resource-pressure, and event-density columns.
-- Generalize the current Dyno `DEV` panel into a small developer tuning panel:
-  - Current status: the `DEV` panel includes runtime Dyno sliders and an active-level authoring summary.
-  - Current status: `Copy config` exports Dyno values, while `Copy level config` exports the active level snippet.
-  - Avoid turning it into a full UGC editor until official level config is stable.
+These tasks are the top priority because every new mechanic increases route-config complexity.
 
-### P1 - Next Small Gameplay Experiments
+- Developer tuning panel:
+  - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, `Copy config`, and `Copy level config`.
+  - Next step: show actual generated analysis values next to target ranges, especially content counts, Golden Path safety, pressure, resource pressure, and event density.
+  - Next step: add focused copy/export actions for tuning handoff, such as copied level report summary or copied target deltas.
+  - Boundary: keep this as a developer tuning panel, not a player-facing UGC editor.
+- Level config contract:
+  - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.
+  - Next step: keep adding validators whenever a new route-affecting mechanic is added.
+  - Next step: make report output easier to scan when balancing one level at a time.
+  - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
+- Loadout config support:
+  - Current status: loadouts are selectable and schema-validated.
+  - Next step: add report/validation output that summarizes each loadout's starting items and key pressure multipliers.
+  - Next step: validate that route templates remain reasonable under the harshest relevant loadout.
+- Random versus authored level content:
+  - Keep authored: zone order, segment ranges, major event timing, pursuit timing, rope-threat timing, rescue target placement, lane blocker placement, target ranges, and validation rules.
+  - Allow randomized within bounds: Golden Path drift, noise hold offsets, non-Golden Path hazard selection, fruit placement, wind phase, and visual particles.
+  - Add randomness only when it has a corresponding report or validator.
 
-These are the best next implementation candidates because they extend existing systems without changing the whole control model.
+### P1 - Next Small Gameplay Passes
 
-- Extend resource routing only if route design needs richer local scarcity tactics, such as required detours, fruit decay, or level-specific resource corridors.
-- Extend bloodied holds only if route design needs richer hand-injury tactics, such as bandage items or level-specific sharp-hold clusters.
+These are good near-term implementation candidates because they extend existing systems without changing the four-limb control rhythm.
 
-### P2 - Systems That Need Design Discussion First
+- Resource routing:
+  - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
+  - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
+  - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
+- Bloodied holds:
+  - Current status: hand strain can mark poor holds as bloodied, regripping them adds stamina pressure, and chalk mitigates but does not erase the penalty.
+  - Next step: only extend if route design needs richer injury tactics, such as bandage items, sharp-hold clusters, or level-specific hand-risk pacing.
+- Rescue routes:
+  - Current status: rescue targets use protection placements, trigger temporary burden pressure, and have a rescue-support loadout.
+  - Next step: validate whether rescue-support can handle configured rescue-route goals without trivializing general routes.
+  - Next step: tune rescue burden duration and stamina pressure against resource availability.
+- Encounter pressure:
+  - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
+  - Next step: tune spacing and readability before adding new enemy/NPC behavior.
+  - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
+- Environmental hazards:
+  - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
+  - Next step: balance how often they appear together in the same local window.
+  - Boundary: any Golden Path hazard variant needs a specific solvability validator first.
 
-These are valuable, but they can easily distort the core rhythm if implemented too early.
+### P2 - Design Discussion Before Implementation
 
-- Pseudo-3D rotation:
-  - Current implementation is visual-only spatial scan.
-  - Before gameplay rotation, run a separate prototype branch comparing scan off, visual scan, and playable projection.
-  - Decision criteria: can players predict the benefit, does it make route reading richer, and does it preserve four-limb drag clarity.
-- Enemy/NPC behavior:
-  - Current pursuit is a pressure line, not AI.
-  - Current lane blockers and protection-rope threats cover constrained encounter prototypes first.
-  - Full pathfinding enemies should wait until route vocabulary and feedback are clearer.
-- Climbing shoes:
-  - Not urgent while holds remain broad abstract categories.
-  - Reconsider when the game has clearer friction points, foot-specific holds, smears, edges, dynamic holds, or surface types.
-  - If tested, make shoes part of small loadout choices, not a separate equipment RPG.
+These ideas are attractive, but they can reshape the pacing or player mental model. Discuss and prototype separately before merging into the main loop.
+
 - Pre-run strategy:
-  - Keep the current loadout model as the baseline.
-  - Current loadouts cover safe rack, dyno route, technical poor-hold route, and rescue support.
-  - Future choices should stay few, readable, and tied to route plans.
+  - Baseline: keep the current small loadout model.
+  - Current coverage: safe rack, bold dyno, technical poor-hold efficiency, and rescue support.
+  - Discussion target: decide whether pre-run strategy should be "choose a route plan" or "assemble a kit".
+  - Recommendation: route-plan loadouts are safer than a broad equipment system at this stage.
+- Climbing shoes:
+  - Current judgment: low urgency while holds are broad abstract categories.
+  - Revisit when foot-specific mechanics exist, such as smears, edges, friction surfaces, wet/icy holds, or dynamic footholds.
+  - If added, keep shoes as one small loadout identity rather than a separate RPG layer.
+- Pseudo-3D rotation:
+  - Current status: spatial scan is visual-only.
+  - Required before gameplay rotation: a separate branch comparing scan off, visual scan, and playable projection.
+  - Decision criteria: route reading must become clearer, four-limb dragging must remain predictable, and climbing tempo must not collapse into camera management.
+  - Boundary: no attachment, collision, stamina, or failure-rule changes until this experiment proves value.
+- NPC collaboration:
+  - Current safe version: rescue targets plus temporary burden.
+  - Discussion target: decide whether collaborators are route objectives, moving helpers, or narrative pressure.
+  - Boundary: full cooperative AI should wait until rescue, protection, and encounter rules are stable.
+- Enemies and pursuit:
+  - Current safe version: pursuit line, lane blockers, and rope-threat pressure.
+  - Discussion target: decide whether enemies are timing pressure, spatial blockers, or route-reading disruption.
+  - Boundary: avoid full pathfinding enemies until feedback and route vocabulary are stronger.
 
-### P3 - Later Packaging And Larger Scope
+### P3 - Later Scope And Packaging
 
-These should wait until the core route language is stronger.
+These are useful long-term ideas, but they should wait until the core route language and validation pipeline are stronger.
 
 - Four-legged creature world framing:
-  - Useful for explaining independent limb control, lifelong ascent, resource hunger/thirst, and non-human ecology.
-  - Keep current climbing language in short-term UI until mechanics settle.
+  - Useful for explaining independent limb control, lifelong ascent, hunger/thirst, non-human ecology, and rescue/collaboration.
+  - Keep UI language mechanically clear until the game identity is ready for a stronger fiction pass.
 - UGC route editor:
   - Not a near-term goal.
-  - It requires editor UI, solvability validation, share format, moderation, and content discovery.
-  - A better middle step is developer route config plus seed reproduction and validation.
-- Full NPC collaboration:
-  - Start from rescue targets and temporary burden systems.
-  - Full cooperative AI should wait until rescue, protection, and encounter rules are stable.
+  - It requires editor UI, solvability validation, share format, moderation, content discovery, and player-facing error handling.
+  - Better middle step: developer route config, seed reproduction, report output, and strong validators.
+- Full official level pipeline:
+  - Current direction: ship a small set of official templates first.
+  - Next step after P0/P1 maturity: define how many route personalities the prototype should support and what each one teaches.
+  - Boundary: do not scale content count faster than validation and tuning visibility.
