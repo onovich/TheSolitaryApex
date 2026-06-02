@@ -40,6 +40,12 @@ export const LEVEL_CONFIGS = [
         hazardPer100Stances: { min: 16, max: 27 },
         resourcePer100Stances: { min: 1, max: 5 },
       },
+      resourcePressureTargets: {
+        staminaRecoveryPer100Stances: { min: 10, max: 30 },
+        thirstReliefPer100Stances: { min: 40, max: 90 },
+        worstLoadoutThirstGain: { min: 12, max: 22 },
+        worstLoadoutNetThirstRelief: { min: 35, max: 80 },
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 360,
         maxEnvironmentEvents: 3,
@@ -246,6 +252,7 @@ function createAuthoring({
   randomizedControls = LEVEL_CONFIGS[0].authoring.randomizedControls,
   contentTargets = LEVEL_CONFIGS[0].authoring.contentTargets,
   pressureTargets = LEVEL_CONFIGS[0].authoring.pressureTargets,
+  resourcePressureTargets = LEVEL_CONFIGS[0].authoring.resourcePressureTargets,
   pressureRules = LEVEL_CONFIGS[0].authoring.pressureRules,
 }) {
   return {
@@ -258,6 +265,9 @@ function createAuthoring({
     ),
     pressureTargets: Object.fromEntries(
       Object.entries(pressureTargets).map(([key, range]) => [key, { ...range }]),
+    ),
+    resourcePressureTargets: Object.fromEntries(
+      Object.entries(resourcePressureTargets).map(([key, range]) => [key, { ...range }]),
     ),
     pressureRules: {
       ...LEVEL_CONFIGS[0].authoring.pressureRules,
@@ -346,6 +356,12 @@ LEVEL_CONFIGS.push(
         averageStaminaModifier: { min: 0.004, max: 0.014 },
         hazardPer100Stances: { min: 8, max: 16 },
         resourcePer100Stances: { min: 26, max: 42 },
+      },
+      resourcePressureTargets: {
+        staminaRecoveryPer100Stances: { min: 180, max: 310 },
+        thirstReliefPer100Stances: { min: 650, max: 950 },
+        worstLoadoutThirstGain: { min: 10, max: 20 },
+        worstLoadoutNetThirstRelief: { min: 650, max: 900 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 480,
@@ -436,6 +452,12 @@ LEVEL_CONFIGS.push(
         averageStaminaModifier: { min: -0.008, max: 0.002 },
         hazardPer100Stances: { min: 28, max: 42 },
         resourcePer100Stances: { min: 0, max: 6 },
+      },
+      resourcePressureTargets: {
+        staminaRecoveryPer100Stances: { min: 0, max: 35 },
+        thirstReliefPer100Stances: { min: 0, max: 90 },
+        worstLoadoutThirstGain: { min: 12, max: 22 },
+        worstLoadoutNetThirstRelief: { min: 35, max: 80 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 420,
@@ -547,6 +569,12 @@ LEVEL_CONFIGS.push(
         averageStaminaModifier: { min: 0, max: 0.008 },
         hazardPer100Stances: { min: 14, max: 24 },
         resourcePer100Stances: { min: 7, max: 15 },
+      },
+      resourcePressureTargets: {
+        staminaRecoveryPer100Stances: { min: 45, max: 95 },
+        thirstReliefPer100Stances: { min: 170, max: 310 },
+        worstLoadoutThirstGain: { min: 12, max: 22 },
+        worstLoadoutNetThirstRelief: { min: 180, max: 280 },
       },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 540,
@@ -725,6 +753,7 @@ export function validateLevelConfig(levelConfig) {
 
     const pressureRules = levelConfig.authoring.pressureRules;
     const pressureTargets = levelConfig.authoring.pressureTargets;
+    const resourcePressureTargets = levelConfig.authoring.resourcePressureTargets;
 
     if (!pressureTargets) {
       errors.push(`${levelConfig.id}.authoring.pressureTargets is required`);
@@ -750,6 +779,34 @@ export function validateLevelConfig(levelConfig) {
 
         if (targetRange.min > targetRange.max) {
           errors.push(`${levelConfig.id}.authoring.pressureTargets.${key}.min must be <= max`);
+        }
+      });
+    }
+
+    if (!resourcePressureTargets) {
+      errors.push(`${levelConfig.id}.authoring.resourcePressureTargets is required`);
+    } else {
+      [
+        "staminaRecoveryPer100Stances",
+        "thirstReliefPer100Stances",
+        "worstLoadoutThirstGain",
+        "worstLoadoutNetThirstRelief",
+      ].forEach((key) => {
+        const targetRange = resourcePressureTargets[key];
+
+        if (!targetRange) {
+          errors.push(`${levelConfig.id}.authoring.resourcePressureTargets.${key} is required`);
+          return;
+        }
+
+        ["min", "max"].forEach((rangeKey) => {
+          if (typeof targetRange[rangeKey] !== "number") {
+            errors.push(`${levelConfig.id}.authoring.resourcePressureTargets.${key}.${rangeKey} must be a number`);
+          }
+        });
+
+        if (targetRange.min > targetRange.max) {
+          errors.push(`${levelConfig.id}.authoring.resourcePressureTargets.${key}.min must be <= max`);
         }
       });
     }

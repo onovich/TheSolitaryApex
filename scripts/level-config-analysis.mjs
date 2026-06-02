@@ -1,4 +1,6 @@
 import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine.js";
+import { GAME_CONFIG } from "../src/data/gameConfig.js";
+import { LOADOUT_CONFIGS } from "../src/data/loadoutConfig.js";
 
 export const CONTENT_TARGET_KEYS = ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"];
 export const HAZARD_PRESSURE_KEYS = ["fragile", "timedSoft", "obstacle"];
@@ -67,6 +69,47 @@ function validatePressureTargets(levelConfig, pressureSummary) {
   });
 }
 
+function getResourcePressureSummary(levelConfig, blueprint, contentCounts) {
+  const stanceCount = Math.max(1, blueprint.goldenPath.length);
+  const fruitCount = contentCounts.resourceFruit ?? 0;
+  const resourceRules = levelConfig.routeGeneration.mechanicRules.resourceFruit;
+  const fruitStaminaTotal = fruitCount * resourceRules.staminaRestore;
+  const fruitThirstReliefTotal = fruitCount * resourceRules.thirstRelief;
+  const estimatedFrames = stanceCount * ESTIMATED_FRAMES_PER_STANCE;
+  const loadoutThirstGains = LOADOUT_CONFIGS.map((loadoutConfig) => ({
+    id: loadoutConfig.id,
+    thirstGain:
+      GAME_CONFIG.conditions.survival.thirstGainPerFrame *
+      estimatedFrames *
+      loadoutConfig.modifiers.thirstGainMultiplier,
+    netThirstRelief:
+      fruitThirstReliefTotal -
+      GAME_CONFIG.conditions.survival.thirstGainPerFrame *
+        estimatedFrames *
+        loadoutConfig.modifiers.thirstGainMultiplier,
+  }));
+
+  return {
+    staminaRecoveryPer100Stances: (fruitStaminaTotal / stanceCount) * 100,
+    thirstReliefPer100Stances: (fruitThirstReliefTotal / stanceCount) * 100,
+    worstLoadoutThirstGain: Math.max(...loadoutThirstGains.map((entry) => entry.thirstGain)),
+    worstLoadoutNetThirstRelief: Math.min(...loadoutThirstGains.map((entry) => entry.netThirstRelief)),
+    loadoutThirstGains,
+  };
+}
+
+function validateResourcePressureTargets(levelConfig, resourcePressureSummary) {
+  Object.entries(levelConfig.authoring.resourcePressureTargets).forEach(([key, targetRange]) => {
+    const value = resourcePressureSummary[key];
+
+    if (value < targetRange.min || value > targetRange.max) {
+      throw new Error(
+        `${levelConfig.id} generated ${key} ${value.toFixed(3)}, expected ${targetRange.min}-${targetRange.max}`,
+      );
+    }
+  });
+}
+
 function getMajorEncounterTimeline(levelConfig) {
   return [
     ...levelConfig.environmentEvents.map((eventConfig) => ({
@@ -124,6 +167,7 @@ export function analyzeLevelConfig(levelConfig) {
   const contentCounts = countGeneratedContent(blueprint.holds);
   const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
   const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
+  const resourcePressureSummary = getResourcePressureSummary(levelConfig, blueprint, contentCounts);
   const majorEncounters = getMajorEncounterTimeline(levelConfig);
 
   levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
@@ -138,6 +182,7 @@ export function analyzeLevelConfig(levelConfig) {
 
   validateContentTargets(levelConfig, contentCounts);
   validatePressureTargets(levelConfig, pressureSummary);
+  validateResourcePressureTargets(levelConfig, resourcePressureSummary);
   validateMajorEncounterDensity(levelConfig, majorEncounters);
 
   const holdSignature = blueprint.holds
@@ -169,6 +214,7 @@ export function analyzeLevelConfig(levelConfig) {
     ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
     contentCounts,
     pressureSummary,
+    resourcePressureSummary,
     majorEncounters,
   };
 }

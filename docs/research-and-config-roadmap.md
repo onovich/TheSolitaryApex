@@ -27,7 +27,7 @@ npm run report:levels
 ## Primary Config Files
 
 - `src/data/levelConfig.js`
-  - Route authoring metadata, pressure rules, generation seed, wall height, zone order, zone templates, hazard budgets, environment events, pursuit settings, rope-threat settings, rescue targets, and spatial-scan experiment values.
+  - Route authoring metadata, pressure rules, resource-pressure targets, generation seed, wall height, zone order, zone templates, hazard budgets, environment events, pursuit settings, rope-threat settings, rescue targets, and spatial-scan experiment values.
 - `src/data/loadoutConfig.js`
   - Pre-run loadouts, starting item counts, and small multipliers for dyno, poor-hold pressure, and thirst pressure.
 - `src/data/gameConfig.js`
@@ -76,11 +76,11 @@ These tasks keep the prototype editable as mechanics accumulate.
 - Add stronger validation around route pacing:
   - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
   - Current status: `validate:levels` checks weighted route pressure against per-template `authoring.pressureTargets`.
+  - Current status: `validate:levels` checks resource-pressure recovery against per-template `authoring.resourcePressureTargets`, including fruit stamina recovery, thirst relief, worst-loadout thirst gain, and worst-loadout net relief.
   - Current status: `validate:levels` checks environment-event count, spacing, and major encounter density through `authoring.pressureRules`.
-  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, and major encounter timeline.
-  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff.
+  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, resource recovery, and major encounter timeline.
+  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with a dedicated resource-pressure column.
   - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.
-  - Resource-pressure checks so thirst, stamina, fruit, and loadout penalties stay recoverable.
   - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.
 - Generalize the current Dyno `DEV` panel into a small developer tuning panel:
   - Current status: the `DEV` panel includes runtime Dyno sliders and an active-level authoring summary.
@@ -91,7 +91,7 @@ These tasks keep the prototype editable as mechanics accumulate.
 
 These are the best next implementation candidates because they extend existing systems without changing the whole control model.
 
-- Add stricter per-template resource-pressure simulation once run length and player pace are better understood.
+- Add route-window resource checks once fruit placement needs to be validated locally rather than only across the whole route.
 ### P2 - Systems That Need Design Discussion First
 
 These are valuable, but they can easily distort the core rhythm if implemented too early.

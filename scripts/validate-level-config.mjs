@@ -54,6 +54,10 @@ console.log(
     ),
     ...results.map(
       (result) =>
+        `${result.id}:resourcePressure=fruitStamina${result.resourcePressureSummary.staminaRecoveryPer100Stances.toFixed(1)}/thirstRelief${result.resourcePressureSummary.thirstReliefPer100Stances.toFixed(1)}/worstThirst${result.resourcePressureSummary.worstLoadoutThirstGain.toFixed(1)}/netRelief${result.resourcePressureSummary.worstLoadoutNetThirstRelief.toFixed(1)}`,
+    ),
+    ...results.map(
+      (result) =>
         `${result.id}:timeline=${result.majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join("/") || "none"}`,
     ),
   ].join(" "),

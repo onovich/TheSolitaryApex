@@ -140,6 +140,22 @@ export function DeveloperPanel({ activeLevelId }) {
                 <span>Resource density</span>
                 <strong>{formatRange(authoring.pressureTargets.resourcePer100Stances)}</strong>
               </div>
+              <div>
+                <span>Fruit stamina</span>
+                <strong>{formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances)}</strong>
+              </div>
+              <div>
+                <span>Thirst relief</span>
+                <strong>{formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances)}</strong>
+              </div>
+              <div>
+                <span>Worst thirst</span>
+                <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain)}</strong>
+              </div>
+              <div>
+                <span>Net relief</span>
+                <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}</strong>
+              </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
             <div className="dev-panel-actions">

@@ -18,12 +18,25 @@ function formatPressureSummary(pressureSummary) {
   ].join("<br>");
 }
 
+function formatResourcePressure(resourcePressureSummary) {
+  return [
+    `stamina fruit/100: ${resourcePressureSummary.staminaRecoveryPer100Stances.toFixed(1)}`,
+    `thirst relief/100: ${resourcePressureSummary.thirstReliefPer100Stances.toFixed(1)}`,
+    `worst thirst gain: ${resourcePressureSummary.worstLoadoutThirstGain.toFixed(1)}`,
+    `worst net relief: ${resourcePressureSummary.worstLoadoutNetThirstRelief.toFixed(1)}`,
+  ].join("<br>");
+}
+
 function formatTargets(authoring) {
   return [
     `wind: ${formatRange(authoring.pressureTargets.averageWindMultiplier, 2)}`,
     `stamina: ${formatRange(authoring.pressureTargets.averageStaminaModifier, 3)}`,
     `hazards/100: ${formatRange(authoring.pressureTargets.hazardPer100Stances, 1)}`,
     `resources/100: ${formatRange(authoring.pressureTargets.resourcePer100Stances, 1)}`,
+    `fruit stamina/100: ${formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances, 1)}`,
+    `thirst relief/100: ${formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances, 1)}`,
+    `worst thirst gain: ${formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain, 1)}`,
+    `worst net relief: ${formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief, 1)}`,
   ].join("<br>");
 }
 
@@ -38,8 +51,8 @@ const rows = LEVEL_CONFIGS.map((levelConfig) => ({
 
 console.log("# Level Config Report");
 console.log("");
-console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Targets |");
-console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Resource Pressure | Targets |");
+console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 rows.forEach(({ levelConfig, analysis }) => {
   const encounters = [
@@ -66,6 +79,7 @@ rows.forEach(({ levelConfig, analysis }) => {
       formatTimeline(analysis.majorEncounters),
       formatContentCounts(analysis.contentCounts),
       formatPressureSummary(analysis.pressureSummary),
+      formatResourcePressure(analysis.resourcePressureSummary),
       formatTargets(levelConfig.authoring),
     ].map((value) => String(value).replaceAll("|", "/")).join(" | ").replace(/^/, "| ").replace(/$/, " |"),
   );
