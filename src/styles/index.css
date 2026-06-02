@@ -46,19 +46,26 @@ select {
   justify-content: space-between;
 }
 
+.ui-layer > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr minmax(260px, 520px);
+  align-items: start;
+  gap: 14px;
+  padding: 16px;
+}
+
 .hud-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 20px;
-  padding: 20px;
+  display: contents;
 }
 
 .hud-actions {
+  grid-column: 3;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 12px;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 8px;
 }
 
 .language-switcher,
@@ -107,13 +114,16 @@ select {
 }
 
 .stamina-container {
-  width: min(240px, calc(100vw - 140px));
+  grid-column: 1;
+  width: min(300px, calc(100vw - 140px));
+  font-size: 1rem;
+  letter-spacing: 0.04em;
 }
 
 .stamina-bar-bg {
   width: 100%;
-  height: 10px;
-  margin-top: 5px;
+  height: 13px;
+  margin-top: 7px;
   background: #333333;
   border: 1px solid #666666;
 }
@@ -124,15 +134,15 @@ select {
 }
 
 .height-label {
-  margin-top: 5px;
-  font-size: 0.8rem;
+  margin-top: 7px;
+  font-size: 0.9rem;
   color: #888888;
 }
 
 .hud-button {
   pointer-events: auto;
-  min-width: 148px;
-  padding: 10px 20px;
+  min-width: 158px;
+  padding: 11px 18px;
   background: transparent;
   color: #ffffff;
   border: 1px solid currentColor;
@@ -176,19 +186,22 @@ select {
 }
 
 .status-row {
+  grid-column: 1;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 20px 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 0;
 }
 
 .status-pill {
   border: 1px solid #3f3f3f;
   background: rgba(255, 255, 255, 0.04);
-  padding: 6px 10px;
+  padding: 7px 11px;
   color: #8c8c8c;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -567,34 +580,35 @@ select {
   color: #f0d58a;
 }
 
-@media (max-width: 640px) {
-  .hud-top {
-    padding: 16px;
-    gap: 12px;
+@media (max-width: 900px) {
+  .ui-layer > div:first-child {
+    grid-template-columns: minmax(180px, 260px) 1fr;
+    padding: 14px;
   }
 
   .hud-actions {
+    grid-column: 2;
     width: 100%;
+    align-items: flex-end;
     justify-content: flex-start;
   }
 
   .stamina-container {
-    width: min(180px, calc(100vw - 128px));
+    width: min(240px, calc(100vw - 128px));
   }
 
   .hud-button {
-    min-width: 104px;
+    min-width: 126px;
     padding: 10px 12px;
     letter-spacing: 1px;
   }
 
   .status-row {
     gap: 8px;
-    padding: 0 16px 8px;
   }
 
   .status-pill {
-    font-size: 0.72rem;
+    font-size: 0.82rem;
   }
 
   .tutorial {
@@ -609,5 +623,21 @@ select {
 
   .dev-panel-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-layer > div:first-child {
+    grid-template-columns: 1fr;
+  }
+
+  .hud-actions,
+  .status-row,
+  .stamina-container {
+    grid-column: 1;
+  }
+
+  .hud-actions {
+    align-items: flex-start;
   }
 }

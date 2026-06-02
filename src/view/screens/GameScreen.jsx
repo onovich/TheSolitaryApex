@@ -32,6 +32,7 @@ export function GameScreen() {
     handlePointerMove,
     handlePointerUp,
     handlePointerCancel,
+    handleContextMenu,
     restartGame,
     selectLevel,
     selectLoadout,
@@ -64,6 +65,7 @@ export function GameScreen() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
+        onContextMenu={handleContextMenu}
       />
       <div className="sensory-flow" style={{ opacity: sensoryOpacity }} />
       <div className="vignette" style={{ opacity: vignetteOpacity }} />

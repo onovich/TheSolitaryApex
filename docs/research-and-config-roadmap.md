@@ -60,9 +60,10 @@ npm run report:levels
 - Earthquake event: destabilizes decoy holds without touching Golden Path.
 - Avalanche event: removes bounded decoy holds without touching Golden Path.
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
+- Pursuit catch: when the pursuit line reaches the player, the run ends with a pursuit-specific failure.
 - Lane blockers: local enemy pressure markers without pathfinding AI.
 - Rope threat: converts placed protection into a time-limited risk if left unattended.
-- Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
+- Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation, with right-button 360-degree rotation while enabled.
 - Rescue targets: use protection placements as a collaboration tool with temporary burden pressure and without NPC AI.
 - Five-language UI switching: Simplified Chinese, English, Japanese, Spanish, and Brazilian Portuguese, with dictionary-key validation.
 - Manual test launchers: double-click local dev testing with fallback ports and direct online demo opening.
@@ -73,6 +74,8 @@ npm run report:levels
 - Spatial scan is visual-only. It must not change attachment, collision, stamina, or failure rules until a separate experiment proves that rotation improves route reading.
 - Pursuit remains a pressure line, not a full enemy AI, until the readable route vocabulary is stronger.
 - Loadouts stay intentionally small. They should create a run identity without turning the game into an equipment menu.
+- Current loadouts affect starting items and movement/pressure multipliers only; they do not change level generation.
+- Avalanche currently removes non-Golden Path decoy holds and adds visual pressure; it does not directly destabilize the player.
 - Localization is UI-only. Gameplay state should keep stable IDs and translate at render time.
 - Manual test commands should stay project-root launchers, while reusable patterns live in global skills.
 
@@ -107,8 +110,10 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Boundary: do not translate engine state by mutating IDs or gameplay config.
 - Loadout config support:
   - Current status: loadouts are selectable and schema-validated.
+  - Current status: loadouts are still closer to route-plan/testing presets than final pre-run strategy.
   - Next step: add report/validation output that summarizes each loadout's starting items and key pressure multipliers.
   - Next step: validate that route templates remain reasonable under the harshest relevant loadout.
+  - Next step: decide whether each loadout should influence level generation, route selection, or only starting resources.
 - Random versus authored level content:
   - Keep authored: zone order, segment ranges, major event timing, pursuit timing, rope-threat timing, rescue target placement, lane blocker placement, target ranges, and validation rules.
   - Allow randomized within bounds: Golden Path drift, noise hold offsets, non-Golden Path hazard selection, fruit placement, wind phase, and visual particles.
@@ -126,6 +131,7 @@ These are good near-term implementation candidates because they extend existing 
 - Resource routing:
   - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
   - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
+  - Next step: design route-side acquisition for chalk, energy gel, and protection, such as exposed pickups, rescue rewards, obstacle caches, or post-crux rest ledges.
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
@@ -133,7 +139,9 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
+  - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
+  - Next step: decide whether avalanche should directly affect stability, visibility, or only route topology.
   - Boundary: any Golden Path hazard variant needs a specific solvability validator first.
 - Bloodied holds:
   - Current status: hand strain can mark poor holds as bloodied, regripping them adds stamina pressure, and chalk mitigates but does not erase the penalty.
@@ -147,7 +155,7 @@ These ideas are attractive, but they can reshape the pacing or player mental mod
   - Baseline: keep the current small loadout model.
   - Current coverage: safe rack, bold dyno, technical poor-hold efficiency, and rescue support.
   - Discussion target: decide whether pre-run strategy should be "choose a route plan" or "assemble a kit".
-  - Recommendation: route-plan loadouts are safer than a broad equipment system at this stage.
+  - Recommendation: route-plan loadouts are safer than a broad equipment system at this stage, but they need clearer player-facing meaning if they remain in the formal game.
 - Official level configuration:
   - Discussion target: decide how many official route personalities are needed for the next playtest.
   - Suggested frame: each route should teach one pressure idea, reuse the same validator suite, and avoid bespoke one-off mechanics.

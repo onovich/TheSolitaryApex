@@ -69,7 +69,7 @@ const TEXT_BUNDLES = {
     ropeThreatLabel: "绳威胁",
     rescueLabel: "救援",
     rescueBurdenLabel: "救援负重",
-    spatialScanLabel: "空间",
+    spatialScanLabel: "空间旋转",
     tutorial: "拖拽手脚圆环移动到上方岩点。\n先打保护点，再长按身体并向下反拉完成弹射。",
     restart: "重新攀登",
     gameOver: {
@@ -80,6 +80,10 @@ const TEXT_BUNDLES = {
       exhaustion: {
         title: "力竭",
         description: "肌肉被泵感吞噬，你再也抓不住任何东西。",
+      },
+      pursuit: {
+        title: "被追上",
+        description: "身后的威胁追上了你，攀登在这一刻终止。",
       },
     },
     loadouts: {
@@ -179,7 +183,7 @@ const TEXT_BUNDLES = {
     ropeThreatLabel: "Rope threat",
     rescueLabel: "Rescue",
     rescueBurdenLabel: "Rescue burden",
-    spatialScanLabel: "Space",
+    spatialScanLabel: "Spatial rotate",
     tutorial: "Drag hand and foot rings to holds above.\nPlace protection, then hold the body and pull down to dyno.",
     restart: "Restart",
     gameOver: {
@@ -190,6 +194,10 @@ const TEXT_BUNDLES = {
       exhaustion: {
         title: "Exhausted",
         description: "Your muscles are swallowed by pump. You cannot hold anything anymore.",
+      },
+      pursuit: {
+        title: "Caught",
+        description: "The threat below catches you, ending the climb at once.",
       },
     },
     loadouts: {
@@ -289,7 +297,7 @@ const TEXT_BUNDLES = {
     ropeThreatLabel: "ロープ脅威",
     rescueLabel: "救助",
     rescueBurdenLabel: "救助負荷",
-    spatialScanLabel: "空間",
+    spatialScanLabel: "空間回転",
     tutorial: "手足のリングを上のホールドへドラッグ。\n支点を打ち、体を長押しして下へ引きダイノする。",
     restart: "再挑戦",
     gameOver: {
@@ -300,6 +308,10 @@ const TEXT_BUNDLES = {
       exhaustion: {
         title: "消耗",
         description: "筋肉がパンプに飲まれ、もう何もつかめない。",
+      },
+      pursuit: {
+        title: "追いつかれた",
+        description: "背後の脅威に追いつかれ、登攀はそこで終わった。",
       },
     },
     loadouts: {
@@ -399,7 +411,7 @@ const TEXT_BUNDLES = {
     ropeThreatLabel: "Amenaza cuerda",
     rescueLabel: "Rescate",
     rescueBurdenLabel: "Carga rescate",
-    spatialScanLabel: "Espacio",
+    spatialScanLabel: "Rotar espacio",
     tutorial: "Arrastra los anillos de manos y pies hacia presas superiores.\nPon un seguro, mantén el cuerpo y tira hacia abajo para hacer dyno.",
     restart: "Reiniciar",
     gameOver: {
@@ -410,6 +422,10 @@ const TEXT_BUNDLES = {
       exhaustion: {
         title: "Agotado",
         description: "El bombeo devora tus músculos. Ya no puedes agarrarte.",
+      },
+      pursuit: {
+        title: "Alcanzado",
+        description: "La amenaza de abajo te alcanza y la escalada termina.",
       },
     },
     loadouts: {
@@ -509,7 +525,7 @@ const TEXT_BUNDLES = {
     ropeThreatLabel: "Ameaça corda",
     rescueLabel: "Resgate",
     rescueBurdenLabel: "Peso resgate",
-    spatialScanLabel: "Espaço",
+    spatialScanLabel: "Girar espaço",
     tutorial: "Arraste os anéis de mãos e pés para agarras acima.\nColoque proteção, segure o corpo e puxe para baixo para fazer dyno.",
     restart: "Reiniciar",
     gameOver: {
@@ -520,6 +536,10 @@ const TEXT_BUNDLES = {
       exhaustion: {
         title: "Exausto",
         description: "O pump engole seus músculos. Você não consegue segurar mais nada.",
+      },
+      pursuit: {
+        title: "Alcançado",
+        description: "A ameaça abaixo alcança você e encerra a escalada.",
       },
     },
     loadouts: {

@@ -653,10 +653,11 @@ function validatePursuitPressure() {
 
   pursuitState.pursuit = {
     startFrame: 1,
-    speed: 1,
+    speed: 0.2,
     dangerGap: 999,
     staminaPenalty: 0.5,
   };
+  pursuitState.conditionState.encounter.threatHeight = -30;
   pursuitState.stamina = 80;
   controlState.stamina = 80;
 
@@ -669,6 +670,20 @@ function validatePursuitPressure() {
 
   if (pursuitState.stamina >= controlState.stamina) {
     throw new Error("Pursuit danger should add stamina pressure compared with a control state");
+  }
+
+  const caughtState = createStableState();
+  caughtState.pursuit = {
+    startFrame: 1,
+    speed: 100,
+    dangerGap: 10,
+    staminaPenalty: 0.5,
+  };
+
+  updateFrame(caughtState, 1280, 720);
+
+  if (caughtState.isPlaying || caughtState.endMessage?.reason !== "pursuit") {
+    throw new Error("Pursuit should end the run when the threat catches the player");
   }
 
   return { gap: pursuitState.conditionState.encounter.gap };
@@ -804,8 +819,8 @@ function validateSpatialScan() {
 
   const snapshot = getUiSnapshot(state, 0);
 
-  if (!snapshot.spatialScan.enabled || snapshot.spatialScan.angle > snapshot.spatialScan.maxAngle) {
-    throw new Error("Spatial scan did not enable or clamp the scan angle");
+  if (!snapshot.spatialScan.enabled || snapshot.spatialScan.angle !== 4 || snapshot.spatialScan.maxAngle < Math.PI * 2) {
+    throw new Error("Spatial scan did not enable 360-degree rotation");
   }
 
   return {

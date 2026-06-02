@@ -25,6 +25,7 @@ export function useSolitaryApexGame() {
   const gameStateRef = useRef(null);
   const animationFrameRef = useRef(0);
   const frameRef = useRef(0);
+  const spatialRotationDragRef = useRef(null);
   const [viewport, setViewport] = useState(getViewport);
   const [selectedLoadoutId, setSelectedLoadoutId] = useState(DEFAULT_LOADOUT_ID);
   const [selectedLevelId, setSelectedLevelId] = useState(DEFAULT_LEVEL_ID);
@@ -221,6 +222,22 @@ export function useSolitaryApexGame() {
     event.preventDefault();
     canvasRef.current.setPointerCapture?.(event.pointerId);
     const position = toCanvasPosition(event);
+
+    if (event.button === 2) {
+      const spatialScan = gameStateRef.current.spatialScan;
+
+      if (spatialScan?.available && spatialScan.enabled) {
+        spatialRotationDragRef.current = {
+          pointerId: event.pointerId,
+          startX: position.x,
+          startAngle: spatialScan.angle,
+        };
+      }
+
+      commitUiState();
+      return;
+    }
+
     const startedDrag = beginDrag(gameStateRef.current, position.x, position.y);
 
     if (!startedDrag) {
@@ -236,6 +253,15 @@ export function useSolitaryApexGame() {
     }
 
     const position = toCanvasPosition(event);
+
+    if (spatialRotationDragRef.current?.pointerId === event.pointerId) {
+      const rotationDrag = spatialRotationDragRef.current;
+      const nextAngle = rotationDrag.startAngle + (position.x - rotationDrag.startX) * 0.018;
+      setSpatialScan(gameStateRef.current, true, nextAngle);
+      commitUiState();
+      return;
+    }
+
     updatePointer(gameStateRef.current, position.x, position.y);
   };
 
@@ -249,6 +275,13 @@ export function useSolitaryApexGame() {
     }
 
     const position = toCanvasPosition(event);
+
+    if (spatialRotationDragRef.current?.pointerId === event.pointerId) {
+      spatialRotationDragRef.current = null;
+      commitUiState();
+      return;
+    }
+
     updatePointer(gameStateRef.current, position.x, position.y);
     releaseDrag(gameStateRef.current);
     endBodyAction(gameStateRef.current);
@@ -264,9 +297,19 @@ export function useSolitaryApexGame() {
       canvasRef.current.releasePointerCapture(event.pointerId);
     }
 
+    if (spatialRotationDragRef.current?.pointerId === event.pointerId) {
+      spatialRotationDragRef.current = null;
+      commitUiState();
+      return;
+    }
+
     releaseDrag(gameStateRef.current);
     cancelBodyAction(gameStateRef.current);
     commitUiState();
+  };
+
+  const handleContextMenu = (event) => {
+    event.preventDefault();
   };
 
   const restartGame = (loadoutId = selectedLoadoutId, levelId = selectedLevelId) => {
@@ -320,6 +363,7 @@ export function useSolitaryApexGame() {
     handlePointerMove,
     handlePointerUp,
     handlePointerCancel,
+    handleContextMenu,
     restartGame,
     selectLevel,
     selectLoadout,

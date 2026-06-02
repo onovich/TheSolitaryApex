@@ -290,7 +290,7 @@ function createInitialSpatialScanState(levelConfig) {
     enabled: false,
     available: Boolean(spatialConfig?.enabled),
     angle: 0,
-    maxAngle: spatialConfig?.maxAngle ?? 0,
+    maxAngle: Math.PI * 2,
     projectionScale: spatialConfig?.projectionScale ?? 0,
   };
 }
@@ -622,7 +622,7 @@ function tickPursuitState(state, viewportHeight) {
   const pursuitConfig = state.pursuit;
   const pursuitState = state.conditionState.encounter;
 
-  if (!pursuitConfig || state.frame < pursuitConfig.startFrame) {
+  if (!pursuitConfig || state.frame < pursuitConfig.startFrame || !state.isPlaying) {
     return;
   }
 
@@ -630,6 +630,10 @@ function tickPursuitState(state, viewportHeight) {
   pursuitState.threatHeight += pursuitConfig.speed;
   pursuitState.gap = getCurrentHeight(state, viewportHeight) - pursuitState.threatHeight;
   pursuitState.danger = pursuitState.gap <= pursuitConfig.dangerGap;
+
+  if (pursuitState.gap <= 0) {
+    setGameOver(state, "pursuit");
+  }
 }
 
 function resetRopeThreatState(state) {
@@ -2365,7 +2369,7 @@ export function setSpatialScan(state, enabled, angle = state.spatialScan.angle) 
   }
 
   state.spatialScan.enabled = Boolean(enabled);
-  state.spatialScan.angle = clamp(Number(angle) || 0, -state.spatialScan.maxAngle, state.spatialScan.maxAngle);
+  state.spatialScan.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
   return true;
 }
 
@@ -2679,6 +2683,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickSurvivalPressure(state);
   tickEnvironmentEvents(state);
   tickPursuitState(state, viewportHeight);
+  if (!state.isPlaying) {
+    return;
+  }
+
   tickRopeThreatState(state);
   tickRescueBurdenState(state);
   tickLaneBlockerState(state);

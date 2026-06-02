@@ -40,7 +40,7 @@ function getSpatialX(state, hold) {
     return hold.x;
   }
 
-  return hold.x + hold.zLayer * state.spatialScan.angle * state.spatialScan.projectionScale;
+  return hold.x + hold.zLayer * Math.sin(state.spatialScan.angle) * state.spatialScan.projectionScale;
 }
 
 function getRenderedLimbPosition(state, limb) {
@@ -194,6 +194,54 @@ function drawParticles(ctx, particles) {
   });
 
   ctx.globalAlpha = 1;
+}
+
+function drawWindFlow(ctx, state, viewport) {
+  const windForce = state.conditionState?.weather?.windForce ?? 0;
+
+  if (Math.abs(windForce) < 0.01) {
+    return;
+  }
+
+  const direction = windForce >= 0 ? 1 : -1;
+  const strength = Math.min(1, Math.abs(windForce) / 0.18);
+  const time = Date.now() / 1000;
+  const lineCount = 9;
+
+  ctx.save();
+  ctx.lineWidth = 1 + strength * 1.3;
+  ctx.strokeStyle = `rgba(156, 196, 218, ${0.12 + strength * 0.32})`;
+
+  for (let index = 0; index < lineCount; index += 1) {
+    const y = ((index + 0.5) / lineCount) * viewport.height;
+    const phase = (time * (70 + strength * 90) + index * 73) % (viewport.width + 220);
+    const startX = direction > 0 ? phase - 180 : viewport.width - phase + 180;
+    const wave = Math.sin(time * 1.8 + index * 0.7) * 16 * strength;
+
+    ctx.beginPath();
+    ctx.moveTo(startX, y + wave);
+    ctx.bezierCurveTo(
+      startX + direction * 60,
+      y - 12 * strength - wave * 0.2,
+      startX + direction * 120,
+      y + 12 * strength + wave * 0.2,
+      startX + direction * 190,
+      y + wave,
+    );
+    ctx.stroke();
+
+    const arrowX = startX + direction * 190;
+    const arrowY = y + wave;
+
+    ctx.beginPath();
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(arrowX - direction * 10, arrowY - 5);
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(arrowX - direction * 10, arrowY + 5);
+    ctx.stroke();
+  }
+
+  ctx.restore();
 }
 
 function drawPlayer(ctx, state, viewportHeight) {
@@ -383,6 +431,8 @@ function drawScene(canvas, state, viewport) {
     ctx.lineTo(x, viewport.height);
     ctx.stroke();
   }
+
+  drawWindFlow(ctx, state, viewport);
 
   if (state.conditionState?.environment?.type === "avalanche") {
     const eventRatio =
@@ -584,6 +634,7 @@ export function GameCanvas({
   onPointerMove,
   onPointerUp,
   onPointerCancel,
+  onContextMenu,
 }) {
   useEffect(() => {
     if (!canvasRef.current) {
@@ -602,6 +653,7 @@ export function GameCanvas({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
+      onContextMenu={onContextMenu}
     />
   );
 }

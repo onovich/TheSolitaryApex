@@ -247,20 +247,6 @@ export function GameHud({
               >
                 {spatialScan.enabled ? "ON" : "OFF"}
               </button>
-              <button
-                type="button"
-                onClick={() => onUpdateSpatialScan(true, spatialScan.angle - 0.25)}
-                disabled={!spatialScan.enabled}
-              >
-                -
-              </button>
-              <button
-                type="button"
-                onClick={() => onUpdateSpatialScan(true, spatialScan.angle + 0.25)}
-                disabled={!spatialScan.enabled}
-              >
-                +
-              </button>
             </div>
           ) : null}
         </div>
