@@ -50,6 +50,10 @@ console.log(
     ),
     ...results.map(
       (result) =>
+        `${result.id}:goldenSafe=${result.goldenPathSafetySummary.blockedGoldenHoldCount === 0 ? "yes" : "no"}:goldenHolds=${result.goldenPathSafetySummary.goldenHoldCount}`,
+    ),
+    ...results.map(
+      (result) =>
         `${result.id}:pressure=wind${result.pressureSummary.averageWindMultiplier.toFixed(2)}/stamina${result.pressureSummary.averageStaminaModifier.toFixed(3)}/hazards${result.pressureSummary.hazardPer100Stances.toFixed(1)}/resources${result.pressureSummary.resourcePer100Stances.toFixed(1)}`,
     ),
     ...results.map(

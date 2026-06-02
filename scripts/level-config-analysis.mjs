@@ -30,6 +30,33 @@ function validateContentTargets(levelConfig, contentCounts) {
   });
 }
 
+function getGoldenPathSafetySummary(levelConfig, blueprint) {
+  const forbiddenHazards = new Set(levelConfig.authoring.goldenPathRules.forbidHazards);
+  const goldenHolds = blueprint.holds.filter((hold) => hold.routeRole === "golden");
+  const blockedGoldenHolds = goldenHolds.filter((hold) => forbiddenHazards.has(hold.hazardType));
+
+  return {
+    goldenHoldCount: goldenHolds.length,
+    forbiddenHazards: [...forbiddenHazards],
+    blockedGoldenHoldCount: blockedGoldenHolds.length,
+    blockedGoldenHazards: blockedGoldenHolds.map((hold) => ({
+      hazardType: hold.hazardType,
+      stanceIndex: hold.stanceIndex,
+      lane: hold.lane,
+    })),
+  };
+}
+
+function validateGoldenPathSafety(levelConfig, safetySummary) {
+  if (safetySummary.blockedGoldenHoldCount > 0) {
+    const blocked = safetySummary.blockedGoldenHazards
+      .map((hold) => `${hold.hazardType}@${hold.stanceIndex}:${hold.lane ?? "unknown"}`)
+      .join(", ");
+
+    throw new Error(`${levelConfig.id} generated forbidden Golden Path hazards: ${blocked}`);
+  }
+}
+
 export function getRoutePressureSummary(blueprint, contentCounts) {
   const weighted = blueprint.routeSegments.reduce(
     (summary, segment) => {
@@ -266,6 +293,7 @@ export function analyzeLevelConfig(levelConfig) {
   const zoneKeys = new Set(blueprint.routeSegments.map((segment) => segment.zoneKey));
   const contentCounts = countGeneratedContent(blueprint.holds);
   const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
+  const goldenPathSafetySummary = getGoldenPathSafetySummary(levelConfig, blueprint);
   const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
   const resourcePressureSummary = getResourcePressureSummary(levelConfig, blueprint, contentCounts);
   const majorEncounters = getMajorEncounterTimeline(levelConfig);
@@ -282,6 +310,7 @@ export function analyzeLevelConfig(levelConfig) {
   }
 
   validateContentTargets(levelConfig, contentCounts);
+  validateGoldenPathSafety(levelConfig, goldenPathSafetySummary);
   validatePressureTargets(levelConfig, pressureSummary);
   validateResourcePressureTargets(levelConfig, resourcePressureSummary);
   validateMajorEncounterDensity(levelConfig, majorEncounters);
@@ -315,6 +344,7 @@ export function analyzeLevelConfig(levelConfig) {
     pursuitEnabled: Boolean(levelConfig.pursuit),
     ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
     contentCounts,
+    goldenPathSafetySummary,
     pressureSummary,
     resourcePressureSummary,
     eventDensitySummary,

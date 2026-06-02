@@ -9,6 +9,14 @@ function formatContentCounts(contentCounts) {
   return CONTENT_TARGET_KEYS.map((key) => `${key}: ${contentCounts[key]}`).join("<br>");
 }
 
+function formatGoldenPathSafety(goldenPathSafetySummary) {
+  return [
+    `golden holds: ${goldenPathSafetySummary.goldenHoldCount}`,
+    `blocked hazards: ${goldenPathSafetySummary.blockedGoldenHoldCount}`,
+    `forbidden: ${goldenPathSafetySummary.forbiddenHazards.join(", ")}`,
+  ].join("<br>");
+}
+
 function formatPressureSummary(pressureSummary) {
   return [
     `wind: ${pressureSummary.averageWindMultiplier.toFixed(2)}`,
@@ -63,8 +71,8 @@ const rows = LEVEL_CONFIGS.map((levelConfig) => ({
 
 console.log("# Level Config Report");
 console.log("");
-console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Resource Pressure | Event Density | Targets |");
-console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Golden Path | Pressure | Resource Pressure | Event Density | Targets |");
+console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 rows.forEach(({ levelConfig, analysis }) => {
   const encounters = [
@@ -90,6 +98,7 @@ rows.forEach(({ levelConfig, analysis }) => {
       encounters,
       formatTimeline(analysis.majorEncounters),
       formatContentCounts(analysis.contentCounts),
+      formatGoldenPathSafety(analysis.goldenPathSafetySummary),
       formatPressureSummary(analysis.pressureSummary),
       formatResourcePressure(analysis.resourcePressureSummary),
       formatEventDensity(analysis.eventDensitySummary),

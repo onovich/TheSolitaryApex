@@ -77,10 +77,10 @@ These tasks keep the prototype editable as mechanics accumulate.
   - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
   - Current status: `validate:levels` checks weighted route pressure against per-template `authoring.pressureTargets`.
   - Current status: `validate:levels` checks resource-pressure recovery against per-template `authoring.resourcePressureTargets`, including fruit stamina recovery, thirst relief, worst-loadout thirst gain, and worst-loadout net relief.
+  - Current status: `validate:levels` checks Golden Path hazard isolation against per-template `authoring.goldenPathRules`, so fragile, timed soft, obstacle, resource, rescue, and blocker markers do not land on authored main-route holds.
   - Current status: `validate:levels` checks environment-event count, spacing, major encounter density, wider pressure-event windows, and resource-fruit window density through `authoring.pressureRules`.
-  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, resource recovery, event density, and major encounter timeline.
-  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with dedicated resource-pressure and event-density columns.
-  - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.
+  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, Golden Path safety, wind, stamina, hazard density, resource density, resource recovery, event density, and major encounter timeline.
+  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with dedicated Golden Path, resource-pressure, and event-density columns.
 - Generalize the current Dyno `DEV` panel into a small developer tuning panel:
   - Current status: the `DEV` panel includes runtime Dyno sliders and an active-level authoring summary.
   - Current status: `Copy config` exports Dyno values, while `Copy level config` exports the active level snippet.

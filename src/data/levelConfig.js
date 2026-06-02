@@ -46,6 +46,9 @@ export const LEVEL_CONFIGS = [
         worstLoadoutThirstGain: { min: 12, max: 22 },
         worstLoadoutNetThirstRelief: { min: 35, max: 80 },
       },
+      goldenPathRules: {
+        forbidHazards: ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget", "laneBlocker"],
+      },
       pressureRules: {
         minEnvironmentEventSpacingFrames: 360,
         maxEnvironmentEvents: 3,
@@ -257,6 +260,7 @@ function createAuthoring({
   contentTargets = LEVEL_CONFIGS[0].authoring.contentTargets,
   pressureTargets = LEVEL_CONFIGS[0].authoring.pressureTargets,
   resourcePressureTargets = LEVEL_CONFIGS[0].authoring.resourcePressureTargets,
+  goldenPathRules = LEVEL_CONFIGS[0].authoring.goldenPathRules,
   pressureRules = LEVEL_CONFIGS[0].authoring.pressureRules,
 }) {
   return {
@@ -273,6 +277,9 @@ function createAuthoring({
     resourcePressureTargets: Object.fromEntries(
       Object.entries(resourcePressureTargets).map(([key, range]) => [key, { ...range }]),
     ),
+    goldenPathRules: {
+      forbidHazards: [...goldenPathRules.forbidHazards],
+    },
     pressureRules: {
       ...LEVEL_CONFIGS[0].authoring.pressureRules,
       ...pressureRules,
@@ -761,6 +768,7 @@ export function validateLevelConfig(levelConfig) {
     const pressureRules = levelConfig.authoring.pressureRules;
     const pressureTargets = levelConfig.authoring.pressureTargets;
     const resourcePressureTargets = levelConfig.authoring.resourcePressureTargets;
+    const goldenPathRules = levelConfig.authoring.goldenPathRules;
 
     if (!pressureTargets) {
       errors.push(`${levelConfig.id}.authoring.pressureTargets is required`);
@@ -816,6 +824,14 @@ export function validateLevelConfig(levelConfig) {
           errors.push(`${levelConfig.id}.authoring.resourcePressureTargets.${key}.min must be <= max`);
         }
       });
+    }
+
+    if (!goldenPathRules) {
+      errors.push(`${levelConfig.id}.authoring.goldenPathRules is required`);
+    } else if (!Array.isArray(goldenPathRules.forbidHazards)) {
+      errors.push(`${levelConfig.id}.authoring.goldenPathRules.forbidHazards must be an array`);
+    } else if (goldenPathRules.forbidHazards.some((hazardType) => typeof hazardType !== "string" || hazardType.length === 0)) {
+      errors.push(`${levelConfig.id}.authoring.goldenPathRules.forbidHazards must contain non-empty strings`);
     }
 
     if (!pressureRules) {

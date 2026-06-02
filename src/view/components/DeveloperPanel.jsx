@@ -168,6 +168,10 @@ export function DeveloperPanel({ activeLevelId }) {
                   {authoring.pressureRules.maxResourceFruitsPerWindow}/{authoring.pressureRules.resourceWindowFrames}f
                 </strong>
               </div>
+              <div>
+                <span>Golden bans</span>
+                <strong>{authoring.goldenPathRules.forbidHazards.length}</strong>
+              </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
             <div className="dev-panel-actions">
