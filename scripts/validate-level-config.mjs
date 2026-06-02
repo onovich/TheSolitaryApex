@@ -58,6 +58,10 @@ console.log(
     ),
     ...results.map(
       (result) =>
+        `${result.id}:density=pressure${result.eventDensitySummary.maxPressureEventsInWindow.count}@${result.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}/fruit${result.eventDensitySummary.maxResourceFruitsInWindow.count}@${result.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
+    ),
+    ...results.map(
+      (result) =>
         `${result.id}:timeline=${result.majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join("/") || "none"}`,
     ),
   ].join(" "),

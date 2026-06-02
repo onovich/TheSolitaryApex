@@ -51,6 +51,10 @@ export const LEVEL_CONFIGS = [
         maxEnvironmentEvents: 3,
         majorEncounterWindowFrames: 900,
         maxMajorEncountersPerWindow: 3,
+        pressureEventWindowFrames: 720,
+        maxPressureEventsPerWindow: 3,
+        resourceWindowFrames: 720,
+        maxResourceFruitsPerWindow: 2,
       },
       requiredValidators: ["validate:levels", "validate:gameplay", "build"],
     },
@@ -366,6 +370,7 @@ LEVEL_CONFIGS.push(
       pressureRules: {
         minEnvironmentEventSpacingFrames: 480,
         maxEnvironmentEvents: 2,
+        maxResourceFruitsPerWindow: 10,
       },
     }),
     environmentEvents: [
@@ -462,6 +467,7 @@ LEVEL_CONFIGS.push(
       pressureRules: {
         minEnvironmentEventSpacingFrames: 420,
         maxEnvironmentEvents: 3,
+        maxResourceFruitsPerWindow: 2,
       },
     }),
     environmentEvents: [
@@ -579,6 +585,7 @@ LEVEL_CONFIGS.push(
       pressureRules: {
         minEnvironmentEventSpacingFrames: 540,
         maxEnvironmentEvents: 2,
+        maxResourceFruitsPerWindow: 4,
       },
     }),
     environmentEvents: [
@@ -819,6 +826,10 @@ export function validateLevelConfig(levelConfig) {
         "maxEnvironmentEvents",
         "majorEncounterWindowFrames",
         "maxMajorEncountersPerWindow",
+        "pressureEventWindowFrames",
+        "maxPressureEventsPerWindow",
+        "resourceWindowFrames",
+        "maxResourceFruitsPerWindow",
       ].forEach((key) => {
         if (!Number.isInteger(pressureRules[key]) || pressureRules[key] < 0) {
           errors.push(`${levelConfig.id}.authoring.pressureRules.${key} must be a non-negative integer`);

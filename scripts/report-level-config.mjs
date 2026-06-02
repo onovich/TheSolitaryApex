@@ -27,6 +27,16 @@ function formatResourcePressure(resourcePressureSummary) {
   ].join("<br>");
 }
 
+function formatEventDensity(eventDensitySummary) {
+  return [
+    `pressure events: ${eventDensitySummary.pressureEventCount}`,
+    `pressure/${eventDensitySummary.pressureEventWindowFrames}f: ${eventDensitySummary.maxPressureEventsInWindow.count}`,
+    `pressure start: ${eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`,
+    `fruits/${eventDensitySummary.resourceFruitWindowFrames}f: ${eventDensitySummary.maxResourceFruitsInWindow.count}`,
+    `fruit start: ${eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
+  ].join("<br>");
+}
+
 function formatTargets(authoring) {
   return [
     `wind: ${formatRange(authoring.pressureTargets.averageWindMultiplier, 2)}`,
@@ -37,6 +47,8 @@ function formatTargets(authoring) {
     `thirst relief/100: ${formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances, 1)}`,
     `worst thirst gain: ${formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain, 1)}`,
     `worst net relief: ${formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief, 1)}`,
+    `pressure/${authoring.pressureRules.pressureEventWindowFrames}f: <=${authoring.pressureRules.maxPressureEventsPerWindow}`,
+    `fruits/${authoring.pressureRules.resourceWindowFrames}f: <=${authoring.pressureRules.maxResourceFruitsPerWindow}`,
   ].join("<br>");
 }
 
@@ -51,8 +63,8 @@ const rows = LEVEL_CONFIGS.map((levelConfig) => ({
 
 console.log("# Level Config Report");
 console.log("");
-console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Resource Pressure | Targets |");
-console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Pressure | Resource Pressure | Event Density | Targets |");
+console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
 rows.forEach(({ levelConfig, analysis }) => {
   const encounters = [
@@ -80,6 +92,7 @@ rows.forEach(({ levelConfig, analysis }) => {
       formatContentCounts(analysis.contentCounts),
       formatPressureSummary(analysis.pressureSummary),
       formatResourcePressure(analysis.resourcePressureSummary),
+      formatEventDensity(analysis.eventDensitySummary),
       formatTargets(levelConfig.authoring),
     ].map((value) => String(value).replaceAll("|", "/")).join(" | ").replace(/^/, "| ").replace(/$/, " |"),
   );

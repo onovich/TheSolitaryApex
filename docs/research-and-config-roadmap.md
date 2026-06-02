@@ -77,10 +77,9 @@ These tasks keep the prototype editable as mechanics accumulate.
   - Current status: `validate:levels` checks generated content counts against per-template `authoring.contentTargets`.
   - Current status: `validate:levels` checks weighted route pressure against per-template `authoring.pressureTargets`.
   - Current status: `validate:levels` checks resource-pressure recovery against per-template `authoring.resourcePressureTargets`, including fruit stamina recovery, thirst relief, worst-loadout thirst gain, and worst-loadout net relief.
-  - Current status: `validate:levels` checks environment-event count, spacing, and major encounter density through `authoring.pressureRules`.
-  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, resource recovery, and major encounter timeline.
-  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with a dedicated resource-pressure column.
-  - Next step: add wider event-density checks so pursuit, rescue, fruit, and rope threats do not stack into unreadable noise.
+  - Current status: `validate:levels` checks environment-event count, spacing, major encounter density, wider pressure-event windows, and resource-fruit window density through `authoring.pressureRules`.
+  - Current status: `validate:levels` prints a compact per-template pressure summary covering event types, rescue targets, pursuit, rope-threat usage, wind, stamina, hazard density, resource density, resource recovery, event density, and major encounter timeline.
+  - Current status: `report:levels` prints the same analysis as a Markdown table for tuning handoff, with dedicated resource-pressure and event-density columns.
   - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.
 - Generalize the current Dyno `DEV` panel into a small developer tuning panel:
   - Current status: the `DEV` panel includes runtime Dyno sliders and an active-level authoring summary.

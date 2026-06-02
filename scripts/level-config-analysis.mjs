@@ -110,6 +110,38 @@ function validateResourcePressureTargets(levelConfig, resourcePressureSummary) {
   });
 }
 
+function getWindowPeak(events, windowFrames) {
+  if (events.length === 0 || windowFrames <= 0) {
+    return {
+      count: 0,
+      startFrame: null,
+      eventTypes: [],
+    };
+  }
+
+  return events.reduce(
+    (peak, event, eventIndex) => {
+      const windowEndFrame = event.frame + windowFrames;
+      const eventsInWindow = events.slice(eventIndex).filter((candidate) => candidate.frame <= windowEndFrame);
+
+      if (eventsInWindow.length <= peak.count) {
+        return peak;
+      }
+
+      return {
+        count: eventsInWindow.length,
+        startFrame: event.frame,
+        eventTypes: eventsInWindow.map((candidate) => candidate.type),
+      };
+    },
+    {
+      count: 0,
+      startFrame: null,
+      eventTypes: [],
+    },
+  );
+}
+
 function getMajorEncounterTimeline(levelConfig) {
   return [
     ...levelConfig.environmentEvents.map((eventConfig) => ({
@@ -139,6 +171,32 @@ function getMajorEncounterTimeline(levelConfig) {
   ].sort((left, right) => left.frame - right.frame);
 }
 
+function getPressureEventTimeline(levelConfig, majorEncounters) {
+  return [
+    ...(levelConfig.ropeThreat
+      ? [
+          {
+            id: "rope-threat-ready",
+            type: "ropeThreatReady",
+            frame: levelConfig.ropeThreat.startDelayFrames,
+          },
+        ]
+      : []),
+    ...majorEncounters,
+  ].sort((left, right) => left.frame - right.frame);
+}
+
+function getResourceFruitTimeline(blueprint) {
+  return blueprint.holds
+    .filter((hold) => hold.hazardType === "resourceFruit")
+    .map((hold) => ({
+      id: hold.id ?? `fruit-${hold.stanceIndex ?? "unknown"}`,
+      type: "resourceFruit",
+      frame: (hold.stanceIndex ?? 0) * ESTIMATED_FRAMES_PER_STANCE,
+    }))
+    .sort((left, right) => left.frame - right.frame);
+}
+
 function validateMajorEncounterDensity(levelConfig, majorEncounters) {
   const { majorEncounterWindowFrames, maxMajorEncountersPerWindow } = levelConfig.authoring.pressureRules;
 
@@ -160,6 +218,48 @@ function validateMajorEncounterDensity(levelConfig, majorEncounters) {
   });
 }
 
+function getEventDensitySummary(levelConfig, blueprint, majorEncounters) {
+  const pressureEvents = getPressureEventTimeline(levelConfig, majorEncounters);
+  const resourceFruitEvents = getResourceFruitTimeline(blueprint);
+  const {
+    pressureEventWindowFrames,
+    resourceWindowFrames,
+  } = levelConfig.authoring.pressureRules;
+
+  return {
+    pressureEventCount: pressureEvents.length,
+    pressureEventWindowFrames,
+    maxPressureEventsInWindow: getWindowPeak(pressureEvents, pressureEventWindowFrames),
+    resourceFruitWindowFrames: resourceWindowFrames,
+    maxResourceFruitsInWindow: getWindowPeak(resourceFruitEvents, resourceWindowFrames),
+  };
+}
+
+function validateEventDensity(levelConfig, eventDensitySummary) {
+  const {
+    maxPressureEventsPerWindow,
+    maxResourceFruitsPerWindow,
+  } = levelConfig.authoring.pressureRules;
+
+  if (
+    maxPressureEventsPerWindow > 0 &&
+    eventDensitySummary.maxPressureEventsInWindow.count > maxPressureEventsPerWindow
+  ) {
+    throw new Error(
+      `${levelConfig.id} has ${eventDensitySummary.maxPressureEventsInWindow.count} pressure events within ${eventDensitySummary.pressureEventWindowFrames} frames starting at ${eventDensitySummary.maxPressureEventsInWindow.startFrame}, expected <= ${maxPressureEventsPerWindow}`,
+    );
+  }
+
+  if (
+    maxResourceFruitsPerWindow > 0 &&
+    eventDensitySummary.maxResourceFruitsInWindow.count > maxResourceFruitsPerWindow
+  ) {
+    throw new Error(
+      `${levelConfig.id} has ${eventDensitySummary.maxResourceFruitsInWindow.count} resource fruits within ${eventDensitySummary.resourceFruitWindowFrames} frames starting at ${eventDensitySummary.maxResourceFruitsInWindow.startFrame}, expected <= ${maxResourceFruitsPerWindow}`,
+    );
+  }
+}
+
 export function analyzeLevelConfig(levelConfig) {
   const blueprint = generateWall(1280, 720, levelConfig.id);
   const repeatedBlueprint = generateWall(1280, 720, levelConfig.id);
@@ -169,6 +269,7 @@ export function analyzeLevelConfig(levelConfig) {
   const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
   const resourcePressureSummary = getResourcePressureSummary(levelConfig, blueprint, contentCounts);
   const majorEncounters = getMajorEncounterTimeline(levelConfig);
+  const eventDensitySummary = getEventDensitySummary(levelConfig, blueprint, majorEncounters);
 
   levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
     if (!zoneKeys.has(zoneKey)) {
@@ -184,6 +285,7 @@ export function analyzeLevelConfig(levelConfig) {
   validatePressureTargets(levelConfig, pressureSummary);
   validateResourcePressureTargets(levelConfig, resourcePressureSummary);
   validateMajorEncounterDensity(levelConfig, majorEncounters);
+  validateEventDensity(levelConfig, eventDensitySummary);
 
   const holdSignature = blueprint.holds
     .slice(0, 24)
@@ -215,6 +317,7 @@ export function analyzeLevelConfig(levelConfig) {
     contentCounts,
     pressureSummary,
     resourcePressureSummary,
+    eventDensitySummary,
     majorEncounters,
   };
 }

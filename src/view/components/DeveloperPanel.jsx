@@ -156,6 +156,18 @@ export function DeveloperPanel({ activeLevelId }) {
                 <span>Net relief</span>
                 <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}</strong>
               </div>
+              <div>
+                <span>Pressure window</span>
+                <strong>
+                  {authoring.pressureRules.maxPressureEventsPerWindow}/{authoring.pressureRules.pressureEventWindowFrames}f
+                </strong>
+              </div>
+              <div>
+                <span>Fruit window</span>
+                <strong>
+                  {authoring.pressureRules.maxResourceFruitsPerWindow}/{authoring.pressureRules.resourceWindowFrames}f
+                </strong>
+              </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
             <div className="dev-panel-actions">
