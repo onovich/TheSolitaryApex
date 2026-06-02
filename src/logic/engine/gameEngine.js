@@ -2,7 +2,6 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
-import { GAME_OVER_TEXT } from "../../data/uiText.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
 let randomSource = Math.random;
@@ -148,8 +147,7 @@ function setGameOver(state, reason) {
   }
 
   state.endMessage = {
-    title: GAME_OVER_TEXT[reason].title,
-    description: GAME_OVER_TEXT[reason].description,
+    reason,
     finalHeight: state.maxHeightReached,
     rescueCount: state.recoveryState?.rescuesUsed ?? 0,
     staminaCap: state.staminaCap,
@@ -1555,20 +1553,6 @@ function getItemActiveState(state, itemDefinition) {
   return isEffectActiveForItem(state, itemDefinition.id);
 }
 
-function getItemDisplayLabel(state, itemDefinition, active) {
-  if (itemDefinition.activation?.type === "channel" && active) {
-    const channelState = state.itemState.channel;
-    const progressRatio = 1 - channelState.remainingFrames / channelState.totalFrames;
-    return `${itemDefinition.activeLabel} ${Math.round(progressRatio * 100)}%`;
-  }
-
-  if (active) {
-    return itemDefinition.activeLabel;
-  }
-
-  return itemDefinition.label;
-}
-
 function canUseItem(state, itemDefinition) {
   if (!state.isPlaying) {
     return false;
@@ -1644,12 +1628,13 @@ function getItemUiState(state, itemId) {
   const itemDefinition = ITEM_CATALOG[itemId];
   const active = getItemActiveState(state, itemDefinition);
   const count = getInventoryCount(state, itemId);
+  const channelState = itemDefinition.activation?.type === "channel" && active ? state.itemState.channel : null;
 
   return {
     id: itemDefinition.id,
-    label: getItemDisplayLabel(state, itemDefinition, active),
     count,
     active,
+    channelProgressRatio: channelState ? 1 - channelState.remainingFrames / channelState.totalFrames : null,
     purpose: itemDefinition.purpose,
     persistence: itemDefinition.persistence,
     acquisition: itemDefinition.acquisition,

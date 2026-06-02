@@ -1,15 +1,18 @@
-import { UI_TEXT } from "../../data/uiText";
+import { getItemLabel, getLevelText, getLoadoutText } from "../../data/uiText";
 
 export function GameHud({
   conditions,
   fall,
   height,
   items,
+  language,
+  languages,
   levelId,
   levels,
   loadout,
   loadouts,
   movement,
+  onSelectLanguage,
   onSelectLevel,
   onSelectLoadout,
   onUseItem,
@@ -17,6 +20,7 @@ export function GameHud({
   route,
   spatialScan,
   staminaRatio,
+  text,
   onUpdateSpatialScan,
   tutorialVisible,
 }) {
@@ -37,77 +41,77 @@ export function GameHud({
     staminaColor = "#f39c12";
   }
 
-  let launchLabel = UI_TEXT.launchDisabledLabel;
+  let launchLabel = text.launchDisabledLabel;
   let launchClassName = "status-pill is-launch-blocked";
 
   if (dynoState?.availability === "ready") {
-    launchLabel = UI_TEXT.launchReadyLabel;
+    launchLabel = text.launchReadyLabel;
     launchClassName = "status-pill is-launch-ready";
   } else if (dynoState?.availability === "priming") {
-    launchLabel = UI_TEXT.launchPrimingLabel;
+    launchLabel = text.launchPrimingLabel;
     launchClassName = "status-pill is-launch-priming";
   } else if (dynoState?.availability === "charging") {
-    launchLabel = `${UI_TEXT.launchChargingLabel} ${Math.round((dynoState?.chargeRatio ?? 0) * 100)}%`;
+    launchLabel = `${text.launchChargingLabel} ${Math.round((dynoState?.chargeRatio ?? 0) * 100)}%`;
     launchClassName = "status-pill is-launch-charging";
   } else if (dynoState?.availability === "airborne") {
-    launchLabel = UI_TEXT.launchActiveLabel;
+    launchLabel = text.launchActiveLabel;
     launchClassName = "status-pill is-launch-active";
   } else if (dynoState?.availability === "cooldown") {
-    launchLabel = `${UI_TEXT.launchCooldownLabel} ${dynoState?.cooldownFrames ?? 0}`;
+    launchLabel = `${text.launchCooldownLabel} ${dynoState?.cooldownFrames ?? 0}`;
   } else if (dynoState?.availability === "checkpoint") {
-    launchLabel = UI_TEXT.launchCheckpointLabel;
+    launchLabel = text.launchCheckpointLabel;
   } else if (dynoState?.availability === "stamina") {
-    launchLabel = `${UI_TEXT.launchStaminaLabel} < ${Math.ceil((dynoState?.staminaCost ?? 0) * 100) / 100}`;
+    launchLabel = `${text.launchStaminaLabel} < ${Math.ceil((dynoState?.staminaCost ?? 0) * 100) / 100}`;
   } else if (dynoState?.availability === "hanging") {
-    launchLabel = UI_TEXT.launchHangLabel;
+    launchLabel = text.launchHangLabel;
   } else if (dynoState?.availability === "falling") {
-    launchLabel = UI_TEXT.launchFallLabel;
+    launchLabel = text.launchFallLabel;
   } else if (dynoState?.availability === "support") {
-    launchLabel = UI_TEXT.launchSupportLabel;
+    launchLabel = text.launchSupportLabel;
   }
 
-  let restLabel = UI_TEXT.restLabel;
+  let restLabel = text.restLabel;
 
   if (restPoseState?.active) {
-    restLabel = restPoseState.mode === "perfect" ? UI_TEXT.restPerfectLabel : UI_TEXT.restSupportedLabel;
+    restLabel = restPoseState.mode === "perfect" ? text.restPerfectLabel : text.restSupportedLabel;
   }
 
-  let injuryLabel = UI_TEXT.injuryStableLabel;
+  let injuryLabel = text.injuryStableLabel;
 
   if (injuryState?.severity === "severe") {
-    injuryLabel = UI_TEXT.injurySevereLabel;
+    injuryLabel = text.injurySevereLabel;
   } else if (injuryState?.severity === "bloodied") {
-    injuryLabel = UI_TEXT.injuryBloodiedLabel;
+    injuryLabel = text.injuryBloodiedLabel;
   } else if (injuryState?.severity === "warning") {
-    injuryLabel = UI_TEXT.injuryWarnLabel;
+    injuryLabel = text.injuryWarnLabel;
   }
 
   const routeLabels = {
-    recovery: UI_TEXT.routeRecoveryLabel,
-    reading: UI_TEXT.routeReadingLabel,
-    exposure: UI_TEXT.routeExposureLabel,
-    crux: UI_TEXT.routeCruxLabel,
+    recovery: text.routeRecoveryLabel,
+    reading: text.routeReadingLabel,
+    exposure: text.routeExposureLabel,
+    crux: text.routeCruxLabel,
   };
-  const routeLabel = routeLabels[route?.zoneKey] ?? UI_TEXT.routeReadingLabel;
+  const routeLabel = routeLabels[route?.zoneKey] ?? text.routeReadingLabel;
   const recoveryLabels = {
-    balance: UI_TEXT.recoveryBalanceLabel,
-    exhaustion: UI_TEXT.recoveryExhaustionLabel,
+    balance: text.recoveryBalanceLabel,
+    exhaustion: text.recoveryExhaustionLabel,
   };
-  const recoveryLabel = recoveryLabels[recovery?.lastFailureReason] ?? UI_TEXT.recoveryLabel;
+  const recoveryLabel = recoveryLabels[recovery?.lastFailureReason] ?? text.recoveryLabel;
   const fallLabels = {
-    "death-fall": UI_TEXT.fallDeathLabel,
-    "rope-fall": UI_TEXT.fallRopeLabel,
-    hanging: fall?.reeling ? UI_TEXT.fallReelLabel : UI_TEXT.fallHangLabel,
+    "death-fall": text.fallDeathLabel,
+    "rope-fall": text.fallRopeLabel,
+    hanging: fall?.reeling ? text.fallReelLabel : text.fallHangLabel,
   };
-  const fallLabel = fallLabels[fall?.mode] ?? UI_TEXT.fallLabel;
+  const fallLabel = fallLabels[fall?.mode] ?? text.fallLabel;
 
   const windForce = weatherState?.windForce ?? 0;
   const windDirection = windForce >= 0 ? "→" : "←";
   const windStrength = Math.round(Math.abs(windForce) * 100);
   const thirst = Math.round(survivalState?.thirst ?? 0);
   const environmentLabels = {
-    earthquake: UI_TEXT.earthquakeLabel,
-    avalanche: UI_TEXT.avalancheLabel,
+    earthquake: text.earthquakeLabel,
+    avalanche: text.avalancheLabel,
   };
 
   return (
@@ -115,40 +119,60 @@ export function GameHud({
       <div>
         <div className="hud-top">
           <div className="stamina-container">
-            <div>{UI_TEXT.staminaLabel}</div>
+            <div>{text.staminaLabel}</div>
             <div className="stamina-bar-bg">
               <div className="stamina-bar-fill" style={{ width: `${staminaPercent}%`, backgroundColor: staminaColor }} />
             </div>
             <div className="height-label">
-              {UI_TEXT.heightLabel}: <span>{height}</span>
-              {UI_TEXT.heightUnit}
+              {text.heightLabel}: <span>{height}</span>
+              {text.heightUnit}
             </div>
           </div>
           <div className="hud-actions">
-            <div className="level-switcher" aria-label="Level">
-              {levels.map((levelOption) => (
+            <div className="language-switcher" aria-label={text.languageLabel}>
+              {languages.map((languageOption) => (
                 <button
-                  key={levelOption.id}
-                  className={`level-button${levelOption.id === levelId ? " is-active" : ""}`}
+                  key={languageOption.id}
+                  className={`language-button${languageOption.id === language ? " is-active" : ""}`}
                   type="button"
-                  onClick={() => onSelectLevel(levelOption.id)}
-                  title={levelOption.description}
+                  onClick={() => onSelectLanguage(languageOption.id)}
+                  title={languageOption.label}
                 >
-                  {levelOption.label}
+                  {languageOption.shortLabel}
                 </button>
               ))}
             </div>
+            <div className="level-switcher" aria-label="Level">
+              {levels.map((levelOption) => {
+                const levelText = getLevelText(levelOption.id, language);
+                return (
+                  <button
+                    key={levelOption.id}
+                    className={`level-button${levelOption.id === levelId ? " is-active" : ""}`}
+                    type="button"
+                    onClick={() => onSelectLevel(levelOption.id)}
+                    title={levelText.description}
+                  >
+                    {levelText.label}
+                  </button>
+                );
+              })}
+            </div>
             <div className="loadout-switcher" aria-label="Loadout">
-              {loadouts.map((loadoutOption) => (
-                <button
-                  key={loadoutOption.id}
-                  className={`loadout-button${loadoutOption.id === loadout?.id ? " is-active" : ""}`}
-                  type="button"
-                  onClick={() => onSelectLoadout(loadoutOption.id)}
-                >
-                  {loadoutOption.label}
-                </button>
-              ))}
+              {loadouts.map((loadoutOption) => {
+                const loadoutText = getLoadoutText(loadoutOption.id, language);
+                return (
+                  <button
+                    key={loadoutOption.id}
+                    className={`loadout-button${loadoutOption.id === loadout?.id ? " is-active" : ""}`}
+                    type="button"
+                    onClick={() => onSelectLoadout(loadoutOption.id)}
+                    title={loadoutText.description}
+                  >
+                    {loadoutText.label}
+                  </button>
+                );
+              })}
             </div>
             {items.map((item) => (
               <button
@@ -158,65 +182,65 @@ export function GameHud({
                 onClick={() => onUseItem(item.id)}
                 disabled={item.disabled}
               >
-                {`${item.label} (${item.count})`}
+                {`${getItemLabel(item, language)} (${item.count})`}
               </button>
             ))}
           </div>
         </div>
         <div className="status-row">
           <div className={`status-pill route-pill route-pill--${route?.zoneKey ?? "reading"}`}>
-            {UI_TEXT.routeLabel}: {routeLabel}
+            {text.routeLabel}: {routeLabel}
           </div>
-          {fall?.active ? <div className="status-pill is-falling">{UI_TEXT.fallLabel}: {fallLabel}</div> : null}
+          {fall?.active ? <div className="status-pill is-falling">{text.fallLabel}: {fallLabel}</div> : null}
           {recovery?.active ? (
             <div className="status-pill is-recovering">
-              {UI_TEXT.recoveryWindowLabel}: {recoveryLabel} {recovery.rescueWindowFrames}
+              {text.recoveryWindowLabel}: {recoveryLabel} {recovery.rescueWindowFrames}
             </div>
           ) : null}
           <div className={`status-pill${restPoseState?.active ? " is-resting" : ""}`}>{restLabel}</div>
           <div className={`status-pill${windStrength > 12 ? " is-windy" : ""}`}>
-            {UI_TEXT.windLabel}: {windDirection} {windStrength}%
+            {text.windLabel}: {windDirection} {windStrength}%
           </div>
           <div className={`status-pill${injuryState?.severity !== "stable" ? " is-injured" : ""}`}>
-            {UI_TEXT.injuryLabel}: {injuryLabel}
+            {text.injuryLabel}: {injuryLabel}
           </div>
           <div className={`status-pill${thirst >= 70 ? " is-thirsty" : ""}`}>
-            {UI_TEXT.thirstLabel}: {thirst}%
+            {text.thirstLabel}: {thirst}%
           </div>
           {environmentState?.activeEventId ? (
             <div className="status-pill is-environment-event">
-              {UI_TEXT.eventLabel}: {environmentLabels[environmentState.type] ?? environmentState.type}
+              {text.eventLabel}: {environmentLabels[environmentState.type] ?? environmentState.type}
             </div>
           ) : null}
           {encounterState?.pursuitActive ? (
             <div className={`status-pill${encounterState.danger ? " is-pursuit-danger" : " is-pursuit"}`}>
-              {UI_TEXT.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
+              {text.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
             </div>
           ) : null}
           {encounterState?.laneBlocker?.active ? (
             <div className="status-pill is-lane-blocker">
-              {UI_TEXT.laneBlockerLabel}: {Math.max(0, Math.round(encounterState.laneBlocker.distance))}
+              {text.laneBlockerLabel}: {Math.max(0, Math.round(encounterState.laneBlocker.distance))}
             </div>
           ) : null}
           {encounterState?.ropeThreat?.active ? (
             <div className={`status-pill${encounterState.ropeThreat.danger ? " is-rope-threat-danger" : " is-rope-threat"}`}>
-              {UI_TEXT.ropeThreatLabel}: {Math.round((encounterState.ropeThreat.progress ?? 0) * 100)}%
+              {text.ropeThreatLabel}: {Math.round((encounterState.ropeThreat.progress ?? 0) * 100)}%
             </div>
           ) : null}
           {encounterState?.rescueCount > 0 ? (
-            <div className="status-pill is-rescue">{UI_TEXT.rescueLabel}: {encounterState.rescueCount}</div>
+            <div className="status-pill is-rescue">{text.rescueLabel}: {encounterState.rescueCount}</div>
           ) : null}
           {encounterState?.rescueBurden?.active ? (
             <div className="status-pill is-rescue-burden">
-              {UI_TEXT.rescueBurdenLabel}: {encounterState.rescueBurden.remainingFrames}
+              {text.rescueBurdenLabel}: {encounterState.rescueBurden.remainingFrames}
             </div>
           ) : null}
           <div className={launchClassName}>
-            {UI_TEXT.launchLabel}: {launchLabel}
+            {text.launchLabel}: {launchLabel}
           </div>
           {spatialScan?.available ? (
             <div className={`status-pill spatial-scan-pill${spatialScan.enabled ? " is-spatial-scan" : ""}`}>
-              {UI_TEXT.spatialScanLabel}
+              {text.spatialScanLabel}
               <button
                 type="button"
                 onClick={() => onUpdateSpatialScan(!spatialScan.enabled, spatialScan.angle)}
@@ -241,7 +265,7 @@ export function GameHud({
           ) : null}
         </div>
       </div>
-      {tutorialVisible ? <div className="tutorial">{UI_TEXT.tutorial}</div> : null}
+      {tutorialVisible ? <div className="tutorial">{text.tutorial}</div> : null}
     </div>
   );
 }

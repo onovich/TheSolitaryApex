@@ -7,10 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "validate:i18n": "node ./scripts/validate-i18n.mjs",
     "validate:levels": "node ./scripts/validate-level-config.mjs",
     "validate:gameplay": "node ./scripts/validate-gameplay.mjs",
     "report:levels": "node ./scripts/report-level-config.mjs",
-    "validate": "npm run validate:levels && npm run validate:gameplay && npm run build"
+    "validate": "npm run validate:i18n && npm run validate:levels && npm run validate:gameplay && npm run build"
   },
   "dependencies": {
     "react": "^18.3.1",

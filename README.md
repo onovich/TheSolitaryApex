@@ -40,6 +40,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - A configurable rope threat that climbs placed protection and can disable stale checkpoints
 - An optional spatial-scan experiment for visual-only pseudo-3D route reading
 - Rescue targets that let protection placements act as collaboration tools with temporary burden pressure
+- Five-language UI switching for Chinese, English, Japanese, Spanish, and Brazilian Portuguese
 - Two clear failure states: losing balance or climbing to exhaustion
 - Minimal, oppressive presentation focused on isolation and height
 
@@ -80,7 +81,7 @@ npm install
 npm run dev
 ```
 
-For a quick gameplay regression check:
+For a quick regression check covering i18n dictionaries, level config, gameplay behavior, and production build:
 
 ```bash
 npm run validate

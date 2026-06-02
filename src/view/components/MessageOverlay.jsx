@@ -1,25 +1,29 @@
-import { UI_TEXT } from "../../data/uiText";
+import { getGameOverText } from "../../data/uiText";
 
-export function MessageOverlay({ endMessage, onRestart }) {
+export function MessageOverlay({ endMessage, language, onRestart, text }) {
   if (!endMessage) {
     return null;
   }
+  const gameOverText = getGameOverText(endMessage.reason, language);
+  const rescueCountText = text.rescueCountUnit
+    ? `${endMessage.rescueCount} ${text.rescueCountUnit}`
+    : endMessage.rescueCount;
 
   return (
     <div className="message-box" role="dialog" aria-modal="true">
-      <h1>{endMessage.title}</h1>
+      <h1>{gameOverText.title}</h1>
       <p>
-        {endMessage.description}
+        {gameOverText.description}
         <br />
         <br />
-        最终到达高度: {endMessage.finalHeight}m
+        {text.finalHeightLabel}: {endMessage.finalHeight}{text.heightUnit}
         <br />
-        {UI_TEXT.rescueCountLabel}: {endMessage.rescueCount} 次
+        {text.rescueCountLabel}: {rescueCountText}
         <br />
-        {UI_TEXT.staminaCapLabel}: {endMessage.staminaCap}
+        {text.staminaCapLabel}: {endMessage.staminaCap}
       </p>
       <button className="restart-button" type="button" onClick={onRestart}>
-        {UI_TEXT.restart}
+        {text.restart}
       </button>
     </div>
   );

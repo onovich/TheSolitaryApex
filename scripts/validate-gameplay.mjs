@@ -223,7 +223,7 @@ function validateDragDynoAndFalls() {
   return {
     dynoVelocityY,
     rescueCount: state.recoveryState.rescuesUsed,
-    deathReason: deathState.endMessage.title,
+    deathReason: deathState.endMessage.reason,
   };
 }
 
