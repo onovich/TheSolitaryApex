@@ -458,6 +458,53 @@ select {
   font-size: 0.72rem;
 }
 
+.dev-panel-section + .dev-panel-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #333333;
+}
+
+.dev-panel-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dev-panel-summary div {
+  min-width: 0;
+  padding: 7px 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid #2f2f2f;
+}
+
+.dev-panel-summary span,
+.dev-panel-summary strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-panel-summary span {
+  color: #777777;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.dev-panel-summary strong {
+  margin-top: 3px;
+  color: #d8d8d8;
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+
+.dev-panel-note {
+  margin: 10px 0 0;
+  color: #a8a8a8;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
 .dev-panel-controls {
   display: grid;
   gap: 8px;
@@ -539,5 +586,9 @@ select {
   .dev-panel-control {
     grid-template-columns: 92px minmax(80px, 1fr) 64px;
     gap: 8px;
+  }
+
+  .dev-panel-summary {
+    grid-template-columns: 1fr;
   }
 }

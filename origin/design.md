@@ -142,7 +142,7 @@ GameCanvas/drawScene(): 核心渲染层。负责绘制背景、岩点、角色�
 
 当前模板： 已配置 4 个可在 HUD 中切换的官方关卡模板：综合原型 `solitary-apex-prototype`、资源读线 `resource-reading-ascent`、追赶卡点 `pursuit-crux-ascent`、救援遭遇 `rescue-encounter-ascent`。这些模板共享同一套可解性验证，但各自拥有独立 seed、事件节奏、危险预算、资源预算和 rescue/pursuit/ropeThreat 设置。
 
-配置工具： `npm run validate:levels` 会校验关卡 ID、作者元数据、范围参数、岩点类型池、路段引用、内容投放目标、路线压力目标、环境事件数量与间距，并真实生成一条路线验证分区覆盖、Golden Path 可解性和 seed 复现。命令输出还会为每个模板打印事件类型、救援目标数、追赶和保护绳威胁开关、实际生成的危险/资源计数，以及风压、耐力修正、危险密度、资源密度等压力摘要，方便调参时快速识别关卡性格。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
+配置工具： `npm run validate:levels` 会校验关卡 ID、作者元数据、范围参数、岩点类型池、路段引用、内容投放目标、路线压力目标、环境事件数量与间距，并真实生成一条路线验证分区覆盖、Golden Path 可解性和 seed 复现。命令输出还会为每个模板打印事件类型、救援目标数、追赶和保护绳威胁开关、实际生成的危险/资源计数，以及风压、耐力修正、危险密度、资源密度等压力摘要，方便调参时快速识别关卡性格。运行时 `DEV` 面板也会显示当前关卡的作者意图、模板 ID、seed 和关键目标，并可复制当前 level config 片段。以后改关卡配置时，应先跑此命令，再跑完整 `npm run validate`。
 
 复现工具： 每个关卡配置包含稳定 `seed`。路线生成会用 `level id + seed + viewport` 生成可复现的随机序列；`validate:levels` 会重复生成并比对路线签名，确保调参时可以固定同一条路线观察差异。
 
@@ -176,7 +176,7 @@ GameCanvas/drawScene(): 核心渲染层。负责绘制背景、岩点、角色�
 
 优先优化自动吸附策略： 最高点检索应进一步偏向上方岩点，并避免多个肢体在同一次弹射结算中抢占同一个最佳点位。
 
-开发者调参： 当前 Web 版已加入 `DEV` 面板，可在运行时调整 Dyno 的蓄力帧、反拉距离、弹射速度、触及奖励、重力、冷却和耐力成本。`Save local` 保存到浏览器本地，`Copy config` 导出可回填到 `src/data/gameConfig.js` 的正式数值片段。
+开发者调参： 当前 Web 版已加入 `DEV` 面板，可在运行时调整 Dyno 的蓄力帧、反拉距离、弹射速度、触及奖励、重力、冷却和耐力成本。`Save local` 保存到浏览器本地，`Copy config` 导出可回填到 `src/data/gameConfig.js` 的正式数值片段。面板同时显示当前关卡配置摘要，`Copy level config` 可导出 active level 的正式配置片段。
 
 特殊休息姿态 (Resting Poses)： 判定逻辑扩展。如果检测到左右脚处于水平对峙状态（模拟挂脚/膝盖卡死），可触发“完美休息”状态，双手脱离也能快速回体。
 

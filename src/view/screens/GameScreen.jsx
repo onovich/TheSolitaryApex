@@ -64,7 +64,7 @@ export function GameScreen() {
         tutorialVisible={uiState.tutorialVisible}
       />
       <MessageOverlay endMessage={uiState.endMessage} onRestart={restartGame} />
-      <DeveloperPanel />
+      <DeveloperPanel activeLevelId={uiState.levelId} />
     </main>
   );
 }

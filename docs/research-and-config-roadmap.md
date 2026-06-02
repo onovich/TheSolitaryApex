@@ -75,8 +75,8 @@ These tasks keep the prototype editable as mechanics accumulate.
   - Resource-pressure checks so thirst, stamina, fruit, and loadout penalties stay recoverable.
   - Hazard-isolation checks so fragile, timed soft, drillable obstacle, and avalanche variants stay off the Golden Path unless a dedicated validator allows them.
 - Generalize the current Dyno `DEV` panel into a small developer tuning panel:
-  - Keep runtime sliders for high-risk feel values.
-  - Add one-click copy/export snippets for formal config files.
+  - Current status: the `DEV` panel includes runtime Dyno sliders and an active-level authoring summary.
+  - Current status: `Copy config` exports Dyno values, while `Copy level config` exports the active level snippet.
   - Avoid turning it into a full UGC editor until official level config is stable.
 
 ### P1 - Next Small Gameplay Experiments
