@@ -50,6 +50,7 @@ npm run report:levels
 - Earthquake event: destabilizes decoy holds without touching Golden Path.
 - Avalanche event: removes bounded decoy holds without touching Golden Path.
 - Pursuit pressure line: creates upward tempo pressure without enemy AI.
+- Lane blockers: local enemy pressure markers without pathfinding AI.
 - Rope threat: converts placed protection into a time-limited risk if left unattended.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
 - Rescue targets: use protection placements as a collaboration tool with temporary burden pressure and without NPC AI.
@@ -90,10 +91,7 @@ These tasks keep the prototype editable as mechanics accumulate.
 
 These are the best next implementation candidates because they extend existing systems without changing the whole control model.
 
-- Route template expansion:
-  - Add several named official route templates rather than just increasing random variety.
-  - Suggested first set: tutorial-safe, resource-reading, exposure-pressure, pursuit-crux, rescue-encounter.
-  - Each template should declare allowed mechanics and forbidden mechanics.
+- Add stricter per-template resource-pressure simulation once run length and player pace are better understood.
 ### P2 - Systems That Need Design Discussion First
 
 These are valuable, but they can easily distort the core rhythm if implemented too early.
@@ -104,7 +102,7 @@ These are valuable, but they can easily distort the core rhythm if implemented t
   - Decision criteria: can players predict the benefit, does it make route reading richer, and does it preserve four-limb drag clarity.
 - Enemy/NPC behavior:
   - Current pursuit is a pressure line, not AI.
-  - Prefer constrained encounter types first: lane blocker, protection-rope threat, or protected-route denial.
+  - Current lane blockers and protection-rope threats cover constrained encounter prototypes first.
   - Full pathfinding enemies should wait until route vocabulary and feedback are clearer.
 - Climbing shoes:
   - Not urgent while holds remain broad abstract categories.

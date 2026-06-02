@@ -47,6 +47,7 @@ export const UI_TEXT = {
   earthquakeLabel: "震动",
   avalancheLabel: "雪崩",
   pursuitLabel: "追赶",
+  laneBlockerLabel: "封锁",
   ropeThreatLabel: "绳威胁",
   rescueLabel: "救援",
   rescueBurdenLabel: "救援负重",

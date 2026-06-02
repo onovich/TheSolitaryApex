@@ -505,6 +505,39 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
+    if (hold.hazardType === "laneBlocker") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(holdX, screenY, hold.dangerRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 120, 105, 0.12)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([8, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.beginPath();
+      for (let index = 0; index < 6; index += 1) {
+        const angle = -Math.PI / 2 + (Math.PI * 2 * index) / 6;
+        const radius = hold.radius * (index % 2 === 0 ? 1 : 0.68);
+        const x = holdX + Math.cos(angle) * radius;
+        const y = screenY + Math.sin(angle) * radius;
+
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+      ctx.fillStyle = "#5f2f30";
+      ctx.fill();
+      ctx.strokeStyle = "#e58f7f";
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
     ctx.beginPath();
     ctx.arc(holdX, screenY, hold.radius, 0, Math.PI * 2);
     const holdRejected = (state.feedbackState?.dragRejectFrames ?? 0) > 0 && state.feedbackState?.holdIndex === state.holds.indexOf(hold);

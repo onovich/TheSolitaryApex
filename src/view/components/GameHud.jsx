@@ -193,6 +193,11 @@ export function GameHud({
               {UI_TEXT.pursuitLabel}: {Math.max(0, Math.round(encounterState.gap))}m
             </div>
           ) : null}
+          {encounterState?.laneBlocker?.active ? (
+            <div className="status-pill is-lane-blocker">
+              {UI_TEXT.laneBlockerLabel}: {Math.max(0, Math.round(encounterState.laneBlocker.distance))}
+            </div>
+          ) : null}
           {encounterState?.ropeThreat?.active ? (
             <div className={`status-pill${encounterState.ropeThreat.danger ? " is-rope-threat-danger" : " is-rope-threat"}`}>
               {UI_TEXT.ropeThreatLabel}: {Math.round((encounterState.ropeThreat.progress ?? 0) * 100)}%

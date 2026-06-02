@@ -596,6 +596,59 @@ function validatePursuitPressure() {
   return { gap: pursuitState.conditionState.encounter.gap };
 }
 
+function validateLaneBlockerPressure() {
+  const blockerState = createStableState();
+  const controlState = createStableState();
+  const blocker = blockerState.holds.find((hold) => hold.hazardType === "laneBlocker");
+
+  if (!blocker) {
+    throw new Error("Expected generated route to include a lane blocker");
+  }
+
+  blocker.x = blockerState.player.com.x;
+  blocker.y = blockerState.player.com.y;
+  blocker.dangerRadius = 80;
+  blocker.staminaPenalty = 0.5;
+  blockerState.stamina = 82;
+  controlState.stamina = 82;
+
+  updateFrame(blockerState, 1280, 720);
+  updateFrame(controlState, 1280, 720);
+
+  if (!blockerState.conditionState.encounter.laneBlocker.active) {
+    throw new Error("Lane blocker did not activate when the player entered its danger radius");
+  }
+
+  if (blockerState.stamina >= controlState.stamina) {
+    throw new Error("Lane blocker should add stamina pressure compared with a control state");
+  }
+
+  const attachState = createStableState();
+  const targetBlocker = attachState.holds.find((hold) => hold.hazardType === "laneBlocker");
+  const limb = attachState.player.limbs[0];
+  const blockerIndex = attachState.holds.indexOf(targetBlocker);
+
+  attachState.holds.forEach((hold, holdIndex) => {
+    if (holdIndex > 3 && hold !== targetBlocker) {
+      hold.x += 5000;
+      hold.y += 5000;
+    }
+  });
+  targetBlocker.x = limb.x + 36;
+  targetBlocker.y = limb.y - 12;
+  beginDrag(attachState, limb.x, limb.y - attachState.cameraY);
+  updatePointer(attachState, targetBlocker.x, targetBlocker.y - attachState.cameraY);
+  releaseDrag(attachState);
+
+  if (attachState.player.limbs[0].attachedHoldIndex === blockerIndex) {
+    throw new Error("Lane blocker should not be attachable as a normal hold");
+  }
+
+  return {
+    distance: blockerState.conditionState.encounter.laneBlocker.distance,
+  };
+}
+
 function validateRopeThreat() {
   const threatState = createStableState();
   const controlState = createStableState();
@@ -761,6 +814,7 @@ const fruitResult = validateResourceFruit();
 const earthquakeResult = validateEarthquakeEvent();
 const avalancheResult = validateAvalancheEvent();
 const pursuitResult = validatePursuitPressure();
+const laneBlockerResult = validateLaneBlockerPressure();
 const ropeThreatResult = validateRopeThreat();
 const spatialResult = validateSpatialScan();
 const rescueResult = validateRescueTarget();
@@ -786,6 +840,7 @@ console.log(
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
+    `laneBlockerDistance=${laneBlockerResult.distance.toFixed(2)}`,
     `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
     `ropeBreaks=${ropeThreatResult.brokenCount}`,
     `spatialAngle=${spatialResult.angle.toFixed(2)}`,

@@ -248,6 +248,11 @@ select {
   border-color: #a84b4b;
 }
 
+.status-pill.is-lane-blocker {
+  color: #f0b0a0;
+  border-color: #8b4f48;
+}
+
 .status-pill.is-rope-threat {
   color: #e0ad86;
   border-color: #7e5544;

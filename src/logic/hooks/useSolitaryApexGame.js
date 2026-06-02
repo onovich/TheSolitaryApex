@@ -114,6 +114,12 @@ export function useSolitaryApexGame() {
           staminaPenalty: 0,
           targetId: null,
         },
+        laneBlocker: {
+          active: false,
+          blockerId: null,
+          distance: Infinity,
+          staminaPenalty: 0,
+        },
         ropeThreat: {
           armed: false,
           active: false,

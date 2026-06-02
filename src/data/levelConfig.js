@@ -18,6 +18,7 @@ export const LEVEL_CONFIGS = [
         "pursuitTiming",
         "ropeThreatTiming",
         "rescueTargetPlacement",
+        "laneBlockerPlacement",
       ],
       randomizedControls: [
         "goldenPathHorizontalDrift",
@@ -87,6 +88,17 @@ export const LEVEL_CONFIGS = [
         radius: 12,
         rescueRadius: 150,
         burdenFrames: 360,
+        staminaPenalty: 0.045,
+      },
+    ],
+    laneBlockers: [
+      {
+        id: "narrow-ledge-guard-01",
+        stanceIndex: 32,
+        offsetX: 124,
+        offsetY: -18,
+        radius: 14,
+        dangerRadius: 92,
         staminaPenalty: 0.045,
       },
     ],
@@ -359,6 +371,7 @@ LEVEL_CONFIGS.push(
       disableProgress: 1,
     },
     rescueTargets: [],
+    laneBlockers: [],
     routeGeneration: cloneRouteGeneration({
       centerDrift: 68,
       noiseCountMin: 1,
@@ -461,6 +474,17 @@ LEVEL_CONFIGS.push(
       disableProgress: 1,
     },
     rescueTargets: [],
+    laneBlockers: [
+      {
+        id: "crux-lane-guard-01",
+        stanceIndex: 20,
+        offsetX: -118,
+        offsetY: -22,
+        radius: 15,
+        dangerRadius: 104,
+        staminaPenalty: 0.06,
+      },
+    ],
     routeGeneration: cloneRouteGeneration({
       centerDrift: 104,
       noiseCountMin: 1,
@@ -567,6 +591,17 @@ LEVEL_CONFIGS.push(
         rescueRadius: 155,
         burdenFrames: 420,
         staminaPenalty: 0.05,
+      },
+    ],
+    laneBlockers: [
+      {
+        id: "rescue-lane-guard-01",
+        stanceIndex: 22,
+        offsetX: -122,
+        offsetY: -20,
+        radius: 14,
+        dangerRadius: 96,
+        staminaPenalty: 0.04,
       },
     ],
     routeGeneration: cloneRouteGeneration({
@@ -812,6 +847,18 @@ export function validateLevelConfig(levelConfig) {
     ["stanceIndex", "offsetX", "offsetY", "radius", "rescueRadius", "burdenFrames", "staminaPenalty"].forEach((key) => {
       if (typeof targetConfig[key] !== "number") {
         errors.push(`${targetConfig.id}.${key} must be a number`);
+      }
+    });
+  });
+
+  (levelConfig?.laneBlockers ?? []).forEach((blockerConfig) => {
+    if (!blockerConfig.id) {
+      errors.push("lane blocker id is required");
+    }
+
+    ["stanceIndex", "offsetX", "offsetY", "radius", "dangerRadius", "staminaPenalty"].forEach((key) => {
+      if (typeof blockerConfig[key] !== "number") {
+        errors.push(`${blockerConfig.id}.${key} must be a number`);
       }
     });
   });

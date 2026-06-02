@@ -88,6 +88,11 @@ function getMajorEncounterTimeline(levelConfig) {
       type: "rescue",
       frame: targetConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE,
     })),
+    ...(levelConfig.laneBlockers ?? []).map((blockerConfig) => ({
+      id: blockerConfig.id,
+      type: "blocker",
+      frame: blockerConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE,
+    })),
   ].sort((left, right) => left.frame - right.frame);
 }
 
@@ -159,6 +164,7 @@ export function analyzeLevelConfig(levelConfig) {
     zoneKeys: [...zoneKeys],
     eventTypes: levelConfig.environmentEvents.map((eventConfig) => eventConfig.type),
     rescueTargetCount: levelConfig.rescueTargets?.length ?? 0,
+    laneBlockerCount: levelConfig.laneBlockers?.length ?? 0,
     pursuitEnabled: Boolean(levelConfig.pursuit),
     ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
     contentCounts,

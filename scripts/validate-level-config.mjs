@@ -42,7 +42,7 @@ console.log(
     ),
     ...results.map(
       (result) =>
-        `${result.id}:events=${result.eventTypes.join("/") || "none"}:rescues=${result.rescueTargetCount}:pursuit=${result.pursuitEnabled ? "on" : "off"}:ropeThreat=${result.ropeThreatEnabled ? "on" : "off"}`,
+        `${result.id}:events=${result.eventTypes.join("/") || "none"}:rescues=${result.rescueTargetCount}:blockers=${result.laneBlockerCount}:pursuit=${result.pursuitEnabled ? "on" : "off"}:ropeThreat=${result.ropeThreatEnabled ? "on" : "off"}`,
     ),
     ...results.map(
       (result) =>

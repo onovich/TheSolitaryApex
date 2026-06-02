@@ -225,6 +225,12 @@ function createInitialConditionState() {
         staminaPenalty: 0,
         targetId: null,
       },
+      laneBlocker: {
+        active: false,
+        blockerId: null,
+        distance: Infinity,
+        staminaPenalty: 0,
+      },
       ropeThreat: {
         armed: false,
         active: false,
@@ -749,6 +755,34 @@ function tickRescueBurdenState(state) {
     rescueBurden.staminaPenalty = 0;
     rescueBurden.targetId = null;
   }
+}
+
+function tickLaneBlockerState(state) {
+  const laneBlockerState = state.conditionState.encounter.laneBlocker;
+
+  if (!laneBlockerState) {
+    return;
+  }
+
+  laneBlockerState.active = false;
+  laneBlockerState.blockerId = null;
+  laneBlockerState.distance = Infinity;
+  laneBlockerState.staminaPenalty = 0;
+
+  state.holds.forEach((hold) => {
+    if (hold.hazardType !== "laneBlocker" || hold.removed) {
+      return;
+    }
+
+    const distance = Math.hypot(hold.x - state.player.com.x, hold.y - state.player.com.y);
+
+    if (distance <= hold.dangerRadius && distance < laneBlockerState.distance) {
+      laneBlockerState.active = true;
+      laneBlockerState.blockerId = hold.laneBlockerId ?? null;
+      laneBlockerState.distance = distance;
+      laneBlockerState.staminaPenalty = hold.staminaPenalty ?? 0;
+    }
+  });
 }
 
 function getAttachedLimbs(state) {
@@ -1980,6 +2014,31 @@ function createRescueTargetHolds(goldenPath, rescueTargets = []) {
     .filter(Boolean);
 }
 
+function createLaneBlockerHolds(goldenPath, laneBlockers = []) {
+  return laneBlockers
+    .map((blockerConfig) => {
+      const stance = goldenPath[blockerConfig.stanceIndex];
+
+      if (!stance) {
+        return null;
+      }
+
+      return createHold(stance.centerX + blockerConfig.offsetX, stance.baseY + blockerConfig.offsetY, 2, {
+        routeRole: "laneBlocker",
+        routeZone: stance.zoneKey,
+        stanceIndex: stance.stanceIndex,
+        hazardType: "laneBlocker",
+        hazardState: "watching",
+        laneBlockerId: blockerConfig.id,
+        dangerRadius: blockerConfig.dangerRadius,
+        staminaPenalty: blockerConfig.staminaPenalty,
+        radius: blockerConfig.radius,
+        zLayer: 0,
+      });
+    })
+    .filter(Boolean);
+}
+
 export function validateGoldenPath(path, levelConfig = getLevelConfig()) {
   const safeReach =
     Math.min(GAME_CONFIG.limbProfiles.leftHand.maxReach, GAME_CONFIG.limbProfiles.rightHand.maxReach) -
@@ -2033,9 +2092,10 @@ function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
     };
   });
   const rescueTargetHolds = createRescueTargetHolds(goldenPath, levelConfig.rescueTargets);
+  const laneBlockerHolds = createLaneBlockerHolds(goldenPath, levelConfig.laneBlockers);
 
   return {
-    holds: [...spawnHolds, ...holds, ...rescueTargetHolds],
+    holds: [...spawnHolds, ...holds, ...rescueTargetHolds, ...laneBlockerHolds],
     goldenPath,
     routeSegments,
     levelId: levelConfig.id,
@@ -2053,7 +2113,8 @@ function isHoldAvailable(hold) {
       !hold.removed &&
       hold.hazardType !== "obstacle" &&
       hold.hazardType !== "resourceFruit" &&
-      hold.hazardType !== "rescueTarget",
+      hold.hazardType !== "rescueTarget" &&
+      hold.hazardType !== "laneBlocker",
   );
 }
 
@@ -2290,6 +2351,8 @@ export function getUiSnapshot(state, frame) {
       environment: { ...state.conditionState.environment },
       encounter: {
         ...state.conditionState.encounter,
+        rescueBurden: { ...state.conditionState.encounter.rescueBurden },
+        laneBlocker: { ...state.conditionState.encounter.laneBlocker },
         ropeThreat: { ...state.conditionState.encounter.ropeThreat },
       },
     },
@@ -2629,6 +2692,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   tickPursuitState(state, viewportHeight);
   tickRopeThreatState(state);
   tickRescueBurdenState(state);
+  tickLaneBlockerState(state);
 
   if (state.fallState.active) {
     updateFallState(state, viewportWidth, viewportHeight);
@@ -2773,6 +2837,10 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
     if (state.conditionState.encounter.rescueBurden?.active) {
       staminaChange -= state.conditionState.encounter.rescueBurden.staminaPenalty;
+    }
+
+    if (state.conditionState.encounter.laneBlocker?.active) {
+      staminaChange -= state.conditionState.encounter.laneBlocker.staminaPenalty;
     }
 
     staminaChange += currentRouteSegment.staminaModifier;

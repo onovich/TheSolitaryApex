@@ -45,6 +45,7 @@ rows.forEach(({ levelConfig, analysis }) => {
   const encounters = [
     `events: ${analysis.eventTypes.join(", ") || "none"}`,
     `rescues: ${analysis.rescueTargetCount}`,
+    `blockers: ${analysis.laneBlockerCount}`,
     `pursuit: ${analysis.pursuitEnabled ? "on" : "off"}`,
     `rope: ${analysis.ropeThreatEnabled ? "on" : "off"}`,
   ].join("<br>");

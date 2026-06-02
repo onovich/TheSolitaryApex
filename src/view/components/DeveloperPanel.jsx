@@ -29,6 +29,7 @@ function formatLevelConfig(levelConfig) {
       pursuit: levelConfig.pursuit,
       ropeThreat: levelConfig.ropeThreat,
       rescueTargets: levelConfig.rescueTargets,
+      laneBlockers: levelConfig.laneBlockers,
       routeGeneration: levelConfig.routeGeneration,
     },
     null,
@@ -114,6 +115,10 @@ export function DeveloperPanel({ activeLevelId }) {
               <div>
                 <span>Rescues</span>
                 <strong>{levelConfig.rescueTargets.length}</strong>
+              </div>
+              <div>
+                <span>Blockers</span>
+                <strong>{levelConfig.laneBlockers?.length ?? 0}</strong>
               </div>
               <div>
                 <span>Pursuit</span>
