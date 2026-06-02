@@ -496,6 +496,48 @@ function validateResourceFruit() {
   return { fruitIndex };
 }
 
+function validateBloodiedHoldPressure() {
+  const markingState = createStableState();
+  const markingHand = markingState.player.limbs[0];
+  const markingHold = markingState.holds[markingHand.attachedHoldIndex];
+
+  markingHold.type = 1;
+  markingState.conditionState.injury.handStrain = GAME_CONFIG.conditions.injury.bloodiedThreshold + 0.01;
+
+  updateFrame(markingState, 1280, 720);
+
+  if (!markingHold.bloodied) {
+    throw new Error("Bloodied injury threshold should mark loaded non-perfect hand holds");
+  }
+
+  if (markingState.conditionState.injury.bloodiedHoldCount < 1) {
+    throw new Error("Bloodied hold count did not include the newly marked hold");
+  }
+
+  const bloodiedState = createStableState();
+  const controlState = createStableState();
+  const bloodiedHand = bloodiedState.player.limbs[0];
+  const controlHand = controlState.player.limbs[0];
+
+  bloodiedState.stamina = 84;
+  controlState.stamina = 84;
+  bloodiedState.holds[bloodiedHand.attachedHoldIndex].bloodied = true;
+  bloodiedState.holds[bloodiedHand.attachedHoldIndex].type = 1;
+  controlState.holds[controlHand.attachedHoldIndex].type = 1;
+
+  updateFrame(bloodiedState, 1280, 720);
+  updateFrame(controlState, 1280, 720);
+
+  if (bloodiedState.stamina >= controlState.stamina) {
+    throw new Error("Bloodied holds should add stamina pressure compared with an equivalent clean hold");
+  }
+
+  return {
+    bloodiedHoldCount: markingState.conditionState.injury.bloodiedHoldCount,
+    staminaDelta: controlState.stamina - bloodiedState.stamina,
+  };
+}
+
 function validateEarthquakeEvent() {
   const state = createStableState();
 
@@ -811,6 +853,7 @@ const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
 const fruitResult = validateResourceFruit();
+const bloodiedResult = validateBloodiedHoldPressure();
 const earthquakeResult = validateEarthquakeEvent();
 const avalancheResult = validateAvalancheEvent();
 const pursuitResult = validatePursuitPressure();
@@ -837,6 +880,8 @@ console.log(
     `timedSoftHold=${timedSoftResult.holdIndex}`,
     `obstacle=${obstacleResult.obstacleIndex}`,
     `fruit=${fruitResult.fruitIndex}`,
+    `bloodiedHolds=${bloodiedResult.bloodiedHoldCount}`,
+    `bloodiedPenalty=${bloodiedResult.staminaDelta.toFixed(3)}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
