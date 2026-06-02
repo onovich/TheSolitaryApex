@@ -62,7 +62,7 @@ console.log(
     ),
     ...results.map(
       (result) =>
-        `${result.id}:density=pressure${result.eventDensitySummary.maxPressureEventsInWindow.count}@${result.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}/fruit${result.eventDensitySummary.maxResourceFruitsInWindow.count}@${result.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
+        `${result.id}:density=pressure${result.eventDensitySummary.maxPressureEventsInWindow.count}@${result.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}/fruit${result.eventDensitySummary.maxResourceFruitsInWindow.count}@${result.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}/fruitGap${result.eventDensitySummary.resourceGapSummary.maxGapFrames}`,
     ),
     ...results.map(
       (result) =>

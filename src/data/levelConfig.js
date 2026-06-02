@@ -58,6 +58,7 @@ export const LEVEL_CONFIGS = [
         maxPressureEventsPerWindow: 3,
         resourceWindowFrames: 720,
         maxResourceFruitsPerWindow: 2,
+        maxResourceGapFrames: 3600,
       },
       requiredValidators: ["validate:levels", "validate:gameplay", "build"],
     },
@@ -378,6 +379,7 @@ LEVEL_CONFIGS.push(
         minEnvironmentEventSpacingFrames: 480,
         maxEnvironmentEvents: 2,
         maxResourceFruitsPerWindow: 10,
+        maxResourceGapFrames: 1200,
       },
     }),
     environmentEvents: [
@@ -475,6 +477,7 @@ LEVEL_CONFIGS.push(
         minEnvironmentEventSpacingFrames: 420,
         maxEnvironmentEvents: 3,
         maxResourceFruitsPerWindow: 2,
+        maxResourceGapFrames: 4200,
       },
     }),
     environmentEvents: [
@@ -593,6 +596,7 @@ LEVEL_CONFIGS.push(
         minEnvironmentEventSpacingFrames: 540,
         maxEnvironmentEvents: 2,
         maxResourceFruitsPerWindow: 4,
+        maxResourceGapFrames: 2200,
       },
     }),
     environmentEvents: [
@@ -846,6 +850,7 @@ export function validateLevelConfig(levelConfig) {
         "maxPressureEventsPerWindow",
         "resourceWindowFrames",
         "maxResourceFruitsPerWindow",
+        "maxResourceGapFrames",
       ].forEach((key) => {
         if (!Number.isInteger(pressureRules[key]) || pressureRules[key] < 0) {
           errors.push(`${levelConfig.id}.authoring.pressureRules.${key} must be a non-negative integer`);

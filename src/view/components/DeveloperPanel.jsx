@@ -169,6 +169,10 @@ export function DeveloperPanel({ activeLevelId }) {
                 </strong>
               </div>
               <div>
+                <span>Fruit gap</span>
+                <strong>&lt;={authoring.pressureRules.maxResourceGapFrames}f</strong>
+              </div>
+              <div>
                 <span>Golden bans</span>
                 <strong>{authoring.goldenPathRules.forbidHazards.length}</strong>
               </div>

@@ -224,6 +224,31 @@ function getResourceFruitTimeline(blueprint) {
     .sort((left, right) => left.frame - right.frame);
 }
 
+function getResourceGapSummary(blueprint, resourceFruitEvents) {
+  const routeEndFrame = Math.max(0, (blueprint.goldenPath.length - 1) * ESTIMATED_FRAMES_PER_STANCE);
+  const frames = [0, ...resourceFruitEvents.map((event) => event.frame), routeEndFrame].sort((left, right) => left - right);
+  let maxGapFrames = 0;
+  let maxGapStartFrame = null;
+  let maxGapEndFrame = null;
+
+  for (let index = 1; index < frames.length; index += 1) {
+    const gap = frames[index] - frames[index - 1];
+
+    if (gap > maxGapFrames) {
+      maxGapFrames = gap;
+      maxGapStartFrame = frames[index - 1];
+      maxGapEndFrame = frames[index];
+    }
+  }
+
+  return {
+    routeEndFrame,
+    maxGapFrames,
+    maxGapStartFrame,
+    maxGapEndFrame,
+  };
+}
+
 function validateMajorEncounterDensity(levelConfig, majorEncounters) {
   const { majorEncounterWindowFrames, maxMajorEncountersPerWindow } = levelConfig.authoring.pressureRules;
 
@@ -248,6 +273,7 @@ function validateMajorEncounterDensity(levelConfig, majorEncounters) {
 function getEventDensitySummary(levelConfig, blueprint, majorEncounters) {
   const pressureEvents = getPressureEventTimeline(levelConfig, majorEncounters);
   const resourceFruitEvents = getResourceFruitTimeline(blueprint);
+  const resourceGapSummary = getResourceGapSummary(blueprint, resourceFruitEvents);
   const {
     pressureEventWindowFrames,
     resourceWindowFrames,
@@ -259,6 +285,7 @@ function getEventDensitySummary(levelConfig, blueprint, majorEncounters) {
     maxPressureEventsInWindow: getWindowPeak(pressureEvents, pressureEventWindowFrames),
     resourceFruitWindowFrames: resourceWindowFrames,
     maxResourceFruitsInWindow: getWindowPeak(resourceFruitEvents, resourceWindowFrames),
+    resourceGapSummary,
   };
 }
 
@@ -266,6 +293,7 @@ function validateEventDensity(levelConfig, eventDensitySummary) {
   const {
     maxPressureEventsPerWindow,
     maxResourceFruitsPerWindow,
+    maxResourceGapFrames,
   } = levelConfig.authoring.pressureRules;
 
   if (
@@ -283,6 +311,12 @@ function validateEventDensity(levelConfig, eventDensitySummary) {
   ) {
     throw new Error(
       `${levelConfig.id} has ${eventDensitySummary.maxResourceFruitsInWindow.count} resource fruits within ${eventDensitySummary.resourceFruitWindowFrames} frames starting at ${eventDensitySummary.maxResourceFruitsInWindow.startFrame}, expected <= ${maxResourceFruitsPerWindow}`,
+    );
+  }
+
+  if (maxResourceGapFrames > 0 && eventDensitySummary.resourceGapSummary.maxGapFrames > maxResourceGapFrames) {
+    throw new Error(
+      `${levelConfig.id} has a ${eventDensitySummary.resourceGapSummary.maxGapFrames} frame resource gap from ${eventDensitySummary.resourceGapSummary.maxGapStartFrame} to ${eventDensitySummary.resourceGapSummary.maxGapEndFrame}, expected <= ${maxResourceGapFrames}`,
     );
   }
 }

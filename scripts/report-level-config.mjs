@@ -42,6 +42,8 @@ function formatEventDensity(eventDensitySummary) {
     `pressure start: ${eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`,
     `fruits/${eventDensitySummary.resourceFruitWindowFrames}f: ${eventDensitySummary.maxResourceFruitsInWindow.count}`,
     `fruit start: ${eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
+    `max fruit gap: ${eventDensitySummary.resourceGapSummary.maxGapFrames}`,
+    `gap span: ${eventDensitySummary.resourceGapSummary.maxGapStartFrame ?? "none"}-${eventDensitySummary.resourceGapSummary.maxGapEndFrame ?? "none"}`,
   ].join("<br>");
 }
 
@@ -57,6 +59,7 @@ function formatTargets(authoring) {
     `worst net relief: ${formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief, 1)}`,
     `pressure/${authoring.pressureRules.pressureEventWindowFrames}f: <=${authoring.pressureRules.maxPressureEventsPerWindow}`,
     `fruits/${authoring.pressureRules.resourceWindowFrames}f: <=${authoring.pressureRules.maxResourceFruitsPerWindow}`,
+    `fruit gap: <=${authoring.pressureRules.maxResourceGapFrames}`,
   ].join("<br>");
 }
 
