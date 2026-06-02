@@ -14,6 +14,7 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
 
 function createStableState(options) {
   const state = createInitialGameState(1280, 720, options);
@@ -823,9 +824,40 @@ function validateSpatialScan() {
     throw new Error("Spatial scan did not enable 360-degree rotation");
   }
 
+  const attachedState = createStableState();
+  const attachedLimb = attachedState.player.limbs[0];
+  const attachedHold = attachedState.holds[attachedLimb.attachedHoldIndex];
+  attachedHold.zLayer = 0.25;
+  attachedState.spatialScan.projectionScale = 40;
+
+  setSpatialScan(attachedState, true, Math.PI / 2);
+  const attachedAnchor = getHoldAnchorPosition(attachedState, attachedHold);
+
+  if (attachedLimb.attachedHoldIndex === -1) {
+    throw new Error("Reachable spatial rotation should keep the attached limb connected");
+  }
+
+  if (Math.abs(attachedLimb.x - attachedAnchor.x) > 0.001 || Math.abs(attachedLimb.y - attachedAnchor.y) > 0.001) {
+    throw new Error("Attached limb did not follow the projected hold anchor during spatial rotation");
+  }
+
+  const releaseState = createStableState();
+  const releaseLimb = releaseState.player.limbs[0];
+  const releaseHold = releaseState.holds[releaseLimb.attachedHoldIndex];
+  releaseHold.zLayer = 1;
+  releaseState.spatialScan.projectionScale = 1000;
+
+  setSpatialScan(releaseState, true, Math.PI);
+
+  if (releaseLimb.attachedHoldIndex !== -1) {
+    throw new Error("Spatial rotation should detach a limb when the projected hold moves out of reach");
+  }
+
   return {
     zLayer: layeredHold.zLayer,
     angle: snapshot.spatialScan.angle,
+    projectedX: attachedAnchor.x,
+    detached: releaseLimb.attachedHoldIndex === -1,
   };
 }
 

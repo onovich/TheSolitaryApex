@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { GAME_CONFIG } from "../../data/gameConfig";
+import { getHoldAnchorPosition } from "../../logic/spatialProjection.js";
 
 function getRejectFlashAlpha(state) {
   const rejectFrames = state.feedbackState?.dragRejectFrames ?? 0;
@@ -22,10 +23,7 @@ function getCheckpointAnchor(state) {
     const hold = state.holds[checkpoint.anchorHoldIndex];
 
     if (hold) {
-      return {
-        x: hold.x,
-        y: hold.y,
-      };
+      return getHoldAnchorPosition(state, hold);
     }
   }
 
@@ -33,14 +31,6 @@ function getCheckpointAnchor(state) {
     x: checkpoint.anchorX,
     y: checkpoint.anchorY,
   };
-}
-
-function getSpatialX(state, hold) {
-  if (!state.spatialScan?.enabled || typeof hold?.zLayer !== "number") {
-    return hold.x;
-  }
-
-  return hold.x + hold.zLayer * Math.sin(state.spatialScan.angle) * state.spatialScan.projectionScale;
 }
 
 function getRenderedLimbPosition(state, limb) {
@@ -60,10 +50,7 @@ function getRenderedLimbPosition(state, limb) {
     };
   }
 
-  return {
-    x: getSpatialX(state, hold),
-    y: hold.y,
-  };
+  return getHoldAnchorPosition(state, hold);
 }
 
 function getCubicBezierPoint(start, controlA, controlB, end, t) {
@@ -96,9 +83,11 @@ function drawCheckpointRope(ctx, state) {
 
   const bodyX = state.player.com.x;
   const bodyY = state.player.com.y - state.cameraY;
-  const anchorHold = state.holds[state.itemState?.checkpoint?.anchorHoldIndex];
-  const anchorX = anchorHold ? getSpatialX(state, anchorHold) : anchor.x;
-  const anchorScreenY = anchor.y - state.cameraY;
+  const anchorHoldIndex = state.fallState?.active ? state.fallState.anchorHoldIndex : state.itemState?.checkpoint?.anchorHoldIndex;
+  const anchorHold = state.holds[anchorHoldIndex];
+  const renderedAnchor = anchorHold ? getHoldAnchorPosition(state, anchorHold) : anchor;
+  const anchorX = renderedAnchor.x;
+  const anchorScreenY = renderedAnchor.y - state.cameraY;
   const distance = Math.hypot(bodyX - anchorX, bodyY - anchorScreenY);
   const sag = state.fallState?.mode === "hanging" ? Math.min(28, distance * 0.08) : Math.min(64, distance * 0.16);
   const swing = (bodyX - anchorX) * 0.24;
@@ -488,13 +477,14 @@ function drawScene(canvas, state, viewport) {
       return;
     }
 
-    const screenY = hold.y - state.cameraY;
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const screenY = holdAnchor.y - state.cameraY;
 
     if (screenY < -50 || screenY > viewport.height + 50) {
       return;
     }
 
-    const holdX = getSpatialX(state, hold);
+    const holdX = holdAnchor.x;
 
     if (hold.hazardType === "obstacle") {
       const drillRatio = Math.max(0, Math.min(1, (hold.drillFrames ?? 0) / (state.mechanicRules?.obstacle?.drillFramesRequired ?? 54)));

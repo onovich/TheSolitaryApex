@@ -2,6 +2,7 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
+import { getHoldAnchorPosition } from "../spatialProjection.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
 let randomSource = Math.random;
@@ -283,7 +284,7 @@ function createInitialFeedbackState() {
   };
 }
 
-function createInitialSpatialScanState(levelConfig) {
+function createInitialSpatialScanState(levelConfig, viewportWidth) {
   const spatialConfig = levelConfig.routeGeneration.spatialExperiment;
 
   return {
@@ -292,6 +293,8 @@ function createInitialSpatialScanState(levelConfig) {
     angle: 0,
     maxAngle: Math.PI * 2,
     projectionScale: spatialConfig?.projectionScale ?? 0,
+    verticalDepthScale: spatialConfig?.verticalDepthScale ?? 0.24,
+    pivotX: viewportWidth / 2,
   };
 }
 
@@ -317,7 +320,8 @@ function maybeCollapseDepartedHold(state, holdIndex) {
 
   hold.removed = true;
   hold.collapseFrame = state.frame ?? 0;
-  pushParticles(state, hold.x, hold.y - state.cameraY, 14, "rgba(180, 115, 124, 0.85)");
+  const holdAnchor = getHoldAnchorPosition(state, hold);
+  pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 14, "rgba(180, 115, 124, 0.85)");
 }
 
 function releaseHoldAttachment(state, limb) {
@@ -348,7 +352,8 @@ function collapseTimedSoftHold(state, holdIndex) {
     }
   });
 
-  pushParticles(state, hold.x, hold.y - state.cameraY, 22, "rgba(145, 188, 180, 0.85)");
+  const holdAnchor = getHoldAnchorPosition(state, hold);
+  pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 22, "rgba(145, 188, 180, 0.85)");
 }
 
 function tickTimedSoftHolds(state, viewportHeight) {
@@ -399,7 +404,8 @@ function getClosestDrillableObstacle(state, targetX, targetY, drillRadius) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - targetX, holdAnchor.y - targetY);
 
     if (distance < closestDistance) {
       closestDistance = distance;
@@ -486,7 +492,8 @@ function collectResourceFruit(state, holdIndex) {
   state.conditionState.survival.fruitCollected += 1;
   state.conditionState.survival.senseFrames = GAME_CONFIG.conditions.survival.fruitSenseFrames;
   restoreStamina(state, resourceRules.staminaRestore);
-  pushParticles(state, fruit.x, fruit.y - state.cameraY, 18, "rgba(130, 208, 126, 0.9)");
+  const fruitAnchor = getHoldAnchorPosition(state, fruit);
+  pushParticles(state, fruitAnchor.x, fruitAnchor.y - state.cameraY, 18, "rgba(130, 208, 126, 0.9)");
 }
 
 function tickResourceCollection(state) {
@@ -505,7 +512,8 @@ function tickResourceCollection(state) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - targetX, holdAnchor.y - targetY);
 
     if (distance < closestDistance) {
       closestDistance = distance;
@@ -539,7 +547,8 @@ function activateEarthquakeEvent(state, eventConfig) {
     selected.hold.hazardType = "fragile";
     selected.hold.hazardState = "intact";
     selected.hold.eventAltered = eventConfig.id;
-    pushParticles(state, selected.hold.x, selected.hold.y - state.cameraY, 8, "rgba(210, 190, 140, 0.72)");
+    const holdAnchor = getHoldAnchorPosition(state, selected.hold);
+    pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 8, "rgba(210, 190, 140, 0.72)");
   }
 
   return alteredCount;
@@ -567,7 +576,8 @@ function activateAvalancheEvent(state, eventConfig) {
     selected.hold.hazardType = "avalancheDebris";
     selected.hold.hazardState = "buried";
     selected.hold.eventAltered = eventConfig.id;
-    pushParticles(state, selected.hold.x, selected.hold.y - state.cameraY, 10, "rgba(218, 232, 235, 0.7)");
+    const holdAnchor = getHoldAnchorPosition(state, selected.hold);
+    pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 10, "rgba(218, 232, 235, 0.7)");
   }
 
   return alteredCount;
@@ -776,7 +786,8 @@ function tickLaneBlockerState(state) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - state.player.com.x, hold.y - state.player.com.y);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - state.player.com.x, holdAnchor.y - state.player.com.y);
 
     if (distance <= hold.dangerRadius && distance < laneBlockerState.distance) {
       laneBlockerState.active = true;
@@ -832,10 +843,7 @@ function getCheckpointAnchorPosition(state, checkpoint = state.itemState.checkpo
     const anchorHold = state.holds[checkpoint.anchorHoldIndex];
 
     if (anchorHold) {
-      return {
-        x: anchorHold.x,
-        y: anchorHold.y,
-      };
+      return getHoldAnchorPosition(state, anchorHold);
     }
   }
 
@@ -929,7 +937,8 @@ function getClosestHoldIndex(state, targetX, targetY, snapRadius = GAME_CONFIG.h
       return;
     }
 
-    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - targetX, holdAnchor.y - targetY);
 
     if (distance < closestDistance) {
       closestDistance = distance;
@@ -975,7 +984,9 @@ function updateDragConstraintFeedback(state, targetX, targetY) {
   if (closestHoldIndex !== -1) {
     const hold = state.holds[closestHoldIndex];
 
-    if (!canLimbReachTarget(state, draggedLimb, hold.x, hold.y)) {
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+
+    if (!canLimbReachTarget(state, draggedLimb, holdAnchor.x, holdAnchor.y)) {
       setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, closestHoldIndex);
       return;
     }
@@ -1154,8 +1165,9 @@ function updateSuspendedLimbs(state, stiffness = 0.16) {
       const hold = state.holds[limb.attachedHoldIndex];
 
       if (hold) {
-        limb.x = hold.x;
-        limb.y = hold.y;
+        const holdAnchor = getHoldAnchorPosition(state, hold);
+        limb.x = holdAnchor.x;
+        limb.y = holdAnchor.y;
       }
 
       return;
@@ -1599,7 +1611,8 @@ function getReachableRescueTargetIndex(state) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - state.player.com.x, hold.y - state.player.com.y);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - state.player.com.x, holdAnchor.y - state.player.com.y);
 
     if (distance <= hold.rescueRadius && distance < closestDistance) {
       closestDistance = distance;
@@ -2179,6 +2192,39 @@ function canLimbReachTarget(state, limb, targetX, targetY) {
   return true;
 }
 
+function syncAttachedLimbAnchors(state, { releaseOutOfReach = false } = {}) {
+  let released = false;
+
+  state.player.limbs.forEach((limb) => {
+    if (limb.attachedHoldIndex === -1) {
+      return;
+    }
+
+    const hold = state.holds[limb.attachedHoldIndex];
+
+    if (!isHoldAvailable(hold)) {
+      releaseHoldAttachment(state, limb);
+      released = true;
+      return;
+    }
+
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+
+    if (releaseOutOfReach && !canLimbReachTarget(state, limb, holdAnchor.x, holdAnchor.y)) {
+      limb.x = holdAnchor.x;
+      limb.y = holdAnchor.y;
+      releaseHoldAttachment(state, limb);
+      released = true;
+      return;
+    }
+
+    limb.x = holdAnchor.x;
+    limb.y = holdAnchor.y;
+  });
+
+  return released;
+}
+
 function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
   let snapRadius = GAME_CONFIG.holdSnapRadius;
   let closestHoldIndex = -1;
@@ -2188,9 +2234,10 @@ function findClosestReachableHold(state, draggedLimb, targetX, targetY) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - targetX, hold.y - targetY);
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    const distance = Math.hypot(holdAnchor.x - targetX, holdAnchor.y - targetY);
 
-    if (distance < snapRadius && canLimbReachTarget(state, draggedLimb, hold.x, hold.y)) {
+    if (distance < snapRadius && canLimbReachTarget(state, draggedLimb, holdAnchor.x, holdAnchor.y)) {
       snapRadius = distance;
       closestHoldIndex = index;
     }
@@ -2208,13 +2255,15 @@ function findBestDynoAttachHold(state, limb, originX, originY, usedHoldIndices) 
       return;
     }
 
-    if (!canLimbReachTarget(state, limb, hold.x, hold.y)) {
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+
+    if (!canLimbReachTarget(state, limb, holdAnchor.x, holdAnchor.y)) {
       return;
     }
 
-    const distance = Math.hypot(hold.x - originX, hold.y - originY);
-    const upwardGain = Math.max(0, originY - hold.y);
-    const downwardPenalty = Math.max(0, hold.y - originY) * 1.1;
+    const distance = Math.hypot(holdAnchor.x - originX, holdAnchor.y - originY);
+    const upwardGain = Math.max(0, originY - holdAnchor.y);
+    const downwardPenalty = Math.max(0, holdAnchor.y - originY) * 1.1;
     const reusePenalty = usedHoldIndices.has(index) ? 500 : 0;
     const score = distance - upwardGain * 1.25 + downwardPenalty + reusePenalty;
 
@@ -2273,7 +2322,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     recoveryState: createInitialRecoveryState(),
     fallState: createInitialFallState(),
     feedbackState: createInitialFeedbackState(),
-    spatialScan: createInitialSpatialScanState(getLevelConfig(resolvedLevelId)),
+    spatialScan: createInitialSpatialScanState(getLevelConfig(resolvedLevelId), viewportWidth),
     routeState: createInitialRouteState(routeSegments),
     tutorialVisible: true,
     endMessage: null,
@@ -2370,6 +2419,7 @@ export function setSpatialScan(state, enabled, angle = state.spatialScan.angle) 
 
   state.spatialScan.enabled = Boolean(enabled);
   state.spatialScan.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
+  syncAttachedLimbAnchors(state, { releaseOutOfReach: true });
   return true;
 }
 
@@ -2537,9 +2587,10 @@ export function releaseDrag(state) {
 
   if (closestReachableHoldIndex !== -1) {
     const hold = state.holds[closestReachableHoldIndex];
+    const holdAnchor = getHoldAnchorPosition(state, hold);
     draggedLimb.attachedHoldIndex = closestReachableHoldIndex;
-    draggedLimb.x = hold.x;
-    draggedLimb.y = hold.y;
+    draggedLimb.x = holdAnchor.x;
+    draggedLimb.y = holdAnchor.y;
     pushParticles(state, draggedLimb.x, draggedLimb.y - state.cameraY, GAME_CONFIG.gripParticleCount, "#ffffff");
     clearDragRejectFeedback(state);
 
@@ -2622,8 +2673,9 @@ function attemptDynoAutoAttach(state, viewportHeight) {
     const hold = state.holds[holdIndex];
     usedHoldIndices.add(holdIndex);
     limb.attachedHoldIndex = holdIndex;
-    limb.x = hold.x;
-    limb.y = hold.y;
+    const holdAnchor = getHoldAnchorPosition(state, hold);
+    limb.x = holdAnchor.x;
+    limb.y = holdAnchor.y;
     attachedCount += 1;
     pushParticles(state, limb.x, limb.y - state.cameraY, 3, "#ffffff");
   });
@@ -2717,6 +2769,8 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     updateHeightAndCamera(state, viewportHeight);
     return;
   }
+
+  syncAttachedLimbAnchors(state);
 
   const attachedLimbs = [];
   const detachedLimbs = [];
