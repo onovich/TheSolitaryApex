@@ -2,6 +2,7 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
+import { getDefaultWindLineDebugTuning, sanitizeWindLineDebugPatch } from "../../dev/windDebugTuning.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 
 const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
@@ -160,6 +161,10 @@ function setGameOver(state, reason) {
   };
 }
 
+function isInvincibleEnabled(state) {
+  return Boolean(state.debugState?.invincible);
+}
+
 function createInitialMovementState() {
   return {
     bodyVelocity: {
@@ -254,6 +259,13 @@ function createInitialConditionState() {
         placedFrame: null,
       },
     },
+  };
+}
+
+function createInitialDebugState() {
+  return {
+    invincible: false,
+    windLine: getDefaultWindLineDebugTuning(),
   };
 }
 
@@ -657,6 +669,13 @@ function tickPursuitState(state, viewportHeight) {
   pursuitState.danger = pursuitState.gap <= pursuitConfig.dangerGap;
 
   if (pursuitState.gap <= 0) {
+    if (isInvincibleEnabled(state)) {
+      pursuitState.threatHeight = Math.max(0, getCurrentHeight(state, viewportHeight) - 0.25);
+      pursuitState.gap = 0.25;
+      pursuitState.danger = true;
+      return;
+    }
+
     setGameOver(state, "pursuit");
   }
 }
@@ -1217,6 +1236,11 @@ function updateFallState(state, viewportWidth, viewportHeight) {
     updateDetachedLimbs(state, 0.14);
 
     if (state.player.com.y - state.cameraY > viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding) {
+      if (isInvincibleEnabled(state)) {
+        stabilizeInvincibleState(state, fallState.reason, viewportHeight);
+        return false;
+      }
+
       setGameOver(state, fallState.reason);
     }
 
@@ -1646,6 +1670,24 @@ export function setWindDebugOverride(state, enabled, force = 0) {
   return true;
 }
 
+export function setWindLineDebugTuning(state, patch) {
+  if (!state.debugState) {
+    return false;
+  }
+
+  state.debugState.windLine = sanitizeWindLineDebugPatch(patch, state.debugState.windLine);
+  return true;
+}
+
+export function setInvincibleDebug(state, enabled) {
+  if (!state.debugState) {
+    return false;
+  }
+
+  state.debugState.invincible = Boolean(enabled);
+  return true;
+}
+
 function getReachableRescueTargetIndex(state) {
   let closestHoldIndex = -1;
   let closestDistance = Infinity;
@@ -1810,7 +1852,100 @@ function captureCheckpoint(state, itemDefinition) {
 }
 
 function resolveFailure(state, reason, viewportHeight) {
+  if (isInvincibleEnabled(state)) {
+    stabilizeInvincibleState(state, reason, viewportHeight);
+    return;
+  }
+
   beginFall(state, reason, viewportHeight);
+}
+
+function stabilizeInvincibleState(state, reason, viewportHeight) {
+  state.draggedLimbIndex = -1;
+  state.itemState.channel = null;
+  state.endMessage = null;
+  state.fallState = createInitialFallState();
+  state.movementState.bodyVelocity = { x: 0, y: 0 };
+  resetDynoState(state.movementState.dyno);
+  clearDragRejectFeedback(state);
+  clearDragConstraintSnapshot(state);
+  state.recoveryState.lastFailureReason = reason;
+  state.stamina = Math.max(state.stamina, Math.min(state.staminaCap * 0.22, 22));
+  state.player.com.y = Math.min(state.player.com.y, state.cameraY + viewportHeight * 0.72);
+
+  const usedHoldIndices = new Set();
+
+  syncAttachedLimbAnchors(state);
+  state.player.limbs.forEach((limb) => {
+    if (limb.attachedHoldIndex !== -1) {
+      usedHoldIndices.add(limb.attachedHoldIndex);
+    }
+  });
+
+  state.player.limbs.forEach((limb) => {
+    if (limb.attachedHoldIndex !== -1) {
+      return;
+    }
+
+    const holdIndex = findClosestLandingAttachHold(state, limb, limb.x, limb.y, usedHoldIndices);
+
+    if (holdIndex === -1) {
+      return;
+    }
+
+    usedHoldIndices.add(holdIndex);
+    limb.attachedHoldIndex = holdIndex;
+    const holdAnchor = getHoldAnchorPosition(state, state.holds[holdIndex]);
+    limb.x = holdAnchor.x;
+    limb.y = holdAnchor.y;
+  });
+
+  syncAttachedLimbAnchors(state);
+
+  if (getAttachedLimbs(state).length >= 2) {
+    return;
+  }
+
+  state.player.limbs.forEach((limb) => {
+    if (getAttachedLimbs(state).length >= 2 || limb.attachedHoldIndex !== -1) {
+      return;
+    }
+
+    let bestHoldIndex = -1;
+    let bestDistance = Infinity;
+
+    state.holds.forEach((hold, holdIndex) => {
+      if (!isHoldAvailable(hold) || usedHoldIndices.has(holdIndex)) {
+        return;
+      }
+
+      const holdAnchor = getHoldAnchorPosition(state, hold);
+      const distance = Math.hypot(holdAnchor.x - limb.x, holdAnchor.y - limb.y);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestHoldIndex = holdIndex;
+      }
+    });
+
+    if (bestHoldIndex === -1) {
+      return;
+    }
+
+    usedHoldIndices.add(bestHoldIndex);
+    limb.attachedHoldIndex = bestHoldIndex;
+    const holdAnchor = getHoldAnchorPosition(state, state.holds[bestHoldIndex]);
+    limb.x = holdAnchor.x;
+    limb.y = holdAnchor.y;
+  });
+
+  syncAttachedLimbAnchors(state);
+
+  if (getAttachedLimbs(state).length >= 2) {
+    return;
+  }
+
+  restoreCheckpointPose(state);
 }
 
 function tickChannelItem(state) {
@@ -2360,6 +2495,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     itemState: createInitialItemState(),
     movementState: createInitialMovementState(),
     conditionState: createInitialConditionState(),
+    debugState: createInitialDebugState(),
     recoveryState: createInitialRecoveryState(),
     fallState: createInitialFallState(),
     feedbackState: createInitialFeedbackState(),
@@ -2440,6 +2576,10 @@ export function getUiSnapshot(state, frame) {
         laneBlocker: { ...state.conditionState.encounter.laneBlocker },
         ropeThreat: { ...state.conditionState.encounter.ropeThreat },
       },
+    },
+    debug: {
+      invincible: state.debugState.invincible,
+      windLine: { ...state.debugState.windLine },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,

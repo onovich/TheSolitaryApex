@@ -39,6 +39,8 @@ export function GameScreen() {
     selectLoadout,
     updateSpatialScan,
     updateWindDebug,
+    updateWindLineDebug,
+    updateInvincibleDebug,
     useInventoryItem,
   } = useSolitaryApexGame();
   const text = getTextBundle(language);
@@ -100,7 +102,10 @@ export function GameScreen() {
       <DeveloperPanel
         activeLevelId={uiState.levelId}
         weatherState={uiState.conditions?.weather}
+        debugState={uiState.debug}
         onUpdateWindDebug={updateWindDebug}
+        onUpdateWindLineDebug={updateWindLineDebug}
+        onUpdateInvincibleDebug={updateInvincibleDebug}
         devText={devText}
       />
     </main>

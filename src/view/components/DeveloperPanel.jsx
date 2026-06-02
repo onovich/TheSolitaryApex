@@ -8,6 +8,7 @@ import {
   resetDynoTuning,
   saveDynoTuning,
 } from "../../dev/dynoTuning";
+import { getDefaultWindLineDebugTuning, WIND_LINE_DEBUG_FIELDS } from "../../dev/windDebugTuning";
 
 function copyToClipboard(value) {
   if (!navigator.clipboard) {
@@ -49,11 +50,21 @@ function getWindDirectionKey(force) {
   return force > 0 ? "right" : "left";
 }
 
-export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug, devText }) {
+export function DeveloperPanel({
+  activeLevelId,
+  weatherState,
+  debugState,
+  onUpdateWindDebug,
+  onUpdateWindLineDebug,
+  onUpdateInvincibleDebug,
+  devText,
+}) {
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(getDynoTuningSnapshot);
   const [windDebugEnabled, setWindDebugEnabled] = useState(Boolean(weatherState?.debugOverrideActive));
   const [windDebugForce, setWindDebugForce] = useState(weatherState?.debugOverrideForce ?? 0);
+  const [windLineValues, setWindLineValues] = useState(debugState?.windLine ?? getDefaultWindLineDebugTuning());
+  const [invincibleEnabled, setInvincibleEnabled] = useState(Boolean(debugState?.invincible));
   const [message, setMessage] = useState("");
   const levelConfig = getLevelConfig(activeLevelId);
   const authoring = levelConfig.authoring;
@@ -61,6 +72,17 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug,
     setWindDebugEnabled(Boolean(weatherState?.debugOverrideActive));
     setWindDebugForce(weatherState?.debugOverrideForce ?? 0);
   }, [weatherState?.debugOverrideActive, weatherState?.debugOverrideForce]);
+  useEffect(() => {
+    setWindLineValues(debugState?.windLine ?? getDefaultWindLineDebugTuning());
+    setInvincibleEnabled(Boolean(debugState?.invincible));
+  }, [
+    debugState?.invincible,
+    debugState?.windLine?.curvature,
+    debugState?.windLine?.gradientCurve,
+    debugState?.windLine?.length,
+    debugState?.windLine?.sparsity,
+    debugState?.windLine?.speedMultiplier,
+  ]);
 
   const commitValues = (nextValues) => {
     setValues(nextValues);
@@ -103,6 +125,24 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug,
     setWindDebugEnabled(enabled);
     setWindDebugForce(normalizedForce);
     onUpdateWindDebug?.(enabled, normalizedForce);
+  };
+
+  const commitWindLineValue = (key, value) => {
+    const numericValue = Number(value);
+    const nextValues = {
+      ...windLineValues,
+      [key]: numericValue,
+    };
+    setWindLineValues(nextValues);
+    onUpdateWindLineDebug?.({
+      [key]: numericValue,
+    });
+  };
+
+  const commitInvincible = (enabled) => {
+    const nextEnabled = Boolean(enabled);
+    setInvincibleEnabled(nextEnabled);
+    onUpdateInvincibleDebug?.(nextEnabled);
   };
 
   return (
@@ -263,6 +303,37 @@ export function DeveloperPanel({ activeLevelId, weatherState, onUpdateWindDebug,
                   )}%`
                 : devText.routeDrivenWindActiveLabel}
             </p>
+            <div className="dev-panel-header">
+              <span>{devText.windLineTuningTitle}</span>
+            </div>
+            <div className="dev-panel-controls">
+              {WIND_LINE_DEBUG_FIELDS.map((field) => (
+                <label className="dev-panel-control" key={field.key}>
+                  <span>{devText.windLineFieldLabels[field.key] ?? field.label}</span>
+                  <input
+                    type="range"
+                    min={field.min}
+                    max={field.max}
+                    step={field.step}
+                    value={windLineValues[field.key]}
+                    onChange={(event) => commitWindLineValue(field.key, event.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min={field.min}
+                    max={field.max}
+                    step={field.step}
+                    value={windLineValues[field.key]}
+                    onChange={(event) => commitWindLineValue(field.key, event.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+            <label className="dev-panel-toggle-row">
+              <span>{devText.invincibleLabel}</span>
+              <input type="checkbox" checked={invincibleEnabled} onChange={(event) => commitInvincible(event.target.checked)} />
+            </label>
+            <p className="dev-panel-note">{invincibleEnabled ? devText.invincibleActiveLabel : devText.invincibleInactiveLabel}</p>
           </div>
           <div className="dev-panel-section">
             <div className="dev-panel-header">

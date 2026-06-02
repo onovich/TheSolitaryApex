@@ -7,12 +7,15 @@ import {
   endBodyAction,
   getUiSnapshot,
   releaseDrag,
+  setInvincibleDebug,
   setSpatialScan,
+  setWindLineDebugTuning,
   setWindDebugOverride,
   useItem,
   updateFrame,
   updatePointer,
 } from "../engine/gameEngine.js";
+import { getDefaultWindLineDebugTuning } from "../../dev/windDebugTuning";
 import { DEFAULT_LOADOUT_ID, LOADOUT_CONFIGS } from "../../data/loadoutConfig.js";
 import { DEFAULT_LEVEL_ID, LEVEL_CONFIGS } from "../../data/levelConfig.js";
 
@@ -133,6 +136,10 @@ export function useSolitaryApexGame() {
           placedFrame: null,
         },
       },
+    },
+    debug: {
+      invincible: false,
+      windLine: getDefaultWindLineDebugTuning(),
     },
     tutorialVisible: true,
     endMessage: null,
@@ -364,6 +371,24 @@ export function useSolitaryApexGame() {
     commitUiState();
   };
 
+  const updateWindLineDebug = (patch) => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    setWindLineDebugTuning(gameStateRef.current, patch);
+    commitUiState();
+  };
+
+  const updateInvincibleDebug = (enabled) => {
+    if (!gameStateRef.current) {
+      return;
+    }
+
+    setInvincibleDebug(gameStateRef.current, enabled);
+    commitUiState();
+  };
+
   return {
     canvasRef,
     gameStateRef,
@@ -381,6 +406,8 @@ export function useSolitaryApexGame() {
     selectLoadout,
     updateSpatialScan,
     updateWindDebug,
+    updateWindLineDebug,
+    updateInvincibleDebug,
     useInventoryItem,
   };
 }
