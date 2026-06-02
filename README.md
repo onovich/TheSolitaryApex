@@ -95,4 +95,6 @@ Route and level pacing live in `src/data/levelConfig.js`. Each level has authori
 
 For a readable tuning handoff, `npm run report:levels` prints a Markdown report with each level's route shape, encounters, generated content counts, Golden Path safety, pressure summary, resource-pressure summary, event-density summary, and configured pressure targets.
 
+For the field-by-field level tuning workflow, see `docs/level-config-maintenance.md`.
+
 Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.

@@ -34,6 +34,8 @@ npm run report:levels
   - Low-level movement, stamina, weather, injury, recovery, survival, and visual constants.
 - `src/dev/dynoTuning.js`
   - Runtime dyno tuning fields and browser-local persistence for feel iteration.
+- `docs/level-config-maintenance.md`
+  - Field-by-field maintenance guide for tuning official level templates, reading reports, and validating before commits.
 
 ## Implemented Gameplay Prototypes
 
