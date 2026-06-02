@@ -13,6 +13,7 @@ npm run validate
 Focused checks:
 
 ```bash
+npm run validate:i18n
 npm run validate:levels
 npm run validate:gameplay
 npm run build
@@ -32,8 +33,14 @@ npm run report:levels
   - Pre-run loadouts, starting item counts, and small multipliers for dyno, poor-hold pressure, and thirst pressure.
 - `src/data/gameConfig.js`
   - Low-level movement, stamina, weather, injury, recovery, survival, and visual constants.
+- `src/data/uiText.js`
+  - Five-language UI text bundles, language options, and render-time helpers for items, levels, loadouts, and game-over text.
 - `src/dev/dynoTuning.js`
   - Runtime dyno tuning fields and browser-local persistence for feel iteration.
+- `scripts/validate-i18n.mjs`
+  - Verifies that all configured language bundles have the same text-key surface.
+- `StartLocalTest.cmd` and `OpenOnlineTest.cmd`
+  - Manual Windows test launchers for local fallback-port testing and online demo access.
 - `docs/level-config-maintenance.md`
   - Field-by-field maintenance guide for tuning official level templates, reading reports, and validating before commits.
 
@@ -57,6 +64,8 @@ npm run report:levels
 - Rope threat: converts placed protection into a time-limited risk if left unattended.
 - Spatial scan experiment: visual-only pseudo-3D projection for route-reading evaluation.
 - Rescue targets: use protection placements as a collaboration tool with temporary burden pressure and without NPC AI.
+- Five-language UI switching: Simplified Chinese, English, Japanese, Spanish, and Brazilian Portuguese, with dictionary-key validation.
+- Manual test launchers: double-click local dev testing with fallback ports and direct online demo opening.
 
 ## Current Design Boundaries
 
@@ -64,15 +73,22 @@ npm run report:levels
 - Spatial scan is visual-only. It must not change attachment, collision, stamina, or failure rules until a separate experiment proves that rotation improves route reading.
 - Pursuit remains a pressure line, not a full enemy AI, until the readable route vocabulary is stronger.
 - Loadouts stay intentionally small. They should create a run identity without turning the game into an equipment menu.
+- Localization is UI-only. Gameplay state should keep stable IDs and translate at render time.
+- Manual test commands should stay project-root launchers, while reusable patterns live in global skills.
 
 ## Overall R&D Todo
 
 The current direction is to keep shipping small, validated mechanics while improving the config and tuning workflow enough that future level edits stay safe.
 
-### P0 - Keep The Prototype Editable
+### P0 - Keep The Prototype Editable And Testable
 
 These tasks are the top priority because every new mechanic increases route-config complexity.
 
+- Developer workflow:
+  - Current status: root launchers can start local manual testing with fallback ports and open the online demo.
+  - Current status: reusable global skills now exist for web test launchers and 2/3/5-language web i18n.
+  - Next step: add a tiny documented smoke checklist for manual local and online testing after a push.
+  - Next step: consider adding a Pages deployment/status note after push so the user knows when the online build is likely refreshed.
 - Developer tuning panel:
   - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, `Copy config`, and `Copy level config`.
   - Next step: show actual generated analysis values next to target ranges, especially content counts, Golden Path safety, pressure, resource pressure, and event density.
@@ -83,6 +99,12 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Next step: keep adding validators whenever a new route-affecting mechanic is added.
   - Next step: make report output easier to scan when balancing one level at a time.
   - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
+- Localization support:
+  - Current status: HUD, route/loadout/item labels, tutorial text, and game-over overlay render from five language bundles.
+  - Current status: `validate:i18n` checks dictionary-key parity across `zh-CN`, `en`, `ja`, `es`, and `pt-BR`.
+  - Next step: move any remaining player-visible strings out of config defaults if they begin appearing in UI.
+  - Next step: add a lightweight browser smoke once Playwright or another browser runner is available in the environment.
+  - Boundary: do not translate engine state by mutating IDs or gameplay config.
 - Loadout config support:
   - Current status: loadouts are selectable and schema-validated.
   - Next step: add report/validation output that summarizes each loadout's starting items and key pressure multipliers.
@@ -96,17 +118,15 @@ These tasks are the top priority because every new mechanic increases route-conf
 
 These are good near-term implementation candidates because they extend existing systems without changing the four-limb control rhythm.
 
-- Resource routing:
-  - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
-  - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
-  - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
-- Bloodied holds:
-  - Current status: hand strain can mark poor holds as bloodied, regripping them adds stamina pressure, and chalk mitigates but does not erase the penalty.
-  - Next step: only extend if route design needs richer injury tactics, such as bandage items, sharp-hold clusters, or level-specific hand-risk pacing.
 - Rescue routes:
   - Current status: rescue targets use protection placements, trigger temporary burden pressure, and have a rescue-support loadout.
   - Next step: validate whether rescue-support can handle configured rescue-route goals without trivializing general routes.
   - Next step: tune rescue burden duration and stamina pressure against resource availability.
+  - Recommended next small implementation: add a focused rescue-route/loadout validation summary.
+- Resource routing:
+  - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
+  - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
+  - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
@@ -115,6 +135,9 @@ These are good near-term implementation candidates because they extend existing 
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
   - Next step: balance how often they appear together in the same local window.
   - Boundary: any Golden Path hazard variant needs a specific solvability validator first.
+- Bloodied holds:
+  - Current status: hand strain can mark poor holds as bloodied, regripping them adds stamina pressure, and chalk mitigates but does not erase the penalty.
+  - Next step: only extend if route design needs richer injury tactics, such as bandage items, sharp-hold clusters, or level-specific hand-risk pacing.
 
 ### P2 - Design Discussion Before Implementation
 
@@ -125,6 +148,10 @@ These ideas are attractive, but they can reshape the pacing or player mental mod
   - Current coverage: safe rack, bold dyno, technical poor-hold efficiency, and rescue support.
   - Discussion target: decide whether pre-run strategy should be "choose a route plan" or "assemble a kit".
   - Recommendation: route-plan loadouts are safer than a broad equipment system at this stage.
+- Official level configuration:
+  - Discussion target: decide how many official route personalities are needed for the next playtest.
+  - Suggested frame: each route should teach one pressure idea, reuse the same validator suite, and avoid bespoke one-off mechanics.
+  - Boundary: random generation can vary local holds and hazards, but route identity, event timing, rescue/blocker placement, and target ranges should stay authored.
 - Climbing shoes:
   - Current judgment: low urgency while holds are broad abstract categories.
   - Revisit when foot-specific mechanics exist, such as smears, edges, friction surfaces, wet/icy holds, or dynamic footholds.
