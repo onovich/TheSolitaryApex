@@ -23,7 +23,7 @@ The Solitary Apex is built around a simple but brutal loop: read the wall, move 
 - Limb-specific reach constraints with asymmetric hand and foot movement envelopes
 - Stamina pressure that turns small mistakes into fatal ones
 - A small survival rack: chalk, protection placements, and single-hand energy gel channels
-- Three pre-run loadouts that trade safety, dyno power, and poor-hold efficiency
+- Four pre-run loadouts that trade safety, dyno power, poor-hold efficiency, and rescue support
 - Charge-and-release dyno window for committing to longer moves
 - Rest pose detection for wide foot locks and hands-off recovery windows
 - Wind pressure and hand injury systems that steadily destabilize bad decisions
@@ -87,7 +87,7 @@ npm run build
 
 The current repository contains the playable web prototype of The Solitary Apex.
 
-The current web build now includes guaranteed-solvable route generation, four selectable official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, bloodied regrip holds, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, three selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, lane blocker encounter markers, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets with temporary burden pressure.
+The current web build now includes guaranteed-solvable route generation, four selectable official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, bloodied regrip holds, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, four selectable loadouts, first earthquake and avalanche event prototypes, a pursuit pressure prototype, lane blocker encounter markers, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets with temporary burden pressure.
 
 For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
 
@@ -97,4 +97,4 @@ For a readable tuning handoff, `npm run report:levels` prints a Markdown report 
 
 For the field-by-field level tuning workflow, see `docs/level-config-maintenance.md`.
 
-Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, and thirst pressure.
+Pre-run loadouts live in `src/data/loadoutConfig.js`. They intentionally stay small: each loadout changes starting item counts and a few multipliers for dyno cost, dyno power, poor-hold penalty, thirst pressure, and rescue support.

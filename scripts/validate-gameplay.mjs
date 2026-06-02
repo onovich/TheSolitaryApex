@@ -269,12 +269,15 @@ function validateLoadouts() {
   const steadyState = createStableState({ loadoutId: "steadyRack" });
   const boldState = createStableState({ loadoutId: "boldDyno" });
   const technicalState = createStableState({ loadoutId: "technicalShoes" });
+  const rescueSupportState = createStableState({ loadoutId: "rescueSupport" });
   const steadyItems = getUiSnapshot(steadyState, 0).items;
   const boldItems = getUiSnapshot(boldState, 0).items;
   const technicalItems = getUiSnapshot(technicalState, 0).items;
+  const rescueSupportItems = getUiSnapshot(rescueSupportState, 0).items;
   const getCount = (items, itemId) => items.find((item) => item.id === itemId)?.count ?? -1;
   const steadyDynoCost = getUiSnapshot(steadyState, 0).movement.dyno.staminaCost;
   const boldDynoCost = getUiSnapshot(boldState, 0).movement.dyno.staminaCost;
+  const rescueSupportDynoCost = getUiSnapshot(rescueSupportState, 0).movement.dyno.staminaCost;
 
   if (getCount(steadyItems, "protectionCam") !== 3 || getCount(steadyItems, "chalk") !== 4) {
     throw new Error("Steady loadout should start with extra protection and chalk");
@@ -288,9 +291,14 @@ function validateLoadouts() {
     throw new Error("Technical loadout should trade away the starting energy gel");
   }
 
+  if (getCount(rescueSupportItems, "protectionCam") !== 4 || rescueSupportDynoCost <= steadyDynoCost) {
+    throw new Error("Rescue support loadout should trade heavier dyno movement for extra protection");
+  }
+
   return {
     steadyDynoCost,
     boldDynoCost,
+    rescueSupportDynoCost,
     technicalGel: getCount(technicalItems, "energyGel"),
   };
 }
@@ -872,6 +880,7 @@ console.log(
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,
+    `rescueDynoCost=${loadoutResult.rescueSupportDynoCost.toFixed(2)}`,
     `levels=${levelTemplateResult.levelCount}`,
     `pursuitCruxSegments=${levelTemplateResult.pursuitCruxSegments}`,
     `rescueTargets=${levelTemplateResult.rescueTargets}`,

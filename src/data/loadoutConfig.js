@@ -52,6 +52,23 @@ export const LOADOUT_CONFIGS = [
       thirstGainMultiplier: 1.12,
     },
   },
+  {
+    id: "rescueSupport",
+    label: "救援",
+    description: "More protection for rescue routes, with heavier dyno movement.",
+    itemCounts: {
+      chalk: 3,
+      protectionCam: 4,
+      energyGel: 1,
+    },
+    modifiers: {
+      dynoCostMultiplier: 1.12,
+      dynoLaunchMultiplier: 0.94,
+      dynoReachMultiplier: 0.96,
+      holdPenaltyMultiplier: 1.02,
+      thirstGainMultiplier: 0.98,
+    },
+  },
 ];
 
 export function getLoadoutConfig(loadoutId = DEFAULT_LOADOUT_ID) {
@@ -100,4 +117,3 @@ export function validateLoadoutConfigs(itemIds) {
 
   return errors;
 }
-

@@ -43,7 +43,7 @@ npm run report:levels
 - Selectable official level templates: prototype mixed ascent, resource reading, pursuit crux, and rescue encounter.
 - Route zones: recovery, reading, exposure, crux.
 - Runtime Dyno tuning panel.
-- Selectable loadouts: steady, bold dyno, technical.
+- Selectable loadouts: steady, bold dyno, technical, rescue support.
 - Bloodied regrip holds: hand strain can contaminate poorer holds, and regripping them adds stamina pressure.
 - Fragile holds: collapse after departure.
 - Timed soft holds: collapse while loaded.
@@ -114,7 +114,8 @@ These are valuable, but they can easily distort the core rhythm if implemented t
   - If tested, make shoes part of small loadout choices, not a separate equipment RPG.
 - Pre-run strategy:
   - Keep the current loadout model as the baseline.
-  - Future choices should be few, readable, and tied to route plans: safe rack, dyno route, technical poor-hold route, rescue support.
+  - Current loadouts cover safe rack, dyno route, technical poor-hold route, and rescue support.
+  - Future choices should stay few, readable, and tied to route plans.
 
 ### P3 - Later Packaging And Larger Scope
 
