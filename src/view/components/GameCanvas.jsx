@@ -206,39 +206,51 @@ function drawWindFlow(ctx, state, viewport) {
   const direction = windForce >= 0 ? 1 : -1;
   const strength = Math.min(1, Math.abs(windForce) / 0.18);
   const time = Date.now() / 1000;
-  const lineCount = 9;
+  const lineCount = 26;
+  const laneHeight = viewport.height / lineCount;
 
   ctx.save();
-  ctx.lineWidth = 1 + strength * 1.3;
-  ctx.strokeStyle = `rgba(156, 196, 218, ${0.12 + strength * 0.32})`;
+  ctx.globalCompositeOperation = "screen";
 
   for (let index = 0; index < lineCount; index += 1) {
-    const y = ((index + 0.5) / lineCount) * viewport.height;
-    const phase = (time * (70 + strength * 90) + index * 73) % (viewport.width + 220);
-    const startX = direction > 0 ? phase - 180 : viewport.width - phase + 180;
-    const wave = Math.sin(time * 1.8 + index * 0.7) * 16 * strength;
+    const depth = (index % 5) / 4;
+    const speed = 16 + strength * 70 + depth * 24;
+    const cycleWidth = viewport.width + 360;
+    const phase = (time * speed + index * 137) % cycleWidth;
+    const baseX = direction > 0 ? phase - 220 : viewport.width - phase + 220;
+    const baseY = (index + 0.35) * laneHeight + Math.sin(time * 0.65 + index * 1.9) * laneHeight * 0.38;
+    const strandLength = 86 + depth * 54 + strength * 34;
+    const driftY = Math.sin(time * 1.15 + index * 0.73) * (8 + strength * 10);
+    const alpha = (0.018 + strength * 0.06) * (0.55 + depth * 0.45);
+
+    ctx.lineWidth = 0.65 + depth * 0.75 + strength * 0.25;
+    ctx.strokeStyle = `rgba(165, 199, 210, ${alpha})`;
 
     ctx.beginPath();
-    ctx.moveTo(startX, y + wave);
+    ctx.moveTo(baseX, baseY + driftY);
     ctx.bezierCurveTo(
-      startX + direction * 60,
-      y - 12 * strength - wave * 0.2,
-      startX + direction * 120,
-      y + 12 * strength + wave * 0.2,
-      startX + direction * 190,
-      y + wave,
+      baseX + direction * strandLength * 0.35,
+      baseY - 10 * strength + driftY * 0.35,
+      baseX + direction * strandLength * 0.7,
+      baseY + 12 * strength - driftY * 0.25,
+      baseX + direction * strandLength,
+      baseY + driftY * 0.15,
     );
     ctx.stroke();
 
-    const arrowX = startX + direction * 190;
-    const arrowY = y + wave;
-
-    ctx.beginPath();
-    ctx.moveTo(arrowX, arrowY);
-    ctx.lineTo(arrowX - direction * 10, arrowY - 5);
-    ctx.moveTo(arrowX, arrowY);
-    ctx.lineTo(arrowX - direction * 10, arrowY + 5);
-    ctx.stroke();
+    if (index % 3 === 0) {
+      ctx.strokeStyle = `rgba(214, 228, 232, ${alpha * 0.45})`;
+      ctx.lineWidth *= 0.55;
+      ctx.beginPath();
+      ctx.moveTo(baseX - direction * 18, baseY + driftY + 9);
+      ctx.quadraticCurveTo(
+        baseX + direction * strandLength * 0.38,
+        baseY + driftY + 18 * Math.sin(index),
+        baseX + direction * strandLength * 0.72,
+        baseY + driftY + 7,
+      );
+      ctx.stroke();
+    }
   }
 
   ctx.restore();
