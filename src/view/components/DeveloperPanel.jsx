@@ -50,6 +50,14 @@ function formatRange(range) {
   return `${range.min} - ${range.max}`;
 }
 
+function formatActualAgainstRange(value, range, digits = 1) {
+  return `${Number(value).toFixed(digits)} / ${range.min.toFixed(digits)} - ${range.max.toFixed(digits)}`;
+}
+
+function formatActualAgainstLimit(value, max) {
+  return `${value} / <=${max}`;
+}
+
 function normalizeAngle(angle) {
   const normalized = Number(angle) % 360;
 
@@ -66,6 +74,7 @@ export function DeveloperPanel({
   runDebugConfig,
   weatherState,
   debugState,
+  levelAnalysis,
   onApplyRunDebugConfig,
   onUpdateWindDebug,
   onUpdateWindLineDebug,
@@ -98,6 +107,16 @@ export function DeveloperPanel({
     protectionCam: text.protectionCamLabel,
     energyGel: text.energyGelLabel,
   };
+  const contentSummary = levelAnalysis
+    ? [
+        `fragile:${levelAnalysis.contentCounts.fragile}`,
+        `timedSoft:${levelAnalysis.contentCounts.timedSoft}`,
+        `obstacle:${levelAnalysis.contentCounts.obstacle}`,
+        `fruit:${levelAnalysis.contentCounts.resourceFruit}`,
+        `rescue:${levelAnalysis.contentCounts.rescueTarget}`,
+      ].join(" / ")
+    : null;
+  const timelineSummary = levelAnalysis?.majorEncounters?.map((encounter) => `${encounter.type}@${encounter.frame}`).join(" / ") || "none";
 
   useEffect(() => {
     setDraftRunConfig(runDebugConfig ?? getDefaultRunDebugConfig());
@@ -376,75 +395,137 @@ export function DeveloperPanel({
               </div>
               <div>
                 <span>{devText.rescuesLabel}</span>
-                <strong>{levelConfig.rescueTargets.length}</strong>
+                <strong>{levelAnalysis?.rescueTargetCount ?? levelConfig.rescueTargets.length}</strong>
               </div>
               <div>
                 <span>{devText.blockersLabel}</span>
-                <strong>{levelConfig.laneBlockers?.length ?? 0}</strong>
+                <strong>{levelAnalysis?.laneBlockerCount ?? levelConfig.laneBlockers?.length ?? 0}</strong>
               </div>
               <div>
                 <span>{devText.pursuitLabel}</span>
-                <strong>{levelConfig.pursuit ? devText.onLabel : devText.offLabel}</strong>
+                <strong>{(levelAnalysis?.pursuitEnabled ?? levelConfig.pursuit) ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div>
                 <span>{devText.ropeThreatLabel}</span>
-                <strong>{levelConfig.ropeThreat ? devText.onLabel : devText.offLabel}</strong>
+                <strong>{(levelAnalysis?.ropeThreatEnabled ?? levelConfig.ropeThreat) ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div>
                 <span>{devText.windTargetLabel}</span>
-                <strong>{formatRange(authoring.pressureTargets.averageWindMultiplier)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier, 2)
+                    : formatRange(authoring.pressureTargets.averageWindMultiplier)}
+                </strong>
               </div>
               <div>
                 <span>{devText.hazardDensityLabel}</span>
-                <strong>{formatRange(authoring.pressureTargets.hazardPer100Stances)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances, 1)
+                    : formatRange(authoring.pressureTargets.hazardPer100Stances)}
+                </strong>
               </div>
               <div>
                 <span>{devText.resourceDensityLabel}</span>
-                <strong>{formatRange(authoring.pressureTargets.resourcePer100Stances)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances, 1)
+                    : formatRange(authoring.pressureTargets.resourcePer100Stances)}
+                </strong>
               </div>
               <div>
                 <span>{devText.fruitStaminaLabel}</span>
-                <strong>{formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(
+                        levelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
+                        authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
+                        1,
+                      )
+                    : formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances)}
+                </strong>
               </div>
               <div>
                 <span>{devText.thirstReliefLabel}</span>
-                <strong>{formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(
+                        levelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
+                        authoring.resourcePressureTargets.thirstReliefPer100Stances,
+                        1,
+                      )
+                    : formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances)}
+                </strong>
               </div>
               <div>
                 <span>{devText.worstThirstLabel}</span>
-                <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(
+                        levelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
+                        authoring.resourcePressureTargets.worstLoadoutThirstGain,
+                        1,
+                      )
+                    : formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain)}
+                </strong>
               </div>
               <div>
                 <span>{devText.netReliefLabel}</span>
-                <strong>{formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? formatActualAgainstRange(
+                        levelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
+                        authoring.resourcePressureTargets.worstLoadoutNetThirstRelief,
+                        1,
+                      )
+                    : formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}
+                </strong>
               </div>
               <div>
                 <span>{devText.pressureWindowLabel}</span>
                 <strong>
-                  {authoring.pressureRules.maxPressureEventsPerWindow}/{authoring.pressureRules.pressureEventWindowFrames}
-                  {devText.framesSuffix}
+                  {levelAnalysis
+                    ? `${formatActualAgainstLimit(
+                        levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
+                        authoring.pressureRules.maxPressureEventsPerWindow,
+                      )} @ ${levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`
+                    : `${authoring.pressureRules.maxPressureEventsPerWindow}/${authoring.pressureRules.pressureEventWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
               <div>
                 <span>{devText.fruitWindowLabel}</span>
                 <strong>
-                  {authoring.pressureRules.maxResourceFruitsPerWindow}/{authoring.pressureRules.resourceWindowFrames}
-                  {devText.framesSuffix}
+                  {levelAnalysis
+                    ? `${formatActualAgainstLimit(
+                        levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
+                        authoring.pressureRules.maxResourceFruitsPerWindow,
+                      )} @ ${levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`
+                    : `${authoring.pressureRules.maxResourceFruitsPerWindow}/${authoring.pressureRules.resourceWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
               <div>
                 <span>{devText.fruitGapLabel}</span>
                 <strong>
-                  &lt;={authoring.pressureRules.maxResourceGapFrames}
-                  {devText.framesSuffix}
+                  {levelAnalysis
+                    ? formatActualAgainstLimit(
+                        levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames,
+                        authoring.pressureRules.maxResourceGapFrames,
+                      )
+                    : `<=${authoring.pressureRules.maxResourceGapFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
               <div>
                 <span>{devText.goldenBansLabel}</span>
-                <strong>{authoring.goldenPathRules.forbidHazards.length}</strong>
+                <strong>
+                  {levelAnalysis
+                    ? `${levelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount} / ${authoring.goldenPathRules.forbidHazards.length}`
+                    : authoring.goldenPathRules.forbidHazards.length}
+                </strong>
               </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
+            {contentSummary ? <p className="dev-panel-note">content: {contentSummary}</p> : null}
+            {levelAnalysis ? <p className="dev-panel-note">timeline: {timelineSummary}</p> : null}
             <div className="dev-panel-actions">
               <button type="button" onClick={copyLevelConfig}>
                 {devText.copyLevelConfigLabel}

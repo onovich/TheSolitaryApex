@@ -98,6 +98,7 @@ export function GameScreen() {
         runDebugConfig={runDebugConfig}
         weatherState={uiState.conditions?.weather}
         debugState={uiState.debug}
+        levelAnalysis={uiState.levelAnalysis}
         onApplyRunDebugConfig={applyRunDebugConfig}
         onUpdateWindDebug={updateWindDebug}
         onUpdateWindLineDebug={updateWindLineDebug}

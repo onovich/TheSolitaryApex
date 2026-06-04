@@ -2,6 +2,7 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
+import { createLevelAnalysisSnapshot } from "../../dev/levelAnalysis.js";
 import { getDefaultWindLineDebugTuning, sanitizeWindLineDebugPatch } from "../../dev/windDebugTuning.js";
 import { getDefaultRunDebugConfig } from "../../dev/runDebugConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
@@ -2610,6 +2611,16 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
   );
   const filteredPursuit = runDebugConfig?.enabledEvents.pursuit === false ? null : pursuit;
   const filteredRopeThreat = runDebugConfig?.enabledEvents.ropeThreat === false ? null : ropeThreat;
+  const levelConfig = getLevelConfig(resolvedLevelId);
+  const levelAnalysis = createLevelAnalysisSnapshot({
+    levelConfig,
+    holds: filteredHolds,
+    goldenPath,
+    routeSegments,
+    environmentEvents: filteredEnvironmentEvents,
+    pursuit: filteredPursuit,
+    ropeThreat: filteredRopeThreat,
+  });
 
   return {
     isPlaying: true,
@@ -2645,6 +2656,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     feedbackState: createInitialFeedbackState(),
     spatialScan: createInitialSpatialScanState(getLevelConfig(resolvedLevelId), viewportWidth),
     routeState: createInitialRouteState(routeSegments),
+    levelAnalysis,
     tutorialVisible: true,
     endMessage: null,
   };
@@ -2728,6 +2740,22 @@ export function getUiSnapshot(state, frame) {
     debug: {
       invincible: state.debugState.invincible,
       windLine: { ...state.debugState.windLine },
+    },
+    levelAnalysis: {
+      ...state.levelAnalysis,
+      contentCounts: { ...state.levelAnalysis.contentCounts },
+      zoneKeys: [...state.levelAnalysis.zoneKeys],
+      eventTypes: [...state.levelAnalysis.eventTypes],
+      majorEncounters: state.levelAnalysis.majorEncounters.map((encounter) => ({ ...encounter })),
+      goldenPathSafetySummary: { ...state.levelAnalysis.goldenPathSafetySummary },
+      pressureSummary: { ...state.levelAnalysis.pressureSummary },
+      resourcePressureSummary: { ...state.levelAnalysis.resourcePressureSummary },
+      eventDensitySummary: {
+        ...state.levelAnalysis.eventDensitySummary,
+        maxPressureEventsInWindow: { ...state.levelAnalysis.eventDensitySummary.maxPressureEventsInWindow },
+        maxResourceFruitsInWindow: { ...state.levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow },
+        resourceGapSummary: { ...state.levelAnalysis.eventDensitySummary.resourceGapSummary },
+      },
     },
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
