@@ -127,7 +127,9 @@ Current implementation status:
 - Done: run-config JSON import/export.
 - Done: read-only validation summary in the `DEV` panel.
 - Done: first-pass separate level-config screen with `Start / Route / Events / Validation`.
-- Not done yet: persistent file editing, visual timeline tools, node placement tools, and editor-side save flow.
+- Done: partial direct field editing for safe high-value fields such as wall height, seed, zone sequence, zone budgets, event timings, pursuit timing, rope-threat timing, and rescue/blocker stance indices.
+- Done: config-fragment export for draft handoff.
+- Not done yet: persistent file editing, full field coverage, visual timeline tools, node placement tools, and editor-side save flow.
 
 ## Practical Recommendation
 

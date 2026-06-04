@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ITEM_ORDER } from "../../data/itemCatalog";
-import { getLevelConfig } from "../../data/levelConfig";
+import { getLevelConfig, validateLevelConfig } from "../../data/levelConfig";
 import { createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
 import { DEBUG_EVENT_FIELDS, formatRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
 import { generateWall } from "../../logic/engine/gameEngine";
@@ -333,6 +333,32 @@ function renderStatusLabel(editorText, status) {
   return editorText.ok;
 }
 
+function cloneConfig(config) {
+  return JSON.parse(JSON.stringify(config));
+}
+
+function formatConfigFragment(levelConfig) {
+  return JSON.stringify(
+    {
+      id: levelConfig.id,
+      label: levelConfig.label,
+      seed: levelConfig.seed,
+      wallHeight: levelConfig.wallHeight,
+      environmentEvents: levelConfig.environmentEvents,
+      pursuit: levelConfig.pursuit,
+      ropeThreat: levelConfig.ropeThreat,
+      rescueTargets: levelConfig.rescueTargets,
+      laneBlockers: levelConfig.laneBlockers,
+      routeGeneration: {
+        zoneSequence: levelConfig.routeGeneration.zoneSequence,
+        zones: levelConfig.routeGeneration.zones,
+      },
+    },
+    null,
+    2,
+  );
+}
+
 export function LevelEditorOverlay({
   open,
   onClose,
@@ -349,6 +375,12 @@ export function LevelEditorOverlay({
   const [draftJson, setDraftJson] = useState(() => formatJson(getLevelConfig(runDebugConfig.levelId)));
   const [draftLevelConfig, setDraftLevelConfig] = useState(() => getLevelConfig(runDebugConfig.levelId));
   const [message, setMessage] = useState("");
+  const routeSettingsTitle = editorText.routeSettingsTitle ?? "Route settings";
+  const eventSettingsTitle = editorText.eventSettingsTitle ?? "Event settings";
+  const copyFragmentLabel = editorText.copyFragmentLabel ?? "Copy config fragment";
+  const fragmentCopiedMessage = editorText.fragmentCopiedMessage ?? "Config fragment copied";
+  const draftValidationTitle = editorText.draftValidationTitle ?? "Draft validation";
+  const draftValidationOk = editorText.draftValidationOk ?? "Draft config shape is valid";
 
   useEffect(() => {
     if (!open) {
@@ -377,6 +409,7 @@ export function LevelEditorOverlay({
       ),
     [levels],
   );
+  const draftValidationErrors = useMemo(() => validateLevelConfig(draftLevelConfig), [draftLevelConfig]);
 
   if (!open) {
     return null;
@@ -423,6 +456,16 @@ export function LevelEditorOverlay({
   );
   const goldenStatus = selectedAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount > 0 ? "danger" : "ok";
 
+  const updateDraftLevelConfig = (updater) => {
+    setDraftLevelConfig((currentConfig) => {
+      const nextConfig = cloneConfig(currentConfig);
+      updater(nextConfig);
+      setDraftJson(formatJson(nextConfig));
+      setMessage("");
+      return nextConfig;
+    });
+  };
+
   const applyDraftRunConfig = () => {
     onApplyRunDebugConfig?.(draftRunConfig);
     setMessage(editorText.applyRunConfigLabel);
@@ -449,6 +492,12 @@ export function LevelEditorOverlay({
     } catch {
       setMessage(editorText.draftInvalidMessage);
     }
+  };
+
+  const copyConfigFragment = () => {
+    copyToClipboard(formatConfigFragment(draftLevelConfig))
+      .then(() => setMessage(fragmentCopiedMessage))
+      .catch(() => setMessage(editorText.draftInvalidMessage));
   };
 
   return (
@@ -598,6 +647,50 @@ export function LevelEditorOverlay({
                   <strong>{draftLevelConfig?.routeGeneration?.spatialExperiment?.enabled ? "ON" : "OFF"}</strong>
                 </div>
               </div>
+              <h4>{routeSettingsTitle}</h4>
+              <div className="level-editor-grid">
+                <label className="level-editor-field">
+                  <span>{editorText.seedLabel}</span>
+                  <input
+                    type="text"
+                    value={draftLevelConfig.seed ?? ""}
+                    onChange={(event) =>
+                      updateDraftLevelConfig((nextConfig) => {
+                        nextConfig.seed = event.target.value;
+                      })
+                    }
+                  />
+                </label>
+                <label className="level-editor-field">
+                  <span>{editorText.wallHeightLabel}</span>
+                  <input
+                    type="number"
+                    min={1000}
+                    step={100}
+                    value={draftLevelConfig.wallHeight ?? 0}
+                    onChange={(event) =>
+                      updateDraftLevelConfig((nextConfig) => {
+                        nextConfig.wallHeight = Number(event.target.value);
+                      })
+                    }
+                  />
+                </label>
+                <label className="level-editor-field">
+                  <span>{editorText.routeSequenceLabel}</span>
+                  <input
+                    type="text"
+                    value={(draftLevelConfig?.routeGeneration?.zoneSequence ?? []).join(",")}
+                    onChange={(event) =>
+                      updateDraftLevelConfig((nextConfig) => {
+                        nextConfig.routeGeneration.zoneSequence = event.target.value
+                          .split(",")
+                          .map((zoneKey) => zoneKey.trim())
+                          .filter(Boolean);
+                      })
+                    }
+                  />
+                </label>
+              </div>
               <p className="level-editor-note">
                 {editorText.routeSequenceLabel}: {(draftLevelConfig?.routeGeneration?.zoneSequence ?? []).join(" / ") || "-"}
               </p>
@@ -610,13 +703,114 @@ export function LevelEditorOverlay({
                       <span>{zoneKey}</span>
                     </div>
                     <p>{zone.goal}</p>
-                    <p>
-                      span: {zone.segmentSpanMin}-{zone.segmentSpanMax} / wind: {zone.windMultiplier} / stamina: {zone.staminaModifier}
-                    </p>
-                    <p>
-                      budget: fragile {zone.mechanicBudget?.fragile ?? 0}, timedSoft {zone.mechanicBudget?.timedSoft ?? 0},
-                      obstacle {zone.mechanicBudget?.obstacle ?? 0}, resource {zone.mechanicBudget?.resource ?? 0}
-                    </p>
+                    <div className="level-editor-zone-grid">
+                      <label className="level-editor-field">
+                        <span>Span min</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={zone.segmentSpanMin}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].segmentSpanMin = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Span max</span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={zone.segmentSpanMax}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].segmentSpanMax = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Wind</span>
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={zone.windMultiplier}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].windMultiplier = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Stamina</span>
+                        <input
+                          type="number"
+                          step={0.001}
+                          value={zone.staminaModifier}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].staminaModifier = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Fragile</span>
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={zone.mechanicBudget?.fragile ?? 0}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].mechanicBudget.fragile = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Timed soft</span>
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={zone.mechanicBudget?.timedSoft ?? 0}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].mechanicBudget.timedSoft = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Obstacle</span>
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={zone.mechanicBudget?.obstacle ?? 0}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].mechanicBudget.obstacle = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Resource</span>
+                        <input
+                          type="number"
+                          step={0.01}
+                          value={zone.mechanicBudget?.resource ?? 0}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.routeGeneration.zones[zoneKey].mechanicBudget.resource = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -626,6 +820,218 @@ export function LevelEditorOverlay({
           {activeTab === "events" ? (
             <div className="level-editor-panel">
               <h3>{editorText.eventsTitle}</h3>
+              <h4>{eventSettingsTitle}</h4>
+              <div className="level-editor-event-editors">
+                {(draftLevelConfig.environmentEvents ?? []).map((eventConfig, eventIndex) => (
+                  <div className="level-editor-event-editor" key={eventConfig.id ?? eventIndex}>
+                    <div className="level-editor-zone-header">
+                      <strong>{eventConfig.id ?? `event-${eventIndex + 1}`}</strong>
+                      <span>{eventConfig.type}</span>
+                    </div>
+                    <div className="level-editor-grid">
+                      <label className="level-editor-field">
+                        <span>Start</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={eventConfig.startFrame}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.environmentEvents[eventIndex].startFrame = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Duration</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={eventConfig.durationFrames}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.environmentEvents[eventIndex].durationFrames = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Earliest stance</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={eventConfig.earliestStanceIndex}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.environmentEvents[eventIndex].earliestStanceIndex = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                {draftLevelConfig.pursuit ? (
+                  <div className="level-editor-event-editor">
+                    <div className="level-editor-zone-header">
+                      <strong>{editorText.pursuitLabel}</strong>
+                      <span>pursuit</span>
+                    </div>
+                    <div className="level-editor-grid">
+                      <label className="level-editor-field">
+                        <span>Start</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={draftLevelConfig.pursuit.startFrame}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.pursuit.startFrame = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Duration</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={draftLevelConfig.pursuit.durationFrames}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.pursuit.durationFrames = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Speed</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.001}
+                          value={draftLevelConfig.pursuit.speed}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.pursuit.speed = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
+                {draftLevelConfig.ropeThreat ? (
+                  <div className="level-editor-event-editor">
+                    <div className="level-editor-zone-header">
+                      <strong>{editorText.ropeThreatLabel}</strong>
+                      <span>rope</span>
+                    </div>
+                    <div className="level-editor-grid">
+                      <label className="level-editor-field">
+                        <span>Delay</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={draftLevelConfig.ropeThreat.startDelayFrames}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.ropeThreat.startDelayFrames = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Climb speed</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.0001}
+                          value={draftLevelConfig.ropeThreat.climbSpeed}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.ropeThreat.climbSpeed = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                      <label className="level-editor-field">
+                        <span>Danger</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={draftLevelConfig.ropeThreat.dangerProgress}
+                          onChange={(event) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.ropeThreat.dangerProgress = Number(event.target.value);
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
+                {(draftLevelConfig.rescueTargets ?? []).length > 0 ? (
+                  <div className="level-editor-event-editor">
+                    <div className="level-editor-zone-header">
+                      <strong>{editorText.rescueTargetsLabel}</strong>
+                      <span>rescue</span>
+                    </div>
+                    <div className="level-editor-grid">
+                      {draftLevelConfig.rescueTargets.map((targetConfig, targetIndex) => (
+                        <label className="level-editor-field" key={targetConfig.id ?? targetIndex}>
+                          <span>{targetConfig.id ?? `rescue-${targetIndex + 1}`}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={targetConfig.stanceIndex}
+                            onChange={(event) =>
+                              updateDraftLevelConfig((nextConfig) => {
+                                nextConfig.rescueTargets[targetIndex].stanceIndex = Number(event.target.value);
+                              })
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {(draftLevelConfig.laneBlockers ?? []).length > 0 ? (
+                  <div className="level-editor-event-editor">
+                    <div className="level-editor-zone-header">
+                      <strong>{editorText.laneBlockersLabel}</strong>
+                      <span>blocker</span>
+                    </div>
+                    <div className="level-editor-grid">
+                      {draftLevelConfig.laneBlockers.map((blockerConfig, blockerIndex) => (
+                        <label className="level-editor-field" key={blockerConfig.id ?? blockerIndex}>
+                          <span>{blockerConfig.id ?? `blocker-${blockerIndex + 1}`}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={blockerConfig.stanceIndex}
+                            onChange={(event) =>
+                              updateDraftLevelConfig((nextConfig) => {
+                                nextConfig.laneBlockers[blockerIndex].stanceIndex = Number(event.target.value);
+                              })
+                            }
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <div className="level-editor-event-columns">
                 <div className="level-editor-event-card">
                   <span>{editorText.environmentEventsLabel}</span>
@@ -655,6 +1061,9 @@ export function LevelEditorOverlay({
                 <textarea value={draftJson} onChange={(event) => setDraftJson(event.target.value)} rows={18} spellCheck={false} />
               </label>
               <div className="level-editor-actions">
+                <button type="button" onClick={copyConfigFragment}>
+                  {copyFragmentLabel}
+                </button>
                 <button type="button" onClick={copyDraftJson}>
                   {editorText.copyJsonLabel}
                 </button>
@@ -671,6 +1080,18 @@ export function LevelEditorOverlay({
           {activeTab === "validation" ? (
             <div className="level-editor-panel">
               <h3>{editorText.validationTitle}</h3>
+              <div className="level-editor-draft-validation">
+                <h4>{draftValidationTitle}</h4>
+                {draftValidationErrors.length > 0 ? (
+                  <ul className="level-editor-error-list">
+                    {draftValidationErrors.map((error) => (
+                      <li key={error}>{error}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="level-editor-note">{draftValidationOk}</p>
+                )}
+              </div>
               <div className="level-editor-summary">
                 <div className={getSummaryClassName(windStatus)}>
                   <span>wind</span>

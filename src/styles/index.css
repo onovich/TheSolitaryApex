@@ -931,8 +931,21 @@ select {
   gap: 12px;
 }
 
+.level-editor-zone-grid,
+.level-editor-event-editors {
+  display: grid;
+  gap: 12px;
+}
+
+.level-editor-zone-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
 .level-editor-zone-card,
-.level-editor-event-card {
+.level-editor-event-card,
+.level-editor-event-editor,
+.level-editor-draft-validation {
   padding: 10px 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid #303030;
@@ -969,6 +982,14 @@ select {
   white-space: pre-wrap;
   word-break: break-word;
   color: #dddddd;
+}
+
+.level-editor-error-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  color: #efb0b0;
+  font-size: 0.74rem;
+  line-height: 1.5;
 }
 
 .level-editor-actions {
@@ -1016,7 +1037,8 @@ select {
 
   .level-editor-grid,
   .level-editor-checks,
-  .level-editor-summary {
+  .level-editor-summary,
+  .level-editor-zone-grid {
     grid-template-columns: 1fr;
   }
 
