@@ -58,6 +58,30 @@ function formatActualAgainstLimit(value, max) {
   return `${value} / <=${max}`;
 }
 
+function getRangeStatus(value, range) {
+  if (value < range.min) {
+    return "low";
+  }
+
+  if (value > range.max) {
+    return "high";
+  }
+
+  return "ok";
+}
+
+function getLimitStatus(value, max) {
+  return value > max ? "high" : "ok";
+}
+
+function getBlockedStatus(blockedCount) {
+  return blockedCount > 0 ? "danger" : "ok";
+}
+
+function getSummaryItemClassName(status) {
+  return `dev-panel-summary-item${status ? ` is-${status}` : ""}`;
+}
+
 function normalizeAngle(angle) {
   const normalized = Number(angle) % 360;
 
@@ -117,6 +141,55 @@ export function DeveloperPanel({
       ].join(" / ")
     : null;
   const timelineSummary = levelAnalysis?.majorEncounters?.map((encounter) => `${encounter.type}@${encounter.frame}`).join(" / ") || "none";
+  const windTargetStatus = levelAnalysis
+    ? getRangeStatus(levelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier)
+    : null;
+  const hazardDensityStatus = levelAnalysis
+    ? getRangeStatus(levelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances)
+    : null;
+  const resourceDensityStatus = levelAnalysis
+    ? getRangeStatus(levelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances)
+    : null;
+  const fruitStaminaStatus = levelAnalysis
+    ? getRangeStatus(
+        levelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
+        authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
+      )
+    : null;
+  const thirstReliefStatus = levelAnalysis
+    ? getRangeStatus(
+        levelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
+        authoring.resourcePressureTargets.thirstReliefPer100Stances,
+      )
+    : null;
+  const worstThirstStatus = levelAnalysis
+    ? getRangeStatus(
+        levelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
+        authoring.resourcePressureTargets.worstLoadoutThirstGain,
+      )
+    : null;
+  const netReliefStatus = levelAnalysis
+    ? getRangeStatus(
+        levelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
+        authoring.resourcePressureTargets.worstLoadoutNetThirstRelief,
+      )
+    : null;
+  const pressureWindowStatus = levelAnalysis
+    ? getLimitStatus(
+        levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
+        authoring.pressureRules.maxPressureEventsPerWindow,
+      )
+    : null;
+  const fruitWindowStatus = levelAnalysis
+    ? getLimitStatus(
+        levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
+        authoring.pressureRules.maxResourceFruitsPerWindow,
+      )
+    : null;
+  const fruitGapStatus = levelAnalysis
+    ? getLimitStatus(levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, authoring.pressureRules.maxResourceGapFrames)
+    : null;
+  const goldenBansStatus = levelAnalysis ? getBlockedStatus(levelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount) : null;
 
   useEffect(() => {
     setDraftRunConfig(runDebugConfig ?? getDefaultRunDebugConfig());
@@ -374,42 +447,42 @@ export function DeveloperPanel({
               {message ? <span className="dev-panel-message">{message}</span> : null}
             </div>
             <div className="dev-panel-summary">
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.levelLabel}</span>
                 <strong>{levelConfig.label}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.templateLabel}</span>
                 <strong>{authoring.templateId}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.seedLabel}</span>
                 <strong>{levelConfig.seed}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.eventsLabel}</span>
                 <strong>
                   {levelConfig.environmentEvents.map((eventConfig) => devText.eventTypeLabels[eventConfig.type] ?? eventConfig.type).join(", ") ||
                     devText.noneLabel}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.rescuesLabel}</span>
                 <strong>{levelAnalysis?.rescueTargetCount ?? levelConfig.rescueTargets.length}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.blockersLabel}</span>
                 <strong>{levelAnalysis?.laneBlockerCount ?? levelConfig.laneBlockers?.length ?? 0}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.pursuitLabel}</span>
                 <strong>{(levelAnalysis?.pursuitEnabled ?? levelConfig.pursuit) ? devText.onLabel : devText.offLabel}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(null)}>
                 <span>{devText.ropeThreatLabel}</span>
                 <strong>{(levelAnalysis?.ropeThreatEnabled ?? levelConfig.ropeThreat) ? devText.onLabel : devText.offLabel}</strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(windTargetStatus)}>
                 <span>{devText.windTargetLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -417,7 +490,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.pressureTargets.averageWindMultiplier)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(hazardDensityStatus)}>
                 <span>{devText.hazardDensityLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -425,7 +498,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.pressureTargets.hazardPer100Stances)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(resourceDensityStatus)}>
                 <span>{devText.resourceDensityLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -433,7 +506,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.pressureTargets.resourcePer100Stances)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(fruitStaminaStatus)}>
                 <span>{devText.fruitStaminaLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -445,7 +518,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.resourcePressureTargets.staminaRecoveryPer100Stances)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(thirstReliefStatus)}>
                 <span>{devText.thirstReliefLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -457,7 +530,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.resourcePressureTargets.thirstReliefPer100Stances)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(worstThirstStatus)}>
                 <span>{devText.worstThirstLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -469,7 +542,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.resourcePressureTargets.worstLoadoutThirstGain)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(netReliefStatus)}>
                 <span>{devText.netReliefLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -481,7 +554,7 @@ export function DeveloperPanel({
                     : formatRange(authoring.resourcePressureTargets.worstLoadoutNetThirstRelief)}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(pressureWindowStatus)}>
                 <span>{devText.pressureWindowLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -492,7 +565,7 @@ export function DeveloperPanel({
                     : `${authoring.pressureRules.maxPressureEventsPerWindow}/${authoring.pressureRules.pressureEventWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(fruitWindowStatus)}>
                 <span>{devText.fruitWindowLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -503,7 +576,7 @@ export function DeveloperPanel({
                     : `${authoring.pressureRules.maxResourceFruitsPerWindow}/${authoring.pressureRules.resourceWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(fruitGapStatus)}>
                 <span>{devText.fruitGapLabel}</span>
                 <strong>
                   {levelAnalysis
@@ -514,7 +587,7 @@ export function DeveloperPanel({
                     : `<=${authoring.pressureRules.maxResourceGapFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
-              <div>
+              <div className={getSummaryItemClassName(goldenBansStatus)}>
                 <span>{devText.goldenBansLabel}</span>
                 <strong>
                   {levelAnalysis

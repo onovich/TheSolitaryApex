@@ -509,6 +509,22 @@ select {
   border: 1px solid #2f2f2f;
 }
 
+.dev-panel-summary-item.is-ok {
+  border-color: #3d5f48;
+  background: rgba(100, 166, 116, 0.08);
+}
+
+.dev-panel-summary-item.is-low {
+  border-color: #776446;
+  background: rgba(214, 175, 96, 0.08);
+}
+
+.dev-panel-summary-item.is-high,
+.dev-panel-summary-item.is-danger {
+  border-color: #7f4747;
+  background: rgba(197, 92, 92, 0.08);
+}
+
 .dev-panel-summary span,
 .dev-panel-summary strong {
   display: block;
@@ -528,6 +544,19 @@ select {
   color: #d8d8d8;
   font-size: 0.76rem;
   font-weight: 400;
+}
+
+.dev-panel-summary-item.is-ok strong {
+  color: #9fd8ab;
+}
+
+.dev-panel-summary-item.is-low strong {
+  color: #e0c176;
+}
+
+.dev-panel-summary-item.is-high strong,
+.dev-panel-summary-item.is-danger strong {
+  color: #f0a0a0;
 }
 
 .dev-panel-note {
