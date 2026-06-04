@@ -2,6 +2,7 @@ import { useState } from "react";
 import { GameHud } from "../components/GameHud";
 import { GameCanvas } from "../components/GameCanvas";
 import { DeveloperPanel } from "../components/DeveloperPanel";
+import { LevelEditorOverlay } from "../components/LevelEditorOverlay";
 import { MessageOverlay } from "../components/MessageOverlay";
 import { getDevPanelTextBundle } from "../../data/devPanelText";
 import { DEFAULT_LANGUAGE, LANGUAGE_OPTIONS, getTextBundle, normalizeLanguage } from "../../data/uiText";
@@ -22,6 +23,7 @@ function getSavedLanguage() {
 
 export function GameScreen() {
   const [language, setLanguage] = useState(getSavedLanguage);
+  const [levelEditorOpen, setLevelEditorOpen] = useState(false);
   const {
     canvasRef,
     gameStateRef,
@@ -103,7 +105,17 @@ export function GameScreen() {
         onUpdateWindDebug={updateWindDebug}
         onUpdateWindLineDebug={updateWindLineDebug}
         onUpdateInvincibleDebug={updateInvincibleDebug}
+        onOpenLevelEditor={() => setLevelEditorOpen(true)}
         devText={devText}
+        text={text}
+      />
+      <LevelEditorOverlay
+        open={levelEditorOpen}
+        onClose={() => setLevelEditorOpen(false)}
+        language={language}
+        levels={levels}
+        runDebugConfig={runDebugConfig}
+        onApplyRunDebugConfig={applyRunDebugConfig}
         text={text}
       />
     </main>

@@ -106,4 +106,4 @@ For a readable tuning handoff, `npm run report:levels` prints a Markdown report 
 
 For the field-by-field level tuning workflow, see `docs/level-config-maintenance.md`.
 
-The next step beyond the current `DEV` run-config block is a dedicated level-config screen. A proposed structure for that editor lives in `docs/level-editor-plan.md`.
+The current build now includes a first-pass dedicated level-config screen, opened from the `DEV` panel. It separates start-state editing, route inspection, event inspection, draft JSON editing, and validation summary from the player HUD. The longer-term structure for that editor still lives in `docs/level-editor-plan.md`.

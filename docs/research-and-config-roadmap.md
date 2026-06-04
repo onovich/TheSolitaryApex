@@ -100,7 +100,8 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, route preset selection, starting inventory overrides, event toggles, run-config JSON import/export, `Copy config`, and `Copy level config`.
   - Next step: show actual generated analysis values next to target ranges, especially content counts, Golden Path safety, pressure, resource pressure, and event density.
   - Next step: add focused copy/export actions for tuning handoff, such as copied level report summary or copied target deltas.
-  - Next step: split a fuller official level editor into its own screen instead of overloading the panel.
+  - Current status: a first-pass separate level-config screen now exists, opened from the `DEV` panel, with `Start / Route / Events / Validation` tabs and local draft JSON editing.
+  - Next step: decide which parts of that screen should become true persistent authoring instead of local draft tooling.
   - Boundary: keep this as a developer tuning panel, not a player-facing UGC editor.
 - Level config contract:
   - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.

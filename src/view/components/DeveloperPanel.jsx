@@ -103,6 +103,7 @@ export function DeveloperPanel({
   onUpdateWindDebug,
   onUpdateWindLineDebug,
   onUpdateInvincibleDebug,
+  onOpenLevelEditor,
   devText,
   text,
 }) {
@@ -126,6 +127,7 @@ export function DeveloperPanel({
   const importedRunConfigMessage = devText.importedRunConfigMessage ?? "Imported run config";
   const invalidRunConfigMessage = devText.invalidRunConfigMessage ?? "Run config JSON is invalid";
   const runConfigResetMessage = devText.runConfigResetMessage ?? "Run config reset";
+  const openLevelEditorLabel = devText.openLevelEditorLabel ?? "Open level editor";
   const itemLabels = {
     chalk: text.chalkLabel,
     protectionCam: text.protectionCamLabel,
@@ -600,6 +602,9 @@ export function DeveloperPanel({
             {contentSummary ? <p className="dev-panel-note">content: {contentSummary}</p> : null}
             {levelAnalysis ? <p className="dev-panel-note">timeline: {timelineSummary}</p> : null}
             <div className="dev-panel-actions">
+              <button type="button" onClick={onOpenLevelEditor}>
+                {openLevelEditorLabel}
+              </button>
               <button type="button" onClick={copyLevelConfig}>
                 {devText.copyLevelConfigLabel}
               </button>

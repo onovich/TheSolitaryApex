@@ -121,6 +121,14 @@ Do this in order:
 4. Create a separate level-config screen that edits one official template at a time.
 5. Only after the above is stable, consider timeline drag editing or visual node placement tools.
 
+Current implementation status:
+
+- Done: `DEV` panel run-config section.
+- Done: run-config JSON import/export.
+- Done: read-only validation summary in the `DEV` panel.
+- Done: first-pass separate level-config screen with `Start / Route / Events / Validation`.
+- Not done yet: persistent file editing, visual timeline tools, node placement tools, and editor-side save flow.
+
 ## Practical Recommendation
 
 For now, remove route type and strategy from the player HUD permanently. Treat them as developer-only concepts:
