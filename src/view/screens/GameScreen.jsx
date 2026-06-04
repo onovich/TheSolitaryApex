@@ -26,7 +26,7 @@ export function GameScreen() {
     canvasRef,
     gameStateRef,
     levels,
-    loadouts,
+    runDebugConfig,
     viewport,
     uiState,
     handlePointerDown,
@@ -35,8 +35,7 @@ export function GameScreen() {
     handlePointerCancel,
     handleContextMenu,
     restartGame,
-    selectLevel,
-    selectLoadout,
+    applyRunDebugConfig,
     updateSpatialScan,
     updateWindDebug,
     updateWindLineDebug,
@@ -80,15 +79,9 @@ export function GameScreen() {
         items={uiState.items}
         language={language}
         languages={LANGUAGE_OPTIONS}
-        levelId={uiState.levelId}
-        levels={levels}
-        loadout={uiState.loadout}
-        loadouts={loadouts}
         text={text}
         onSelectLanguage={selectLanguage}
-        onSelectLevel={selectLevel}
         movement={uiState.movement}
-        onSelectLoadout={selectLoadout}
         onUseItem={useInventoryItem}
         fall={uiState.fall}
         recovery={uiState.recovery}
@@ -100,13 +93,17 @@ export function GameScreen() {
       />
       <MessageOverlay endMessage={uiState.endMessage} language={language} onRestart={restartGame} text={text} />
       <DeveloperPanel
+        levels={levels}
         activeLevelId={uiState.levelId}
+        runDebugConfig={runDebugConfig}
         weatherState={uiState.conditions?.weather}
         debugState={uiState.debug}
+        onApplyRunDebugConfig={applyRunDebugConfig}
         onUpdateWindDebug={updateWindDebug}
         onUpdateWindLineDebug={updateWindLineDebug}
         onUpdateInvincibleDebug={updateInvincibleDebug}
         devText={devText}
+        text={text}
       />
     </main>
   );

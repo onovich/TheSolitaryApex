@@ -15,8 +15,9 @@ import {
   updateFrame,
   updatePointer,
 } from "../engine/gameEngine.js";
+import { getDefaultRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
 import { getDefaultWindLineDebugTuning } from "../../dev/windDebugTuning";
-import { DEFAULT_LOADOUT_ID, LOADOUT_CONFIGS } from "../../data/loadoutConfig.js";
+import { DEFAULT_LOADOUT_ID } from "../../data/loadoutConfig.js";
 import { DEFAULT_LEVEL_ID, LEVEL_CONFIGS } from "../../data/levelConfig.js";
 
 const getViewport = () => ({
@@ -31,8 +32,7 @@ export function useSolitaryApexGame() {
   const frameRef = useRef(0);
   const spatialRotationDragRef = useRef(null);
   const [viewport, setViewport] = useState(getViewport);
-  const [selectedLoadoutId, setSelectedLoadoutId] = useState(DEFAULT_LOADOUT_ID);
-  const [selectedLevelId, setSelectedLevelId] = useState(DEFAULT_LEVEL_ID);
+  const [runDebugConfig, setRunDebugConfig] = useState(getDefaultRunDebugConfig);
   const [uiState, setUiState] = useState(() => ({
     frame: 0,
     isPlaying: true,
@@ -153,6 +153,13 @@ export function useSolitaryApexGame() {
     endMessage: null,
   }));
 
+  const createGameStateFromDebugConfig = (nextRunDebugConfig = runDebugConfig) =>
+    createInitialGameState(viewport.width, viewport.height, {
+      levelId: nextRunDebugConfig.levelId ?? DEFAULT_LEVEL_ID,
+      loadoutId: DEFAULT_LOADOUT_ID,
+      debugRunConfig: nextRunDebugConfig,
+    });
+
   useEffect(() => {
     const syncViewport = () => {
       const nextViewport = getViewport();
@@ -185,10 +192,7 @@ export function useSolitaryApexGame() {
   }, []);
 
   useEffect(() => {
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, {
-      levelId: selectedLevelId,
-      loadoutId: selectedLoadoutId,
-    });
+    gameStateRef.current = createGameStateFromDebugConfig(runDebugConfig);
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
 
@@ -208,7 +212,7 @@ export function useSolitaryApexGame() {
     return () => {
       window.cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [selectedLevelId, selectedLoadoutId, viewport.height, viewport.width]);
+  }, [runDebugConfig, viewport.height, viewport.width]);
 
   const toCanvasPosition = (event) => {
     const canvas = canvasRef.current;
@@ -330,26 +334,14 @@ export function useSolitaryApexGame() {
     event.preventDefault();
   };
 
-  const restartGame = (loadoutId = selectedLoadoutId, levelId = selectedLevelId) => {
-    const nextLoadoutId = typeof loadoutId === "string" ? loadoutId : selectedLoadoutId;
-    const nextLevelId = typeof levelId === "string" ? levelId : selectedLevelId;
-
-    setSelectedLoadoutId(nextLoadoutId);
-    setSelectedLevelId(nextLevelId);
-    gameStateRef.current = createInitialGameState(viewport.width, viewport.height, {
-      levelId: nextLevelId,
-      loadoutId: nextLoadoutId,
-    });
+  const restartGame = () => {
+    gameStateRef.current = createGameStateFromDebugConfig(runDebugConfig);
     frameRef.current = 0;
     setUiState(getUiSnapshot(gameStateRef.current, frameRef.current));
   };
 
-  const selectLoadout = (loadoutId) => {
-    restartGame(loadoutId, selectedLevelId);
-  };
-
-  const selectLevel = (levelId) => {
-    restartGame(selectedLoadoutId, levelId);
+  const applyRunDebugConfig = (nextConfig) => {
+    setRunDebugConfig((currentConfig) => sanitizeRunDebugConfig(nextConfig, currentConfig));
   };
 
   const useInventoryItem = (itemId) => {
@@ -403,15 +395,14 @@ export function useSolitaryApexGame() {
     viewport,
     uiState,
     levels: LEVEL_CONFIGS,
-    loadouts: LOADOUT_CONFIGS,
+    runDebugConfig,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
     handlePointerCancel,
     handleContextMenu,
     restartGame,
-    selectLevel,
-    selectLoadout,
+    applyRunDebugConfig,
     updateSpatialScan,
     updateWindDebug,
     updateWindLineDebug,

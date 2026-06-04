@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ITEM_ORDER } from "../../data/itemCatalog";
 import { getLevelConfig } from "../../data/levelConfig";
 import {
   applyDynoTuning,
@@ -8,6 +9,13 @@ import {
   resetDynoTuning,
   saveDynoTuning,
 } from "../../dev/dynoTuning";
+import {
+  DEBUG_EVENT_FIELDS,
+  formatRunDebugConfig,
+  getDefaultRunDebugConfig,
+  parseRunDebugConfig,
+  sanitizeRunDebugConfig,
+} from "../../dev/runDebugConfig";
 import { getDefaultWindLineDebugTuning, WIND_LINE_DEBUG_FIELDS } from "../../dev/windDebugTuning";
 
 function copyToClipboard(value) {
@@ -53,24 +61,60 @@ function normalizeAngle(angle) {
 }
 
 export function DeveloperPanel({
+  levels,
   activeLevelId,
+  runDebugConfig,
   weatherState,
   debugState,
+  onApplyRunDebugConfig,
   onUpdateWindDebug,
   onUpdateWindLineDebug,
   onUpdateInvincibleDebug,
   devText,
+  text,
 }) {
   const [open, setOpen] = useState(false);
+  const [draftRunConfig, setDraftRunConfig] = useState(runDebugConfig ?? getDefaultRunDebugConfig());
   const [values, setValues] = useState(getDynoTuningSnapshot);
   const [windDebugEnabled, setWindDebugEnabled] = useState(Boolean(weatherState?.debugOverrideActive));
   const [windDebugForce, setWindDebugForce] = useState(weatherState?.debugOverrideForce ?? 0);
   const [windDebugAngle, setWindDebugAngle] = useState(weatherState?.debugOverrideAngle ?? 0);
   const [windLineValues, setWindLineValues] = useState(debugState?.windLine ?? getDefaultWindLineDebugTuning());
   const [invincibleEnabled, setInvincibleEnabled] = useState(Boolean(debugState?.invincible));
+  const [runConfigJson, setRunConfigJson] = useState(() => formatRunDebugConfig(runDebugConfig ?? getDefaultRunDebugConfig()));
   const [message, setMessage] = useState("");
-  const levelConfig = getLevelConfig(activeLevelId);
+  const levelConfig = getLevelConfig(draftRunConfig?.levelId ?? activeLevelId);
   const authoring = levelConfig.authoring;
+  const runConfigJsonLabel = devText.runConfigJsonLabel ?? "Run config JSON";
+  const copyRunConfigLabel = devText.copyRunConfigLabel ?? "Copy run config";
+  const importRunConfigLabel = devText.importRunConfigLabel ?? "Import run config";
+  const resetRunConfigLabel = devText.resetRunConfigLabel ?? "Reset run config";
+  const copiedRunConfigMessage = devText.copiedRunConfigMessage ?? "Copied run config";
+  const importedRunConfigMessage = devText.importedRunConfigMessage ?? "Imported run config";
+  const invalidRunConfigMessage = devText.invalidRunConfigMessage ?? "Run config JSON is invalid";
+  const runConfigResetMessage = devText.runConfigResetMessage ?? "Run config reset";
+  const itemLabels = {
+    chalk: text.chalkLabel,
+    protectionCam: text.protectionCamLabel,
+    energyGel: text.energyGelLabel,
+  };
+
+  useEffect(() => {
+    setDraftRunConfig(runDebugConfig ?? getDefaultRunDebugConfig());
+    setRunConfigJson(formatRunDebugConfig(runDebugConfig ?? getDefaultRunDebugConfig()));
+  }, [
+    runDebugConfig?.levelId,
+    runDebugConfig?.startingInventory?.chalk,
+    runDebugConfig?.startingInventory?.protectionCam,
+    runDebugConfig?.startingInventory?.energyGel,
+    runDebugConfig?.enabledEvents?.earthquake,
+    runDebugConfig?.enabledEvents?.avalanche,
+    runDebugConfig?.enabledEvents?.pursuit,
+    runDebugConfig?.enabledEvents?.ropeThreat,
+    runDebugConfig?.enabledEvents?.rescueTargets,
+    runDebugConfig?.enabledEvents?.laneBlockers,
+  ]);
+
   useEffect(() => {
     setWindDebugEnabled(Boolean(weatherState?.debugOverrideActive));
     setWindDebugForce(weatherState?.debugOverrideForce ?? 0);
@@ -123,6 +167,44 @@ export function DeveloperPanel({
       .catch(() => setMessage(devText.copyFailedMessage));
   };
 
+  const updateDraftRunConfig = (patch) => {
+    setDraftRunConfig((currentConfig) => {
+      const nextConfig = sanitizeRunDebugConfig(patch, currentConfig);
+      setRunConfigJson(formatRunDebugConfig(nextConfig));
+      return nextConfig;
+    });
+    setMessage("");
+  };
+
+  const applyRunConfig = () => {
+    onApplyRunDebugConfig?.(draftRunConfig);
+    setMessage(devText.runConfigAppliedMessage);
+  };
+
+  const copyRunConfig = () => {
+    copyToClipboard(formatRunDebugConfig(draftRunConfig))
+      .then(() => setMessage(copiedRunConfigMessage))
+      .catch(() => setMessage(devText.copyFailedMessage));
+  };
+
+  const resetRunConfig = () => {
+    const nextConfig = getDefaultRunDebugConfig();
+    setDraftRunConfig(nextConfig);
+    setRunConfigJson(formatRunDebugConfig(nextConfig));
+    setMessage(runConfigResetMessage);
+  };
+
+  const importRunConfig = () => {
+    try {
+      const nextConfig = parseRunDebugConfig(runConfigJson, draftRunConfig);
+      setDraftRunConfig(nextConfig);
+      setRunConfigJson(formatRunDebugConfig(nextConfig));
+      setMessage(importedRunConfigMessage);
+    } catch {
+      setMessage(invalidRunConfigMessage);
+    }
+  };
+
   const commitWindDebug = (enabled, force, angle = windDebugAngle) => {
     const nextForce = Number(force);
     const normalizedForce = Number.isFinite(nextForce) ? Math.max(0, Math.min(0.24, nextForce)) : 0;
@@ -158,6 +240,115 @@ export function DeveloperPanel({
       </button>
       {open ? (
         <div className="dev-panel-body">
+          <div className="dev-panel-section">
+            <div className="dev-panel-header">
+              <span>{devText.runConfigTitle}</span>
+            </div>
+            <label className="dev-panel-control">
+              <span>{devText.routePresetLabel}</span>
+              <select
+                value={draftRunConfig.levelId}
+                onChange={(event) =>
+                  updateDraftRunConfig({
+                    levelId: event.target.value,
+                  })
+                }
+              >
+                {levels.map((levelOption) => (
+                  <option key={levelOption.id} value={levelOption.id}>
+                    {text.levels[levelOption.id]?.label ?? levelOption.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="dev-panel-header">
+              <span>{devText.startingItemsTitle}</span>
+            </div>
+            <div className="dev-panel-controls">
+              {ITEM_ORDER.map((itemId) => (
+                <label className="dev-panel-control" key={itemId}>
+                  <span>{itemLabels[itemId] ?? itemId}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={9}
+                    step={1}
+                    value={draftRunConfig.startingInventory[itemId] ?? 0}
+                    onChange={(event) =>
+                      updateDraftRunConfig({
+                        startingInventory: {
+                          [itemId]: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={9}
+                    step={1}
+                    value={draftRunConfig.startingInventory[itemId] ?? 0}
+                    onChange={(event) =>
+                      updateDraftRunConfig({
+                        startingInventory: {
+                          [itemId]: event.target.value,
+                        },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="dev-panel-header">
+              <span>{devText.enabledEventsTitle}</span>
+            </div>
+            <div className="dev-panel-controls">
+              {DEBUG_EVENT_FIELDS.map((field) => (
+                <label className="dev-panel-toggle-row" key={field.key}>
+                  <span>{devText.runEventLabels[field.key] ?? field.label}</span>
+                  <input
+                    type="checkbox"
+                    checked={draftRunConfig.enabledEvents[field.key] !== false}
+                    onChange={(event) =>
+                      updateDraftRunConfig({
+                        enabledEvents: {
+                          [field.key]: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="dev-panel-note">{devText.runConfigApplyHint}</p>
+            <label className="dev-panel-control">
+              <span>{runConfigJsonLabel}</span>
+              <textarea
+                className="dev-panel-textarea"
+                rows={10}
+                value={runConfigJson}
+                onChange={(event) => {
+                  setRunConfigJson(event.target.value);
+                  setMessage("");
+                }}
+                spellCheck={false}
+              />
+            </label>
+            <div className="dev-panel-actions">
+              <button type="button" onClick={copyRunConfig}>
+                {copyRunConfigLabel}
+              </button>
+              <button type="button" onClick={importRunConfig}>
+                {importRunConfigLabel}
+              </button>
+              <button type="button" onClick={resetRunConfig}>
+                {resetRunConfigLabel}
+              </button>
+              <button type="button" onClick={applyRunConfig}>
+                {devText.applyRunConfigLabel}
+              </button>
+            </div>
+          </div>
           <div className="dev-panel-section">
             <div className="dev-panel-header">
               <span>{devText.levelConfigTitle}</span>

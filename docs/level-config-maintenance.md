@@ -56,8 +56,8 @@ When tuning or adding a level, work in this order:
 
 - `staminaRecoveryPer100Stances`: fruit stamina recovery density.
 - `thirstReliefPer100Stances`: fruit thirst relief density.
-- `worstLoadoutThirstGain`: thirst gain for the harshest loadout over the route estimate.
-- `worstLoadoutNetThirstRelief`: fruit relief minus the harshest loadout's estimated thirst gain.
+- `worstLoadoutThirstGain`: thirst gain for the harshest balancing preset over the route estimate.
+- `worstLoadoutNetThirstRelief`: fruit relief minus the harshest preset's estimated thirst gain.
 
 `goldenPathRules` protects the authored main route. Hazard and encounter markers should stay off `routeRole: "golden"` unless a future validator explicitly proves that variant remains solvable.
 
@@ -104,7 +104,7 @@ Use the report to inspect:
 - `Content`: actual generated mechanic counts.
 - `Golden Path`: blocked hazard count must stay `0`.
 - `Pressure`: weighted wind, stamina, hazard density, and resource density.
-- `Resource Pressure`: fruit stamina, thirst relief, worst-loadout thirst gain, and net relief.
+- `Resource Pressure`: fruit stamina, thirst relief, harshest-preset thirst gain, and net relief.
 - `Event Density`: pressure-event peak, fruit cluster peak, and maximum fruit gap.
 - `Targets`: the configured ranges currently used by validation.
 
@@ -118,6 +118,8 @@ Commit only after the full gate passes.
 
 ## DEV Panel
 
-The in-game `DEV` panel shows the active level's authoring summary and target ranges. Use `Copy level config` to export the current level snippet after selecting a level in the HUD.
+The in-game `DEV` panel shows the active level's authoring summary and target ranges. Use the `Run config` block there to pick a route preset, override starting inventory, and toggle event families for debugging. Use `Copy level config` to export the current level snippet for the selected preset.
 
 Dyno feel tuning is separate. Use the Dyno controls in the same panel, then `Copy config` to export values for `src/data/gameConfig.js`.
+
+For the proposed standalone authoring screen beyond this lightweight debug flow, see `docs/level-editor-plan.md`.

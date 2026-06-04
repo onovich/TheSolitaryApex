@@ -1,4 +1,4 @@
-import { getItemLabel, getLevelText, getLoadoutText } from "../../data/uiText";
+import { getItemLabel } from "../../data/uiText";
 
 export function GameHud({
   conditions,
@@ -7,14 +7,8 @@ export function GameHud({
   items,
   language,
   languages,
-  levelId,
-  levels,
-  loadout,
-  loadouts,
   movement,
   onSelectLanguage,
-  onSelectLevel,
-  onSelectLoadout,
   onUseItem,
   recovery,
   route,
@@ -141,38 +135,6 @@ export function GameHud({
                   {languageOption.shortLabel}
                 </button>
               ))}
-            </div>
-            <div className="level-switcher" aria-label="Level">
-              {levels.map((levelOption) => {
-                const levelText = getLevelText(levelOption.id, language);
-                return (
-                  <button
-                    key={levelOption.id}
-                    className={`level-button${levelOption.id === levelId ? " is-active" : ""}`}
-                    type="button"
-                    onClick={() => onSelectLevel(levelOption.id)}
-                    title={levelText.description}
-                  >
-                    {levelText.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="loadout-switcher" aria-label="Loadout">
-              {loadouts.map((loadoutOption) => {
-                const loadoutText = getLoadoutText(loadoutOption.id, language);
-                return (
-                  <button
-                    key={loadoutOption.id}
-                    className={`loadout-button${loadoutOption.id === loadout?.id ? " is-active" : ""}`}
-                    type="button"
-                    onClick={() => onSelectLoadout(loadoutOption.id)}
-                    title={loadoutText.description}
-                  >
-                    {loadoutText.label}
-                  </button>
-                );
-              })}
             </div>
             {items.map((item) => (
               <button
