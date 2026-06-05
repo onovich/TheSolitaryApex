@@ -2418,14 +2418,23 @@ function isHoldAvailable(hold) {
   );
 }
 
-export function generateWall(viewportWidth, viewportHeight, levelId) {
-  const levelConfig = getLevelConfig(levelId);
+export function generateWallFromLevelConfig(viewportWidth, viewportHeight, levelConfig) {
   const blueprint = withRandomSource(
     createSeededRandom(`${levelConfig.id}:${levelConfig.seed}:${viewportWidth}x${viewportHeight}`),
     () => buildWallBlueprint(viewportWidth, viewportHeight, levelConfig),
   );
 
-  if (!validateGoldenPath(blueprint.goldenPath, levelConfig)) {
+  return {
+    ...blueprint,
+    goldenPathValid: validateGoldenPath(blueprint.goldenPath, levelConfig),
+  };
+}
+
+export function generateWall(viewportWidth, viewportHeight, levelId) {
+  const levelConfig = getLevelConfig(levelId);
+  const blueprint = generateWallFromLevelConfig(viewportWidth, viewportHeight, levelConfig);
+
+  if (!blueprint.goldenPathValid) {
     return generateWall(viewportWidth, viewportHeight, levelConfig.id);
   }
 

@@ -130,6 +130,7 @@ Current implementation status:
 - Done: partial direct field editing for safe high-value fields such as wall height, seed, zone sequence, zone budgets, event timings, pursuit timing, rope-threat timing, and rescue/blocker stance indices.
 - Done: config-fragment export for draft handoff.
 - Done: shared timeline overview in the `Events` tab, with frame-based sliders for scripted encounters and stance-based sliders for rescue/blocker markers.
+- Done: validation tab now previews generated analysis from the current draft config, with official-template fallback when the draft is invalid.
 - Not done yet: persistent file editing, full field coverage, timeline drag editing, node placement tools, and editor-side save flow.
 
 ## Practical Recommendation

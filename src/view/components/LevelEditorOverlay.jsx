@@ -3,7 +3,7 @@ import { ITEM_ORDER } from "../../data/itemCatalog";
 import { getLevelConfig, validateLevelConfig } from "../../data/levelConfig";
 import { ESTIMATED_FRAMES_PER_STANCE, createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
 import { DEBUG_EVENT_FIELDS, formatRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
-import { generateWall } from "../../logic/engine/gameEngine";
+import { generateWall, generateWallFromLevelConfig } from "../../logic/engine/gameEngine";
 
 const EDITOR_TEXT = {
   "zh-CN": {
@@ -317,6 +317,23 @@ function createOfficialLevelAnalysis(levelId) {
   });
 }
 
+function createDraftLevelAnalysis(levelConfig) {
+  const blueprint = generateWallFromLevelConfig(1280, 720, levelConfig);
+
+  return {
+    analysis: createLevelAnalysisSnapshot({
+      levelConfig,
+      holds: blueprint.holds,
+      goldenPath: blueprint.goldenPath,
+      routeSegments: blueprint.routeSegments,
+      environmentEvents: blueprint.environmentEvents,
+      pursuit: blueprint.pursuit,
+      ropeThreat: blueprint.ropeThreat,
+    }),
+    goldenPathValid: blueprint.goldenPathValid,
+  };
+}
+
 function renderStatusLabel(editorText, status) {
   if (status === "low") {
     return editorText.low;
@@ -505,6 +522,16 @@ export function LevelEditorOverlay({
   const delayLabel = editorText.delayLabel ?? "Delay";
   const markerLabel = editorText.markerLabel ?? "Marker";
   const noEventsLabel = editorText.noEventsLabel ?? "No scripted events in this level.";
+  const analysisSourceLabel = editorText.analysisSourceLabel ?? "Analysis source";
+  const draftLiveLabel = editorText.draftLiveLabel ?? "Draft live";
+  const officialBaselineLabel = editorText.officialBaselineLabel ?? "Official baseline";
+  const livePreviewTitle = editorText.livePreviewTitle ?? "Live preview";
+  const livePreviewReadyLabel = editorText.livePreviewReadyLabel ?? "Draft analysis is reflecting the current local config.";
+  const livePreviewBlockedLabel = editorText.livePreviewBlockedLabel ?? "Fix draft errors first to regenerate the analysis preview.";
+  const livePreviewFallbackLabel = editorText.livePreviewFallbackLabel ?? "Showing official baseline while draft preview is unavailable.";
+  const goldenPathPreviewLabel = editorText.goldenPathPreviewLabel ?? "Golden Path reach";
+  const validLabel = editorText.validLabel ?? "valid";
+  const invalidLabel = editorText.invalidLabel ?? "invalid";
 
   useEffect(() => {
     if (!open) {
@@ -534,13 +561,50 @@ export function LevelEditorOverlay({
     [levels],
   );
   const draftValidationErrors = useMemo(() => validateLevelConfig(draftLevelConfig), [draftLevelConfig]);
+  const draftAnalysisState = useMemo(() => {
+    if (draftValidationErrors.length > 0) {
+      return {
+        analysis: null,
+        error: "draft-invalid",
+        goldenPathValid: false,
+      };
+    }
+
+    try {
+      const preview = createDraftLevelAnalysis(draftLevelConfig);
+
+      return {
+        analysis: preview.analysis,
+        error: preview.goldenPathValid ? null : "golden-path-invalid",
+        goldenPathValid: preview.goldenPathValid,
+      };
+    } catch {
+      return {
+        analysis: null,
+        error: "preview-failed",
+        goldenPathValid: false,
+      };
+    }
+  }, [draftLevelConfig, draftValidationErrors]);
 
   if (!open) {
     return null;
   }
 
   const selectedOfficialConfig = getLevelConfig(selectedLevelId);
-  const selectedAnalysis = officialAnalyses[selectedLevelId];
+  const officialAnalysis = officialAnalyses[selectedLevelId];
+  const selectedAnalysis = draftAnalysisState.analysis ?? officialAnalysis;
+  const previewUsingDraft = Boolean(draftAnalysisState.analysis);
+  const selectedTargetConfig = previewUsingDraft ? draftLevelConfig : selectedOfficialConfig;
+  const previewModeLabel = previewUsingDraft ? draftLiveLabel : officialBaselineLabel;
+  const previewDetailMessage =
+    draftAnalysisState.error === "draft-invalid"
+      ? livePreviewBlockedLabel
+      : draftAnalysisState.error === "golden-path-invalid"
+        ? `${livePreviewReadyLabel} ${goldenPathPreviewLabel}: ${invalidLabel}.`
+        : previewUsingDraft
+          ? livePreviewReadyLabel
+          : livePreviewFallbackLabel;
   const itemLabels = {
     chalk: text.chalkLabel,
     protectionCam: text.protectionCamLabel,
@@ -548,37 +612,40 @@ export function LevelEditorOverlay({
   };
   const windStatus = getRangeStatus(
     selectedAnalysis.pressureSummary.averageWindMultiplier,
-    selectedOfficialConfig.authoring.pressureTargets.averageWindMultiplier,
+    selectedTargetConfig.authoring.pressureTargets.averageWindMultiplier,
   );
   const hazardStatus = getRangeStatus(
     selectedAnalysis.pressureSummary.hazardPer100Stances,
-    selectedOfficialConfig.authoring.pressureTargets.hazardPer100Stances,
+    selectedTargetConfig.authoring.pressureTargets.hazardPer100Stances,
   );
   const resourceStatus = getRangeStatus(
     selectedAnalysis.pressureSummary.resourcePer100Stances,
-    selectedOfficialConfig.authoring.pressureTargets.resourcePer100Stances,
+    selectedTargetConfig.authoring.pressureTargets.resourcePer100Stances,
   );
   const fruitStaminaStatus = getRangeStatus(
     selectedAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
-    selectedOfficialConfig.authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
+    selectedTargetConfig.authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
   );
   const thirstStatus = getRangeStatus(
     selectedAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
-    selectedOfficialConfig.authoring.resourcePressureTargets.thirstReliefPer100Stances,
+    selectedTargetConfig.authoring.resourcePressureTargets.thirstReliefPer100Stances,
   );
   const pressureWindowStatus = getLimitStatus(
     selectedAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
-    selectedOfficialConfig.authoring.pressureRules.maxPressureEventsPerWindow,
+    selectedTargetConfig.authoring.pressureRules.maxPressureEventsPerWindow,
   );
   const fruitWindowStatus = getLimitStatus(
     selectedAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
-    selectedOfficialConfig.authoring.pressureRules.maxResourceFruitsPerWindow,
+    selectedTargetConfig.authoring.pressureRules.maxResourceFruitsPerWindow,
   );
   const fruitGapStatus = getLimitStatus(
     selectedAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames,
-    selectedOfficialConfig.authoring.pressureRules.maxResourceGapFrames,
+    selectedTargetConfig.authoring.pressureRules.maxResourceGapFrames,
   );
-  const goldenStatus = selectedAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount > 0 ? "danger" : "ok";
+  const goldenStatus =
+    selectedAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount > 0 || !draftAnalysisState.goldenPathValid
+      ? "danger"
+      : "ok";
   const timelineMaxFrame = getDraftTimelineMaxFrame(draftLevelConfig, selectedAnalysis);
   const timelineMaxStance = Math.max(1, Math.ceil(timelineMaxFrame / ESTIMATED_FRAMES_PER_STANCE));
   const timelineTicks = [...new Set([0, 0.25, 0.5, 0.75, 1].map((ratio) => Math.round(timelineMaxFrame * ratio)))];
@@ -1396,45 +1463,57 @@ export function LevelEditorOverlay({
                   <p className="level-editor-note">{draftValidationOk}</p>
                 )}
               </div>
+              <div className="level-editor-draft-validation">
+                <h4>{livePreviewTitle}</h4>
+                <p className="level-editor-note">
+                  {analysisSourceLabel}: {previewModeLabel}
+                </p>
+                <p className="level-editor-note">
+                  {previewDetailMessage}
+                </p>
+                <p className="level-editor-note">
+                  {goldenPathPreviewLabel}: {draftAnalysisState.goldenPathValid ? validLabel : invalidLabel}
+                </p>
+              </div>
               <div className="level-editor-summary">
                 <div className={getSummaryClassName(windStatus)}>
                   <span>wind</span>
-                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.averageWindMultiplier, selectedOfficialConfig.authoring.pressureTargets.averageWindMultiplier, 2)}</strong>
+                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.averageWindMultiplier, selectedTargetConfig.authoring.pressureTargets.averageWindMultiplier, 2)}</strong>
                   <em>{renderStatusLabel(editorText, windStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(hazardStatus)}>
                   <span>hazards/100</span>
-                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.hazardPer100Stances, selectedOfficialConfig.authoring.pressureTargets.hazardPer100Stances, 1)}</strong>
+                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.hazardPer100Stances, selectedTargetConfig.authoring.pressureTargets.hazardPer100Stances, 1)}</strong>
                   <em>{renderStatusLabel(editorText, hazardStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(resourceStatus)}>
                   <span>resources/100</span>
-                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.resourcePer100Stances, selectedOfficialConfig.authoring.pressureTargets.resourcePer100Stances, 1)}</strong>
+                  <strong>{formatRangeComparison(selectedAnalysis.pressureSummary.resourcePer100Stances, selectedTargetConfig.authoring.pressureTargets.resourcePer100Stances, 1)}</strong>
                   <em>{renderStatusLabel(editorText, resourceStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(fruitStaminaStatus)}>
                   <span>fruit stamina/100</span>
-                  <strong>{formatRangeComparison(selectedAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances, selectedOfficialConfig.authoring.resourcePressureTargets.staminaRecoveryPer100Stances, 1)}</strong>
+                  <strong>{formatRangeComparison(selectedAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances, selectedTargetConfig.authoring.resourcePressureTargets.staminaRecoveryPer100Stances, 1)}</strong>
                   <em>{renderStatusLabel(editorText, fruitStaminaStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(thirstStatus)}>
                   <span>thirst relief/100</span>
-                  <strong>{formatRangeComparison(selectedAnalysis.resourcePressureSummary.thirstReliefPer100Stances, selectedOfficialConfig.authoring.resourcePressureTargets.thirstReliefPer100Stances, 1)}</strong>
+                  <strong>{formatRangeComparison(selectedAnalysis.resourcePressureSummary.thirstReliefPer100Stances, selectedTargetConfig.authoring.resourcePressureTargets.thirstReliefPer100Stances, 1)}</strong>
                   <em>{renderStatusLabel(editorText, thirstStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(pressureWindowStatus)}>
                   <span>{editorText.pressureWindowLabel}</span>
-                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.maxPressureEventsInWindow.count, selectedOfficialConfig.authoring.pressureRules.maxPressureEventsPerWindow)}</strong>
+                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.maxPressureEventsInWindow.count, selectedTargetConfig.authoring.pressureRules.maxPressureEventsPerWindow)}</strong>
                   <em>{renderStatusLabel(editorText, pressureWindowStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(fruitWindowStatus)}>
                   <span>{editorText.fruitWindowLabel}</span>
-                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count, selectedOfficialConfig.authoring.pressureRules.maxResourceFruitsPerWindow)}</strong>
+                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count, selectedTargetConfig.authoring.pressureRules.maxResourceFruitsPerWindow)}</strong>
                   <em>{renderStatusLabel(editorText, fruitWindowStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(fruitGapStatus)}>
                   <span>{editorText.fruitGapLabel}</span>
-                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, selectedOfficialConfig.authoring.pressureRules.maxResourceGapFrames)}</strong>
+                  <strong>{formatLimitComparison(selectedAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, selectedTargetConfig.authoring.pressureRules.maxResourceGapFrames)}</strong>
                   <em>{renderStatusLabel(editorText, fruitGapStatus)}</em>
                 </div>
                 <div className={getSummaryClassName(goldenStatus)}>
