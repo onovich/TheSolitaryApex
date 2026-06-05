@@ -1004,6 +1004,138 @@ select {
   padding: 7px 12px;
 }
 
+.level-editor-timeline-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.level-editor-timeline-list {
+  display: grid;
+  gap: 10px;
+}
+
+.level-editor-timeline-scale {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  color: #7f7f7f;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.level-editor-timeline-scale span:last-child {
+  text-align: right;
+}
+
+.level-editor-timeline-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.028);
+  border: 1px solid #2f2f2f;
+}
+
+.level-editor-timeline-row-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.level-editor-timeline-row-header strong {
+  color: #ececec;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.level-editor-timeline-row-header span {
+  color: #8c8c8c;
+  font-size: 0.68rem;
+}
+
+.level-editor-timeline-track {
+  position: relative;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid #3a3a3a;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    #090909;
+}
+
+.level-editor-timeline-track-grid {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(25% - 1px),
+      rgba(255, 255, 255, 0.08) calc(25% - 1px),
+      rgba(255, 255, 255, 0.08) 25%,
+      transparent 25%,
+      transparent calc(50% - 1px),
+      rgba(255, 255, 255, 0.08) calc(50% - 1px),
+      rgba(255, 255, 255, 0.08) 50%,
+      transparent 50%,
+      transparent calc(75% - 1px),
+      rgba(255, 255, 255, 0.08) calc(75% - 1px),
+      rgba(255, 255, 255, 0.08) 75%,
+      transparent 75%
+    );
+}
+
+.level-editor-timeline-span {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--timeline-accent);
+  opacity: 0.35;
+  box-shadow:
+    0 0 0 1px var(--timeline-accent),
+    0 0 14px rgba(255, 255, 255, 0.04);
+}
+
+.level-editor-timeline-marker {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--timeline-accent);
+  box-shadow: 0 0 0 2px rgba(5, 5, 5, 0.95);
+  transform: translate(-50%, -50%);
+}
+
+.level-editor-timeline-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.level-editor-timeline-control {
+  display: grid;
+  gap: 6px;
+  color: #d0d0d0;
+  font-size: 0.72rem;
+}
+
+.level-editor-timeline-control input[type="range"] {
+  width: 100%;
+  margin: 0;
+  accent-color: #f0d58a;
+}
+
+.level-editor-timeline-control strong {
+  color: #f0d58a;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
 @media (max-width: 900px) {
   .ui-layer > div:first-child {
     grid-template-columns: minmax(180px, 260px) 1fr;
@@ -1038,7 +1170,8 @@ select {
   .level-editor-grid,
   .level-editor-checks,
   .level-editor-summary,
-  .level-editor-zone-grid {
+  .level-editor-zone-grid,
+  .level-editor-timeline-controls {
     grid-template-columns: 1fr;
   }
 

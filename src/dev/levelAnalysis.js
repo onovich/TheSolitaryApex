@@ -3,7 +3,7 @@ import { LOADOUT_CONFIGS } from "../data/loadoutConfig.js";
 
 export const CONTENT_TARGET_KEYS = ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"];
 const HAZARD_PRESSURE_KEYS = ["fragile", "timedSoft", "obstacle"];
-const ESTIMATED_FRAMES_PER_STANCE = 72;
+export const ESTIMATED_FRAMES_PER_STANCE = 72;
 
 export function countGeneratedContent(holds) {
   const counts = Object.fromEntries(CONTENT_TARGET_KEYS.map((key) => [key, 0]));

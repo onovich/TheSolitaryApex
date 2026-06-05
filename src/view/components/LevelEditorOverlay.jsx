@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ITEM_ORDER } from "../../data/itemCatalog";
 import { getLevelConfig, validateLevelConfig } from "../../data/levelConfig";
-import { createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
+import { ESTIMATED_FRAMES_PER_STANCE, createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
 import { DEBUG_EVENT_FIELDS, formatRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
 import { generateWall } from "../../logic/engine/gameEngine";
 
@@ -359,6 +359,120 @@ function formatConfigFragment(levelConfig) {
   );
 }
 
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, value));
+}
+
+function getDraftTimelineMaxFrame(levelConfig, analysis) {
+  const routeFrameMax = Math.max(
+    ESTIMATED_FRAMES_PER_STANCE,
+    Math.round((analysis?.stanceCount ?? 1) * ESTIMATED_FRAMES_PER_STANCE),
+  );
+  const environmentFrameMax = Math.max(
+    0,
+    ...(levelConfig.environmentEvents ?? []).map(
+      (eventConfig) => Number(eventConfig.startFrame ?? 0) + Number(eventConfig.durationFrames ?? 0),
+    ),
+  );
+  const pursuitFrameMax = levelConfig.pursuit
+    ? Number(levelConfig.pursuit.startFrame ?? 0) + Number(levelConfig.pursuit.durationFrames ?? 0)
+    : 0;
+  const ropeThreatFrameMax = levelConfig.ropeThreat ? Number(levelConfig.ropeThreat.startDelayFrames ?? 0) : 0;
+  const rescueFrameMax = Math.max(
+    0,
+    ...(levelConfig.rescueTargets ?? []).map((targetConfig) =>
+      Number(targetConfig.stanceIndex ?? 0) * ESTIMATED_FRAMES_PER_STANCE,
+    ),
+  );
+  const blockerFrameMax = Math.max(
+    0,
+    ...(levelConfig.laneBlockers ?? []).map((blockerConfig) =>
+      Number(blockerConfig.stanceIndex ?? 0) * ESTIMATED_FRAMES_PER_STANCE,
+    ),
+  );
+
+  return Math.max(routeFrameMax, environmentFrameMax, pursuitFrameMax, ropeThreatFrameMax, rescueFrameMax, blockerFrameMax);
+}
+
+function formatTimelineValue(value, unitLabel) {
+  return `${Math.round(value)} ${unitLabel}`;
+}
+
+function getTimelinePercent(value, maxFrame) {
+  return (clampNumber(value, 0, maxFrame) / Math.max(1, maxFrame)) * 100;
+}
+
+function TimelineRangeControl({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unitLabel,
+  onChange,
+}) {
+  return (
+    <label className="level-editor-timeline-control">
+      <span>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+      <strong>{formatTimelineValue(value, unitLabel)}</strong>
+    </label>
+  );
+}
+
+function TimelineTrackRow({
+  label,
+  meta,
+  startFrame,
+  durationFrames = 0,
+  maxFrame,
+  accentColor,
+  children,
+}) {
+  const markerPercent = getTimelinePercent(startFrame, maxFrame);
+  const spanPercent = durationFrames > 0 ? Math.max((durationFrames / Math.max(1, maxFrame)) * 100, 1.2) : 0;
+  const spanWidth = durationFrames > 0 ? Math.min(100 - markerPercent, spanPercent) : 0;
+
+  return (
+    <div className="level-editor-timeline-row" style={{ "--timeline-accent": accentColor }}>
+      <div className="level-editor-timeline-row-header">
+        <strong>{label}</strong>
+        <span>{meta}</span>
+      </div>
+      <div className="level-editor-timeline-track">
+        <div className="level-editor-timeline-track-grid" />
+        {durationFrames > 0 ? (
+          <div
+            className="level-editor-timeline-span"
+            style={{
+              left: `${markerPercent}%`,
+              width: `${spanWidth}%`,
+            }}
+          />
+        ) : null}
+        <div
+          className="level-editor-timeline-marker"
+          style={{
+            left: `${markerPercent}%`,
+          }}
+        />
+      </div>
+      {children ? <div className="level-editor-timeline-controls">{children}</div> : null}
+    </div>
+  );
+}
+
 export function LevelEditorOverlay({
   open,
   onClose,
@@ -381,6 +495,16 @@ export function LevelEditorOverlay({
   const fragmentCopiedMessage = editorText.fragmentCopiedMessage ?? "Config fragment copied";
   const draftValidationTitle = editorText.draftValidationTitle ?? "Draft validation";
   const draftValidationOk = editorText.draftValidationOk ?? "Draft config shape is valid";
+  const timelineOverviewTitle = editorText.timelineOverviewTitle ?? "Timeline overview";
+  const timelineGuideText = editorText.timelineGuideText ?? "Use the shared frame ruler to tune pacing before fine editing the numeric fields below.";
+  const routeLengthLabel = editorText.routeLengthLabel ?? "Route length";
+  const frameUnitLabel = editorText.frameUnitLabel ?? "frames";
+  const stanceUnitLabel = editorText.stanceUnitLabel ?? "stances";
+  const startLabel = editorText.startLabel ?? "Start";
+  const durationLabel = editorText.durationLabel ?? "Duration";
+  const delayLabel = editorText.delayLabel ?? "Delay";
+  const markerLabel = editorText.markerLabel ?? "Marker";
+  const noEventsLabel = editorText.noEventsLabel ?? "No scripted events in this level.";
 
   useEffect(() => {
     if (!open) {
@@ -455,6 +579,15 @@ export function LevelEditorOverlay({
     selectedOfficialConfig.authoring.pressureRules.maxResourceGapFrames,
   );
   const goldenStatus = selectedAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount > 0 ? "danger" : "ok";
+  const timelineMaxFrame = getDraftTimelineMaxFrame(draftLevelConfig, selectedAnalysis);
+  const timelineMaxStance = Math.max(1, Math.ceil(timelineMaxFrame / ESTIMATED_FRAMES_PER_STANCE));
+  const timelineTicks = [...new Set([0, 0.25, 0.5, 0.75, 1].map((ratio) => Math.round(timelineMaxFrame * ratio)))];
+  const hasTimelineRows =
+    (draftLevelConfig.environmentEvents?.length ?? 0) > 0 ||
+    Boolean(draftLevelConfig.pursuit) ||
+    Boolean(draftLevelConfig.ropeThreat) ||
+    (draftLevelConfig.rescueTargets?.length ?? 0) > 0 ||
+    (draftLevelConfig.laneBlockers?.length ?? 0) > 0;
 
   const updateDraftLevelConfig = (updater) => {
     setDraftLevelConfig((currentConfig) => {
@@ -821,6 +954,177 @@ export function LevelEditorOverlay({
             <div className="level-editor-panel">
               <h3>{editorText.eventsTitle}</h3>
               <h4>{eventSettingsTitle}</h4>
+              <div className="level-editor-timeline-panel">
+                <div className="level-editor-summary">
+                  <div className="level-editor-card">
+                    <span>{routeLengthLabel}</span>
+                    <strong>{formatTimelineValue(timelineMaxFrame, frameUnitLabel)}</strong>
+                    <em>{formatTimelineValue(timelineMaxStance, stanceUnitLabel)}</em>
+                  </div>
+                  <div className="level-editor-card">
+                    <span>{editorText.timelineLabel}</span>
+                    <strong>{timelineTicks.map((tick) => Math.round(tick)).join(" / ")}</strong>
+                    <em>{frameUnitLabel}</em>
+                  </div>
+                  <div className="level-editor-card">
+                    <span>{editorText.eventsTitle}</span>
+                    <strong>{selectedAnalysis.majorEncounters.length}</strong>
+                    <em>{selectedAnalysis.majorEncounters.map((encounter) => encounter.type).join(" / ") || noEventsLabel}</em>
+                  </div>
+                </div>
+                <h4>{timelineOverviewTitle}</h4>
+                <p className="level-editor-note">{timelineGuideText}</p>
+                {hasTimelineRows ? (
+                  <div className="level-editor-timeline-list">
+                    <div className="level-editor-timeline-scale">
+                      {timelineTicks.map((tick) => (
+                        <span key={tick}>{tick}</span>
+                      ))}
+                    </div>
+                    {(draftLevelConfig.environmentEvents ?? []).map((eventConfig, eventIndex) => (
+                      <TimelineTrackRow
+                        key={eventConfig.id ?? `timeline-event-${eventIndex}`}
+                        label={eventConfig.id ?? `event-${eventIndex + 1}`}
+                        meta={`${eventConfig.type} | ${formatTimelineValue(eventConfig.startFrame, frameUnitLabel)}`}
+                        startFrame={eventConfig.startFrame}
+                        durationFrames={eventConfig.durationFrames}
+                        maxFrame={timelineMaxFrame}
+                        accentColor={eventConfig.type === "avalanche" ? "#e7d7b5" : "#d5b47d"}
+                      >
+                        <TimelineRangeControl
+                          label={startLabel}
+                          value={eventConfig.startFrame}
+                          min={0}
+                          max={timelineMaxFrame}
+                          unitLabel={frameUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.environmentEvents[eventIndex].startFrame = nextValue;
+                            })
+                          }
+                        />
+                        <TimelineRangeControl
+                          label={durationLabel}
+                          value={eventConfig.durationFrames}
+                          min={0}
+                          max={timelineMaxFrame}
+                          unitLabel={frameUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.environmentEvents[eventIndex].durationFrames = nextValue;
+                            })
+                          }
+                        />
+                      </TimelineTrackRow>
+                    ))}
+                    {draftLevelConfig.pursuit ? (
+                      <TimelineTrackRow
+                        label={editorText.pursuitLabel}
+                        meta={`pursuit | ${formatTimelineValue(draftLevelConfig.pursuit.startFrame, frameUnitLabel)}`}
+                        startFrame={draftLevelConfig.pursuit.startFrame}
+                        durationFrames={draftLevelConfig.pursuit.durationFrames}
+                        maxFrame={timelineMaxFrame}
+                        accentColor="#c65f5f"
+                      >
+                        <TimelineRangeControl
+                          label={startLabel}
+                          value={draftLevelConfig.pursuit.startFrame}
+                          min={0}
+                          max={timelineMaxFrame}
+                          unitLabel={frameUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.pursuit.startFrame = nextValue;
+                            })
+                          }
+                        />
+                        <TimelineRangeControl
+                          label={durationLabel}
+                          value={draftLevelConfig.pursuit.durationFrames}
+                          min={0}
+                          max={timelineMaxFrame}
+                          unitLabel={frameUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.pursuit.durationFrames = nextValue;
+                            })
+                          }
+                        />
+                      </TimelineTrackRow>
+                    ) : null}
+                    {draftLevelConfig.ropeThreat ? (
+                      <TimelineTrackRow
+                        label={editorText.ropeThreatLabel}
+                        meta={`rope | ${formatTimelineValue(draftLevelConfig.ropeThreat.startDelayFrames, frameUnitLabel)}`}
+                        startFrame={draftLevelConfig.ropeThreat.startDelayFrames}
+                        maxFrame={timelineMaxFrame}
+                        accentColor="#d98f5c"
+                      >
+                        <TimelineRangeControl
+                          label={delayLabel}
+                          value={draftLevelConfig.ropeThreat.startDelayFrames}
+                          min={0}
+                          max={timelineMaxFrame}
+                          unitLabel={frameUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.ropeThreat.startDelayFrames = nextValue;
+                            })
+                          }
+                        />
+                      </TimelineTrackRow>
+                    ) : null}
+                    {(draftLevelConfig.rescueTargets ?? []).map((targetConfig, targetIndex) => (
+                      <TimelineTrackRow
+                        key={targetConfig.id ?? `timeline-rescue-${targetIndex}`}
+                        label={targetConfig.id ?? `rescue-${targetIndex + 1}`}
+                        meta={`${editorText.rescueTargetsLabel} | ${formatTimelineValue(targetConfig.stanceIndex, stanceUnitLabel)}`}
+                        startFrame={targetConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE}
+                        maxFrame={timelineMaxFrame}
+                        accentColor="#74c08d"
+                      >
+                        <TimelineRangeControl
+                          label={markerLabel}
+                          value={targetConfig.stanceIndex}
+                          min={0}
+                          max={timelineMaxStance}
+                          unitLabel={stanceUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.rescueTargets[targetIndex].stanceIndex = nextValue;
+                            })
+                          }
+                        />
+                      </TimelineTrackRow>
+                    ))}
+                    {(draftLevelConfig.laneBlockers ?? []).map((blockerConfig, blockerIndex) => (
+                      <TimelineTrackRow
+                        key={blockerConfig.id ?? `timeline-blocker-${blockerIndex}`}
+                        label={blockerConfig.id ?? `blocker-${blockerIndex + 1}`}
+                        meta={`${editorText.laneBlockersLabel} | ${formatTimelineValue(blockerConfig.stanceIndex, stanceUnitLabel)}`}
+                        startFrame={blockerConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE}
+                        maxFrame={timelineMaxFrame}
+                        accentColor="#d48963"
+                      >
+                        <TimelineRangeControl
+                          label={markerLabel}
+                          value={blockerConfig.stanceIndex}
+                          min={0}
+                          max={timelineMaxStance}
+                          unitLabel={stanceUnitLabel}
+                          onChange={(nextValue) =>
+                            updateDraftLevelConfig((nextConfig) => {
+                              nextConfig.laneBlockers[blockerIndex].stanceIndex = nextValue;
+                            })
+                          }
+                        />
+                      </TimelineTrackRow>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="level-editor-note">{noEventsLabel}</p>
+                )}
+              </div>
               <div className="level-editor-event-editors">
                 {(draftLevelConfig.environmentEvents ?? []).map((eventConfig, eventIndex) => (
                   <div className="level-editor-event-editor" key={eventConfig.id ?? eventIndex}>

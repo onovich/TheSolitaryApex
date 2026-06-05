@@ -119,7 +119,7 @@ Do this in order:
 2. Add export/import for run-config JSON.
 3. Add a read-only validation summary block beside the current level summary.
 4. Create a separate level-config screen that edits one official template at a time.
-5. Only after the above is stable, consider timeline drag editing or visual node placement tools.
+5. After the shared timeline tooling is stable, consider timeline drag editing or visual node placement tools.
 
 Current implementation status:
 
@@ -129,7 +129,8 @@ Current implementation status:
 - Done: first-pass separate level-config screen with `Start / Route / Events / Validation`.
 - Done: partial direct field editing for safe high-value fields such as wall height, seed, zone sequence, zone budgets, event timings, pursuit timing, rope-threat timing, and rescue/blocker stance indices.
 - Done: config-fragment export for draft handoff.
-- Not done yet: persistent file editing, full field coverage, visual timeline tools, node placement tools, and editor-side save flow.
+- Done: shared timeline overview in the `Events` tab, with frame-based sliders for scripted encounters and stance-based sliders for rescue/blocker markers.
+- Not done yet: persistent file editing, full field coverage, timeline drag editing, node placement tools, and editor-side save flow.
 
 ## Practical Recommendation
 

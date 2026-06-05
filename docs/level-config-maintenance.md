@@ -122,4 +122,6 @@ The in-game `DEV` panel shows the active level's authoring summary and target ra
 
 Dyno feel tuning is separate. Use the Dyno controls in the same panel, then `Copy config` to export values for `src/data/gameConfig.js`.
 
-For the proposed standalone authoring screen beyond this lightweight debug flow, see `docs/level-editor-plan.md`.
+The dedicated level editor now goes one step further than the `DEV` panel: its `Events` tab includes a shared frame ruler so environment events, pursuit, rope threat, rescue targets, and lane blockers can be tuned against one visible pacing timeline before falling back to raw JSON edits.
+
+For the broader standalone authoring direction beyond this lightweight debug flow, see `docs/level-editor-plan.md`.
