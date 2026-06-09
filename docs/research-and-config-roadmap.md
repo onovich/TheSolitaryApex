@@ -60,6 +60,8 @@ npm run report:engine
   - Fall and rope recovery state initialization, checkpoint fall entry, hanging recovery ticks, rescue-window bonuses, and checkpoint pose restore.
 - `src/logic/engine/dynoSystem.js`
   - Dyno state initialization, charge availability, charge/reach ratios, begin/release/cancel actions, launch stamina cost, cooldown decay, and flight reset helpers.
+- `src/logic/engine/bodyStateSystem.js`
+  - Rest-pose detection, hand-injury progression, bloodied-hold marking, and body velocity damping.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -129,6 +131,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: inventory, item activation, active effects, channel items, checkpoint capture, and rescue-target item use now live in `src/logic/engine/itemSystem.js`.
   - Current status: fall entry, rope catch/hanging recovery, checkpoint pose restore, and recovery-window bonuses now live in `src/logic/engine/fallRecoverySystem.js`.
   - Current status: dyno state, charge availability, begin/release/cancel actions, launch cost, reach ratios, cooldown decay, and flight reset helpers now live in `src/logic/engine/dynoSystem.js`.
+  - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
