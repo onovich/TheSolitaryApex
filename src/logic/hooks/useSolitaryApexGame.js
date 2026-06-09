@@ -3,6 +3,7 @@ import {
   beginBodyAction,
   beginDrag,
   cancelBodyAction,
+  createInitialWindLineDebugTuning,
   createInitialGameState,
   endBodyAction,
   getUiSnapshot,
@@ -16,7 +17,6 @@ import {
   updatePointer,
 } from "../engine/gameEngine.js";
 import { getDefaultRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
-import { getDefaultWindLineDebugTuning } from "../../dev/windDebugTuning";
 import { DEFAULT_LOADOUT_ID } from "../../data/loadoutConfig.js";
 import { DEFAULT_LEVEL_ID, LEVEL_CONFIGS } from "../../data/levelConfig.js";
 
@@ -147,7 +147,7 @@ export function useSolitaryApexGame() {
     },
     debug: {
       invincible: false,
-      windLine: getDefaultWindLineDebugTuning(),
+      windLine: createInitialWindLineDebugTuning(),
     },
     tutorialVisible: true,
     endMessage: null,

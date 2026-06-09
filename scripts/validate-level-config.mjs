@@ -66,6 +66,10 @@ console.log(
     ),
     ...results.map(
       (result) =>
+        `${result.id}:rescueStart=targets${result.rescueStartStateSummary.rescueTargetCount}/${result.rescueStartStateSummary.requiredItemId}${result.rescueStartStateSummary.defaultLoadout?.itemCount ?? 0}/defaultSurplus${result.rescueStartStateSummary.defaultLoadout?.surplus ?? 0}/under${result.rescueStartStateSummary.underProvisionedLoadouts.map((entry) => entry.id).join("/") || "none"}`,
+    ),
+    ...results.map(
+      (result) =>
         `${result.id}:timeline=${result.majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join("/") || "none"}`,
     ),
   ].join(" "),

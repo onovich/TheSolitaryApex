@@ -130,11 +130,37 @@ function formatEventDensityBullets(eventDensitySummary, authoring) {
   ].join("\n").replace(/^/gm, "- ");
 }
 
+function formatSignedCount(value) {
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
+function formatRescueStartState(rescueStartStateSummary) {
+  const defaultLoadout = rescueStartStateSummary.defaultLoadout;
+  const bestLoadout = rescueStartStateSummary.bestLoadout;
+  const underCovered = rescueStartStateSummary.underProvisionedLoadouts
+    .map((entry) => `${entry.id}(${entry.itemCount})`)
+    .join(", ") || "none";
+
+  return [
+    `required ${rescueStartStateSummary.requiredItemId}: ${rescueStartStateSummary.rescueTargetCount}`,
+    `default ${rescueStartStateSummary.defaultLoadoutId}: ${defaultLoadout?.itemCount ?? 0} (${formatSignedCount(defaultLoadout?.surplus ?? 0)})`,
+    `best ${bestLoadout?.id ?? "none"}: ${bestLoadout?.itemCount ?? 0} (${formatSignedCount(bestLoadout?.surplus ?? 0)})`,
+    `under-covered: ${underCovered}`,
+  ].join("<br>");
+}
+
+function formatRescueStartStateBullets(rescueStartStateSummary) {
+  return formatRescueStartState(rescueStartStateSummary)
+    .split("<br>")
+    .join("\n")
+    .replace(/^/gm, "- ");
+}
+
 function printTableReport(rows) {
   console.log("# Level Config Report");
   console.log("");
-  console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Golden Path | Pressure | Resource Pressure | Event Density | Targets |");
-  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  console.log("| Level | Template | Pace | Route | Encounters | Timeline | Content | Golden Path | Pressure | Resource Pressure | Event Density | Rescue Start | Targets |");
+  console.log("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
 
   rows.forEach(({ levelConfig, analysis }) => {
     const encounters = [
@@ -164,6 +190,7 @@ function printTableReport(rows) {
         formatPressureSummary(analysis.pressureSummary),
         formatResourcePressure(analysis.resourcePressureSummary),
         formatEventDensity(analysis.eventDensitySummary),
+        formatRescueStartState(analysis.rescueStartStateSummary),
         formatTargets(levelConfig.authoring),
       ].map((value) => String(value).replaceAll("|", "/")).join(" | ").replace(/^/, "| ").replace(/$/, " |"),
     );
@@ -227,6 +254,13 @@ function printFocusedReport(levelConfig, analysis) {
   console.log("## Event Density");
   console.log("");
   console.log(formatEventDensityBullets(analysis.eventDensitySummary, authoring));
+
+  if (analysis.rescueStartStateSummary.rescueTargetCount > 0) {
+    console.log("");
+    console.log("## Rescue Start State");
+    console.log("");
+    console.log(formatRescueStartStateBullets(analysis.rescueStartStateSummary));
+  }
 }
 
 function printHelp() {

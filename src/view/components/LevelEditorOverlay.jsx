@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ITEM_ORDER } from "../../data/itemCatalog";
 import { getLevelConfig, validateLevelConfig } from "../../data/levelConfig";
-import { ESTIMATED_FRAMES_PER_STANCE, createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
 import { DEBUG_EVENT_FIELDS, formatRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
+import { ESTIMATED_FRAMES_PER_STANCE, createLevelAnalysisSnapshot } from "../../logic/analysis/levelAnalysis";
 import { generateWall, generateWallFromLevelConfig } from "../../logic/engine/gameEngine";
 import { copyToClipboard } from "../utils/clipboard";
 

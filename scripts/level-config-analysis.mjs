@@ -1,387 +1,58 @@
 import { validateGoldenPath, generateWall } from "../src/logic/engine/gameEngine.js";
-import { GAME_CONFIG } from "../src/data/gameConfig.js";
-import { LOADOUT_CONFIGS } from "../src/data/loadoutConfig.js";
+import {
+  CONTENT_TARGET_KEYS,
+  countGeneratedContent,
+  createLevelAnalysisSnapshot,
+  validateGeneratedRouteCoverage,
+  validateLevelAnalysisTargets,
+} from "../src/logic/analysis/levelAnalysis.js";
 
-export const CONTENT_TARGET_KEYS = ["fragile", "timedSoft", "obstacle", "resourceFruit", "rescueTarget"];
-export const HAZARD_PRESSURE_KEYS = ["fragile", "timedSoft", "obstacle"];
-const ESTIMATED_FRAMES_PER_STANCE = 72;
+export { CONTENT_TARGET_KEYS, countGeneratedContent };
 
-export function countGeneratedContent(holds) {
-  const counts = Object.fromEntries(CONTENT_TARGET_KEYS.map((key) => [key, 0]));
-
-  holds.forEach((hold) => {
-    if (CONTENT_TARGET_KEYS.includes(hold.hazardType)) {
-      counts[hold.hazardType] += 1;
-    }
-  });
-
-  return counts;
-}
-
-function validateContentTargets(levelConfig, contentCounts) {
-  Object.entries(levelConfig.authoring.contentTargets).forEach(([key, targetRange]) => {
-    const count = contentCounts[key] ?? 0;
-
-    if (count < targetRange.min || count > targetRange.max) {
-      throw new Error(
-        `${levelConfig.id} generated ${key} count ${count}, expected ${targetRange.min}-${targetRange.max}`,
-      );
-    }
+function createBlueprintAnalysis(levelConfig, blueprint) {
+  return createLevelAnalysisSnapshot({
+    levelConfig,
+    holds: blueprint.holds,
+    goldenPath: blueprint.goldenPath,
+    routeSegments: blueprint.routeSegments,
+    environmentEvents: blueprint.environmentEvents,
+    pursuit: blueprint.pursuit,
+    ropeThreat: blueprint.ropeThreat,
   });
 }
 
-function getGoldenPathSafetySummary(levelConfig, blueprint) {
-  const forbiddenHazards = new Set(levelConfig.authoring.goldenPathRules.forbidHazards);
-  const goldenHolds = blueprint.holds.filter((hold) => hold.routeRole === "golden");
-  const blockedGoldenHolds = goldenHolds.filter((hold) => forbiddenHazards.has(hold.hazardType));
-
-  return {
-    goldenHoldCount: goldenHolds.length,
-    forbiddenHazards: [...forbiddenHazards],
-    blockedGoldenHoldCount: blockedGoldenHolds.length,
-    blockedGoldenHazards: blockedGoldenHolds.map((hold) => ({
-      hazardType: hold.hazardType,
-      stanceIndex: hold.stanceIndex,
-      lane: hold.lane,
-    })),
-  };
-}
-
-function validateGoldenPathSafety(levelConfig, safetySummary) {
-  if (safetySummary.blockedGoldenHoldCount > 0) {
-    const blocked = safetySummary.blockedGoldenHazards
-      .map((hold) => `${hold.hazardType}@${hold.stanceIndex}:${hold.lane ?? "unknown"}`)
-      .join(", ");
-
-    throw new Error(`${levelConfig.id} generated forbidden Golden Path hazards: ${blocked}`);
-  }
-}
-
-export function getRoutePressureSummary(blueprint, contentCounts) {
-  const weighted = blueprint.routeSegments.reduce(
-    (summary, segment) => {
-      const stanceSpan = segment.endStanceIndex - segment.startStanceIndex + 1;
-
-      summary.stanceWeight += stanceSpan;
-      summary.windTotal += segment.windMultiplier * stanceSpan;
-      summary.staminaTotal += segment.staminaModifier * stanceSpan;
-      return summary;
-    },
-    {
-      stanceWeight: 0,
-      windTotal: 0,
-      staminaTotal: 0,
-    },
-  );
-  const stanceCount = Math.max(1, blueprint.goldenPath.length);
-  const hazardCount = HAZARD_PRESSURE_KEYS.reduce((total, key) => total + (contentCounts[key] ?? 0), 0);
-
-  return {
-    averageWindMultiplier: weighted.windTotal / Math.max(1, weighted.stanceWeight),
-    averageStaminaModifier: weighted.staminaTotal / Math.max(1, weighted.stanceWeight),
-    hazardPer100Stances: (hazardCount / stanceCount) * 100,
-    resourcePer100Stances: ((contentCounts.resourceFruit ?? 0) / stanceCount) * 100,
-  };
-}
-
-function validatePressureTargets(levelConfig, pressureSummary) {
-  Object.entries(levelConfig.authoring.pressureTargets).forEach(([key, targetRange]) => {
-    const value = pressureSummary[key];
-
-    if (value < targetRange.min || value > targetRange.max) {
-      throw new Error(
-        `${levelConfig.id} generated ${key} ${value.toFixed(3)}, expected ${targetRange.min}-${targetRange.max}`,
-      );
-    }
-  });
-}
-
-function getResourcePressureSummary(levelConfig, blueprint, contentCounts) {
-  const stanceCount = Math.max(1, blueprint.goldenPath.length);
-  const fruitCount = contentCounts.resourceFruit ?? 0;
-  const resourceRules = levelConfig.routeGeneration.mechanicRules.resourceFruit;
-  const fruitStaminaTotal = fruitCount * resourceRules.staminaRestore;
-  const fruitThirstReliefTotal = fruitCount * resourceRules.thirstRelief;
-  const estimatedFrames = stanceCount * ESTIMATED_FRAMES_PER_STANCE;
-  const loadoutThirstGains = LOADOUT_CONFIGS.map((loadoutConfig) => ({
-    id: loadoutConfig.id,
-    thirstGain:
-      GAME_CONFIG.conditions.survival.thirstGainPerFrame *
-      estimatedFrames *
-      loadoutConfig.modifiers.thirstGainMultiplier,
-    netThirstRelief:
-      fruitThirstReliefTotal -
-      GAME_CONFIG.conditions.survival.thirstGainPerFrame *
-        estimatedFrames *
-        loadoutConfig.modifiers.thirstGainMultiplier,
-  }));
-
-  return {
-    staminaRecoveryPer100Stances: (fruitStaminaTotal / stanceCount) * 100,
-    thirstReliefPer100Stances: (fruitThirstReliefTotal / stanceCount) * 100,
-    worstLoadoutThirstGain: Math.max(...loadoutThirstGains.map((entry) => entry.thirstGain)),
-    worstLoadoutNetThirstRelief: Math.min(...loadoutThirstGains.map((entry) => entry.netThirstRelief)),
-    loadoutThirstGains,
-  };
-}
-
-function validateResourcePressureTargets(levelConfig, resourcePressureSummary) {
-  Object.entries(levelConfig.authoring.resourcePressureTargets).forEach(([key, targetRange]) => {
-    const value = resourcePressureSummary[key];
-
-    if (value < targetRange.min || value > targetRange.max) {
-      throw new Error(
-        `${levelConfig.id} generated ${key} ${value.toFixed(3)}, expected ${targetRange.min}-${targetRange.max}`,
-      );
-    }
-  });
-}
-
-function getWindowPeak(events, windowFrames) {
-  if (events.length === 0 || windowFrames <= 0) {
-    return {
-      count: 0,
-      startFrame: null,
-      eventTypes: [],
-    };
-  }
-
-  return events.reduce(
-    (peak, event, eventIndex) => {
-      const windowEndFrame = event.frame + windowFrames;
-      const eventsInWindow = events.slice(eventIndex).filter((candidate) => candidate.frame <= windowEndFrame);
-
-      if (eventsInWindow.length <= peak.count) {
-        return peak;
-      }
-
-      return {
-        count: eventsInWindow.length,
-        startFrame: event.frame,
-        eventTypes: eventsInWindow.map((candidate) => candidate.type),
-      };
-    },
-    {
-      count: 0,
-      startFrame: null,
-      eventTypes: [],
-    },
-  );
-}
-
-function getMajorEncounterTimeline(levelConfig) {
-  return [
-    ...levelConfig.environmentEvents.map((eventConfig) => ({
-      id: eventConfig.id,
-      type: eventConfig.type,
-      frame: eventConfig.startFrame,
-    })),
-    ...(levelConfig.pursuit
-      ? [
-          {
-            id: "pursuit",
-            type: "pursuit",
-            frame: levelConfig.pursuit.startFrame,
-          },
-        ]
-      : []),
-    ...levelConfig.rescueTargets.map((targetConfig) => ({
-      id: targetConfig.id,
-      type: "rescue",
-      frame: targetConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE,
-    })),
-    ...(levelConfig.laneBlockers ?? []).map((blockerConfig) => ({
-      id: blockerConfig.id,
-      type: "blocker",
-      frame: blockerConfig.stanceIndex * ESTIMATED_FRAMES_PER_STANCE,
-    })),
-  ].sort((left, right) => left.frame - right.frame);
-}
-
-function getPressureEventTimeline(levelConfig, majorEncounters) {
-  return [
-    ...(levelConfig.ropeThreat
-      ? [
-          {
-            id: "rope-threat-ready",
-            type: "ropeThreatReady",
-            frame: levelConfig.ropeThreat.startDelayFrames,
-          },
-        ]
-      : []),
-    ...majorEncounters,
-  ].sort((left, right) => left.frame - right.frame);
-}
-
-function getResourceFruitTimeline(blueprint) {
+function getHoldSignature(blueprint) {
   return blueprint.holds
-    .filter((hold) => hold.hazardType === "resourceFruit")
-    .map((hold) => ({
-      id: hold.id ?? `fruit-${hold.stanceIndex ?? "unknown"}`,
-      type: "resourceFruit",
-      frame: (hold.stanceIndex ?? 0) * ESTIMATED_FRAMES_PER_STANCE,
-    }))
-    .sort((left, right) => left.frame - right.frame);
+    .slice(0, 24)
+    .map((hold) => `${hold.x.toFixed(2)},${hold.y.toFixed(2)},${hold.type},${hold.hazardType ?? "none"}`)
+    .join("|");
 }
 
-function getResourceGapSummary(blueprint, resourceFruitEvents) {
-  const routeEndFrame = Math.max(0, (blueprint.goldenPath.length - 1) * ESTIMATED_FRAMES_PER_STANCE);
-  const frames = [0, ...resourceFruitEvents.map((event) => event.frame), routeEndFrame].sort((left, right) => left - right);
-  let maxGapFrames = 0;
-  let maxGapStartFrame = null;
-  let maxGapEndFrame = null;
-
-  for (let index = 1; index < frames.length; index += 1) {
-    const gap = frames[index] - frames[index - 1];
-
-    if (gap > maxGapFrames) {
-      maxGapFrames = gap;
-      maxGapStartFrame = frames[index - 1];
-      maxGapEndFrame = frames[index];
-    }
+function validateSeedRepeatability(levelConfig, blueprint, repeatedBlueprint, contentCounts) {
+  if (getHoldSignature(blueprint) !== getHoldSignature(repeatedBlueprint)) {
+    throw new Error(`${levelConfig.id} seed did not reproduce the same route signature`);
   }
 
-  return {
-    routeEndFrame,
-    maxGapFrames,
-    maxGapStartFrame,
-    maxGapEndFrame,
-  };
-}
+  const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
 
-function validateMajorEncounterDensity(levelConfig, majorEncounters) {
-  const { majorEncounterWindowFrames, maxMajorEncountersPerWindow } = levelConfig.authoring.pressureRules;
-
-  if (majorEncounterWindowFrames <= 0 || maxMajorEncountersPerWindow <= 0) {
-    return;
-  }
-
-  majorEncounters.forEach((encounter, encounterIndex) => {
-    const windowEndFrame = encounter.frame + majorEncounterWindowFrames;
-    const encountersInWindow = majorEncounters
-      .slice(encounterIndex)
-      .filter((candidate) => candidate.frame <= windowEndFrame);
-
-    if (encountersInWindow.length > maxMajorEncountersPerWindow) {
-      throw new Error(
-        `${levelConfig.id} has ${encountersInWindow.length} major encounters within ${majorEncounterWindowFrames} frames starting at ${encounter.id}`,
-      );
-    }
-  });
-}
-
-function getEventDensitySummary(levelConfig, blueprint, majorEncounters) {
-  const pressureEvents = getPressureEventTimeline(levelConfig, majorEncounters);
-  const resourceFruitEvents = getResourceFruitTimeline(blueprint);
-  const resourceGapSummary = getResourceGapSummary(blueprint, resourceFruitEvents);
-  const {
-    pressureEventWindowFrames,
-    resourceWindowFrames,
-  } = levelConfig.authoring.pressureRules;
-
-  return {
-    pressureEventCount: pressureEvents.length,
-    pressureEventWindowFrames,
-    maxPressureEventsInWindow: getWindowPeak(pressureEvents, pressureEventWindowFrames),
-    resourceFruitWindowFrames: resourceWindowFrames,
-    maxResourceFruitsInWindow: getWindowPeak(resourceFruitEvents, resourceWindowFrames),
-    resourceGapSummary,
-  };
-}
-
-function validateEventDensity(levelConfig, eventDensitySummary) {
-  const {
-    maxPressureEventsPerWindow,
-    maxResourceFruitsPerWindow,
-    maxResourceGapFrames,
-  } = levelConfig.authoring.pressureRules;
-
-  if (
-    maxPressureEventsPerWindow > 0 &&
-    eventDensitySummary.maxPressureEventsInWindow.count > maxPressureEventsPerWindow
-  ) {
-    throw new Error(
-      `${levelConfig.id} has ${eventDensitySummary.maxPressureEventsInWindow.count} pressure events within ${eventDensitySummary.pressureEventWindowFrames} frames starting at ${eventDensitySummary.maxPressureEventsInWindow.startFrame}, expected <= ${maxPressureEventsPerWindow}`,
-    );
-  }
-
-  if (
-    maxResourceFruitsPerWindow > 0 &&
-    eventDensitySummary.maxResourceFruitsInWindow.count > maxResourceFruitsPerWindow
-  ) {
-    throw new Error(
-      `${levelConfig.id} has ${eventDensitySummary.maxResourceFruitsInWindow.count} resource fruits within ${eventDensitySummary.resourceFruitWindowFrames} frames starting at ${eventDensitySummary.maxResourceFruitsInWindow.startFrame}, expected <= ${maxResourceFruitsPerWindow}`,
-    );
-  }
-
-  if (maxResourceGapFrames > 0 && eventDensitySummary.resourceGapSummary.maxGapFrames > maxResourceGapFrames) {
-    throw new Error(
-      `${levelConfig.id} has a ${eventDensitySummary.resourceGapSummary.maxGapFrames} frame resource gap from ${eventDensitySummary.resourceGapSummary.maxGapStartFrame} to ${eventDensitySummary.resourceGapSummary.maxGapEndFrame}, expected <= ${maxResourceGapFrames}`,
-    );
+  if (CONTENT_TARGET_KEYS.some((key) => contentCounts[key] !== repeatedContentCounts[key])) {
+    throw new Error(`${levelConfig.id} seed did not reproduce the same content counts`);
   }
 }
 
 export function analyzeLevelConfig(levelConfig) {
   const blueprint = generateWall(1280, 720, levelConfig.id);
   const repeatedBlueprint = generateWall(1280, 720, levelConfig.id);
-  const zoneKeys = new Set(blueprint.routeSegments.map((segment) => segment.zoneKey));
-  const contentCounts = countGeneratedContent(blueprint.holds);
-  const repeatedContentCounts = countGeneratedContent(repeatedBlueprint.holds);
-  const goldenPathSafetySummary = getGoldenPathSafetySummary(levelConfig, blueprint);
-  const pressureSummary = getRoutePressureSummary(blueprint, contentCounts);
-  const resourcePressureSummary = getResourcePressureSummary(levelConfig, blueprint, contentCounts);
-  const majorEncounters = getMajorEncounterTimeline(levelConfig);
-  const eventDensitySummary = getEventDensitySummary(levelConfig, blueprint, majorEncounters);
+  const analysis = createBlueprintAnalysis(levelConfig, blueprint);
 
-  levelConfig.routeGeneration.zoneSequence.forEach((zoneKey) => {
-    if (!zoneKeys.has(zoneKey)) {
-      throw new Error(`${levelConfig.id} generated route is missing zone ${zoneKey}`);
-    }
-  });
+  validateGeneratedRouteCoverage(levelConfig, analysis.zoneKeys);
 
   if (!validateGoldenPath(blueprint.goldenPath, levelConfig)) {
     throw new Error(`${levelConfig.id} generated an unsolvable golden path`);
   }
 
-  validateContentTargets(levelConfig, contentCounts);
-  validateGoldenPathSafety(levelConfig, goldenPathSafetySummary);
-  validatePressureTargets(levelConfig, pressureSummary);
-  validateResourcePressureTargets(levelConfig, resourcePressureSummary);
-  validateMajorEncounterDensity(levelConfig, majorEncounters);
-  validateEventDensity(levelConfig, eventDensitySummary);
+  validateLevelAnalysisTargets(levelConfig, analysis);
+  validateSeedRepeatability(levelConfig, blueprint, repeatedBlueprint, analysis.contentCounts);
 
-  const holdSignature = blueprint.holds
-    .slice(0, 24)
-    .map((hold) => `${hold.x.toFixed(2)},${hold.y.toFixed(2)},${hold.type},${hold.hazardType ?? "none"}`)
-    .join("|");
-  const repeatedHoldSignature = repeatedBlueprint.holds
-    .slice(0, 24)
-    .map((hold) => `${hold.x.toFixed(2)},${hold.y.toFixed(2)},${hold.type},${hold.hazardType ?? "none"}`)
-    .join("|");
-
-  if (holdSignature !== repeatedHoldSignature) {
-    throw new Error(`${levelConfig.id} seed did not reproduce the same route signature`);
-  }
-
-  if (CONTENT_TARGET_KEYS.some((key) => contentCounts[key] !== repeatedContentCounts[key])) {
-    throw new Error(`${levelConfig.id} seed did not reproduce the same content counts`);
-  }
-
-  return {
-    holdCount: blueprint.holds.length,
-    stanceCount: blueprint.goldenPath.length,
-    segmentCount: blueprint.routeSegments.length,
-    zoneKeys: [...zoneKeys],
-    eventTypes: levelConfig.environmentEvents.map((eventConfig) => eventConfig.type),
-    rescueTargetCount: levelConfig.rescueTargets?.length ?? 0,
-    laneBlockerCount: levelConfig.laneBlockers?.length ?? 0,
-    pursuitEnabled: Boolean(levelConfig.pursuit),
-    ropeThreatEnabled: Boolean(levelConfig.ropeThreat),
-    contentCounts,
-    goldenPathSafetySummary,
-    pressureSummary,
-    resourcePressureSummary,
-    eventDensitySummary,
-    majorEncounters,
-  };
+  return analysis;
 }

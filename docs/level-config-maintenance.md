@@ -45,6 +45,8 @@ When tuning or adding a level, work in this order:
 
 `contentTargets` validates generated mechanic counts. Use it to keep a route from silently changing from sparse to noisy after budget edits.
 
+Rescue start-state coverage compares generated rescue target count against each loadout's `protectionCam` count and validates that the default loadout can cover the configured rescue targets.
+
 `pressureTargets` validates broad route feel:
 
 - `averageWindMultiplier`: weighted average wind pressure across route segments.

@@ -2,99 +2,30 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
-import { createLevelAnalysisSnapshot } from "../../dev/levelAnalysis.js";
-import { getDefaultWindLineDebugTuning, sanitizeWindLineDebugPatch } from "../../dev/windDebugTuning.js";
 import { getDefaultRunDebugConfig } from "../../dev/runDebugConfig.js";
+import { cloneLevelAnalysisSnapshot, createLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
+import { tickEnvironmentEvents } from "./environmentEvents.js";
+import {
+  generateWall,
+  generateWallFromLevelConfig,
+  getRouteSegmentForStance,
+  validateGoldenPath,
+} from "./routeGeneration.js";
+import {
+  createInitialWeatherState,
+  createInitialWindLineDebugTuning,
+  getScaledWindVector,
+  setWindDebugOverride,
+  setWindLineDebugTuning,
+  updateWeatherState,
+} from "./weatherSystem.js";
 
-const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
-let randomSource = Math.random;
+export { generateWall, generateWallFromLevelConfig, validateGoldenPath };
+export { createInitialWindLineDebugTuning, setWindDebugOverride, setWindLineDebugTuning };
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
-}
-
-function normalizeDegrees(angle) {
-  const normalized = Number(angle) % 360;
-
-  if (!Number.isFinite(normalized)) {
-    return 0;
-  }
-
-  return normalized < 0 ? normalized + 360 : normalized;
-}
-
-function getWindVectorFromPolar(force, angleDegrees) {
-  const angle = (normalizeDegrees(angleDegrees) * Math.PI) / 180;
-
-  return {
-    x: Math.cos(angle) * force,
-    y: Math.sin(angle) * force,
-  };
-}
-
-function updateWeatherDerivedState(weatherState) {
-  weatherState.windForce = Math.hypot(weatherState.windX, weatherState.windY);
-  weatherState.windAngle = weatherState.windForce > 0.0001 ? normalizeDegrees((Math.atan2(weatherState.windY, weatherState.windX) * 180) / Math.PI) : 0;
-}
-
-function getScaledWindVector(weatherState, multiplier = 1) {
-  return {
-    x: weatherState.windX * multiplier,
-    y: weatherState.windY * multiplier,
-    magnitude: weatherState.windForce * Math.abs(multiplier),
-  };
-}
-
-function randomBetween(min, max) {
-  return randomSource() * (max - min) + min;
-}
-
-function randomInt(min, max) {
-  return Math.floor(randomBetween(min, max + 1));
-}
-
-function pickHoldType(pool) {
-  return pool[randomInt(0, pool.length - 1)];
-}
-
-function createSeededRandom(seed) {
-  let hash = 2166136261;
-
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return () => {
-    hash += 0x6d2b79f5;
-    let value = hash;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function withRandomSource(nextRandomSource, callback) {
-  const previousRandomSource = randomSource;
-
-  randomSource = nextRandomSource;
-
-  try {
-    return callback();
-  } finally {
-    randomSource = previousRandomSource;
-  }
-}
-
-function createHold(x, y, type, meta = {}) {
-  return {
-    x,
-    y,
-    type,
-    radius: HOLD_RADIUS_BY_TYPE[type],
-    ...meta,
-  };
 }
 
 function createLimb(name, isHand, profileKey, hold, holdIndex) {
@@ -241,19 +172,7 @@ function createInitialMovementState() {
 
 function createInitialConditionState() {
   return {
-    weather: {
-      windPhase: randomBetween(0, Math.PI * 2),
-      windDirectionPhase: randomBetween(0, Math.PI * 2),
-      windForce: 0,
-      windAngle: 0,
-      windX: 0,
-      windY: 0,
-      targetWindX: 0,
-      targetWindY: 0,
-      debugOverrideActive: false,
-      debugOverrideForce: 0,
-      debugOverrideAngle: 0,
-    },
+    weather: createInitialWeatherState(),
     injury: {
       handStrain: 0,
       severity: "stable",
@@ -309,7 +228,7 @@ function createInitialConditionState() {
 function createInitialDebugState() {
   return {
     invincible: false,
-    windLine: getDefaultWindLineDebugTuning(),
+    windLine: createInitialWindLineDebugTuning(),
   };
 }
 
@@ -594,104 +513,6 @@ function tickResourceCollection(state) {
 
   if (closestHoldIndex !== -1) {
     collectResourceFruit(state, closestHoldIndex);
-  }
-}
-
-function activateEarthquakeEvent(state, eventConfig) {
-  const candidates = state.holds
-    .map((hold, holdIndex) => ({ hold, holdIndex }))
-    .filter(
-      ({ hold }) =>
-        hold.routeRole === "noise" &&
-        hold.stanceIndex >= eventConfig.earliestStanceIndex &&
-        !hold.hazardType &&
-        !hold.removed,
-    );
-  const alteredCount = Math.min(eventConfig.fragileNoiseCount, candidates.length);
-
-  for (let index = 0; index < alteredCount; index += 1) {
-    const candidateIndex = randomInt(index, candidates.length - 1);
-    const selected = candidates[candidateIndex];
-
-    candidates[candidateIndex] = candidates[index];
-    candidates[index] = selected;
-    selected.hold.hazardType = "fragile";
-    selected.hold.hazardState = "intact";
-    selected.hold.eventAltered = eventConfig.id;
-    const holdAnchor = getHoldAnchorPosition(state, selected.hold);
-    pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 8, "rgba(210, 190, 140, 0.72)");
-  }
-
-  return alteredCount;
-}
-
-function activateAvalancheEvent(state, eventConfig) {
-  const candidates = state.holds
-    .map((hold, holdIndex) => ({ hold, holdIndex }))
-    .filter(
-      ({ hold }) =>
-        hold.routeRole === "noise" &&
-        hold.stanceIndex >= eventConfig.earliestStanceIndex &&
-        !hold.hazardType &&
-        !hold.removed,
-    );
-  const alteredCount = Math.min(eventConfig.affectedNoiseCount, candidates.length);
-
-  for (let index = 0; index < alteredCount; index += 1) {
-    const candidateIndex = randomInt(index, candidates.length - 1);
-    const selected = candidates[candidateIndex];
-
-    candidates[candidateIndex] = candidates[index];
-    candidates[index] = selected;
-    selected.hold.removed = true;
-    selected.hold.hazardType = "avalancheDebris";
-    selected.hold.hazardState = "buried";
-    selected.hold.eventAltered = eventConfig.id;
-    const holdAnchor = getHoldAnchorPosition(state, selected.hold);
-    pushParticles(state, holdAnchor.x, holdAnchor.y - state.cameraY, 10, "rgba(218, 232, 235, 0.7)");
-  }
-
-  return alteredCount;
-}
-
-function activateEnvironmentEvent(state, eventConfig) {
-  const environmentState = state.conditionState.environment;
-
-  environmentState.activeEventId = eventConfig.id;
-  environmentState.type = eventConfig.type;
-  environmentState.remainingFrames = eventConfig.durationFrames;
-  environmentState.totalFrames = eventConfig.durationFrames;
-  environmentState.triggeredEventIds.push(eventConfig.id);
-
-  if (eventConfig.type === "earthquake") {
-    environmentState.alteredHoldCount = activateEarthquakeEvent(state, eventConfig);
-  } else if (eventConfig.type === "avalanche") {
-    environmentState.alteredHoldCount = activateAvalancheEvent(state, eventConfig);
-  }
-}
-
-function tickEnvironmentEvents(state) {
-  const environmentState = state.conditionState.environment;
-
-  if (environmentState.remainingFrames > 0) {
-    environmentState.remainingFrames -= 1;
-
-    if (environmentState.remainingFrames === 0) {
-      environmentState.activeEventId = null;
-      environmentState.type = "none";
-      environmentState.totalFrames = 0;
-    }
-
-    return;
-  }
-
-  const nextEvent = state.environmentEvents.find(
-    (eventConfig) =>
-      state.frame >= eventConfig.startFrame && !environmentState.triggeredEventIds.includes(eventConfig.id),
-  );
-
-  if (nextEvent) {
-    activateEnvironmentEvent(state, nextEvent);
   }
 }
 
@@ -1519,35 +1340,6 @@ function getRestPoseState(state) {
   };
 }
 
-function updateWeatherState(state) {
-  const weatherState = state.conditionState.weather;
-  weatherState.windPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed;
-  weatherState.windDirectionPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed * 0.42;
-
-  if (weatherState.debugOverrideActive) {
-    const debugTarget = getWindVectorFromPolar(weatherState.debugOverrideForce, weatherState.debugOverrideAngle);
-    weatherState.targetWindX = debugTarget.x;
-    weatherState.targetWindY = debugTarget.y;
-  } else {
-    weatherState.targetWindX =
-      Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
-      Math.sin(weatherState.windPhase * 2.2) * GAME_CONFIG.conditions.weather.gustForce;
-    weatherState.targetWindY =
-      Math.sin(weatherState.windDirectionPhase * 1.4 + 0.85) * GAME_CONFIG.conditions.weather.baseForce * 0.72 +
-      Math.cos(weatherState.windDirectionPhase * 2.05 - 0.4) * GAME_CONFIG.conditions.weather.gustForce * 0.48;
-  }
-
-  weatherState.windX += (weatherState.targetWindX - weatherState.windX) * GAME_CONFIG.conditions.weather.smoothing;
-  weatherState.windY += (weatherState.targetWindY - weatherState.windY) * GAME_CONFIG.conditions.weather.smoothing;
-
-  if (Math.hypot(weatherState.windX, weatherState.windY) < GAME_CONFIG.conditions.weather.deadzone) {
-    weatherState.windX = 0;
-    weatherState.windY = 0;
-  }
-
-  updateWeatherDerivedState(weatherState);
-}
-
 function updateInjuryState(state, attachedLimbs) {
   const injuryState = state.conditionState.injury;
   const attachedHandLimbs = attachedLimbs.filter((limb) => limb.isHand);
@@ -1758,39 +1550,6 @@ function canUseItem(state, itemDefinition) {
     return !state.itemState.channel && (!activation.requiresSingleHandHang || isSingleHandHang(state));
   }
 
-  return true;
-}
-
-export function setWindDebugOverride(state, enabled, force = 0, angle = state.conditionState?.weather?.debugOverrideAngle ?? 0) {
-  const weatherState = state.conditionState?.weather;
-
-  if (!weatherState) {
-    return false;
-  }
-
-  const normalizedForce = clamp(Math.abs(Number(force) || 0), 0, 0.24);
-  weatherState.debugOverrideActive = Boolean(enabled);
-  weatherState.debugOverrideForce = normalizedForce;
-  weatherState.debugOverrideAngle = normalizeDegrees(angle);
-
-  if (weatherState.debugOverrideActive) {
-    const debugVector = getWindVectorFromPolar(normalizedForce, weatherState.debugOverrideAngle);
-    weatherState.targetWindX = debugVector.x;
-    weatherState.targetWindY = debugVector.y;
-    weatherState.windX = debugVector.x;
-    weatherState.windY = debugVector.y;
-    updateWeatherDerivedState(weatherState);
-  }
-
-  return true;
-}
-
-export function setWindLineDebugTuning(state, patch) {
-  if (!state.debugState) {
-    return false;
-  }
-
-  state.debugState.windLine = sanitizeWindLineDebugPatch(patch, state.debugState.windLine);
   return true;
 }
 
@@ -2088,325 +1847,6 @@ function tickChannelItem(state) {
   state.itemState.channel = null;
 }
 
-function clampRouteX(viewportWidth, value, routeConfig) {
-  return clamp(value, routeConfig.corridorPadding, viewportWidth - routeConfig.corridorPadding);
-}
-
-function createSpawnHolds(centerX, viewportHeight) {
-  return [
-    createHold(centerX - 40, viewportHeight - 100, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
-    createHold(centerX + 40, viewportHeight - 120, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
-    createHold(centerX - 50, viewportHeight - 10, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
-    createHold(centerX + 50, viewportHeight - 10, 0, { routeRole: "spawn", routeZone: "recovery", stanceIndex: -1 }),
-  ];
-}
-
-function createGoldenStance(centerX, baseY, stanceIndex, zoneKey, zoneProfile, routeConfig) {
-  const handSpread = randomBetween(routeConfig.handSpreadMin, routeConfig.handSpreadMax);
-  const footSpread = randomBetween(routeConfig.footSpreadMin, routeConfig.footSpreadMax);
-  const handOffsetY = randomBetween(routeConfig.handOffsetYMin, routeConfig.handOffsetYMax);
-  const footOffsetY = randomBetween(routeConfig.footOffsetYMin, routeConfig.footOffsetYMax);
-  const routeHoldTypes = zoneProfile?.routeHoldTypes ?? [0, 0, 0, 0, 1, 1];
-
-  return {
-    centerX,
-    baseY,
-    stanceIndex,
-    zoneKey,
-    holds: [
-      createHold(centerX - handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(routeHoldTypes), {
-        routeRole: "golden",
-        routeZone: zoneKey,
-        lane: "leftHand",
-        stanceIndex,
-        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.leftHand ?? 0,
-      }),
-      createHold(centerX + handSpread, baseY - handOffsetY + randomBetween(-8, 8), pickHoldType(routeHoldTypes), {
-        routeRole: "golden",
-        routeZone: zoneKey,
-        lane: "rightHand",
-        stanceIndex,
-        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.rightHand ?? 0,
-      }),
-      createHold(centerX - footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
-        routeRole: "golden",
-        routeZone: zoneKey,
-        lane: "leftFoot",
-        stanceIndex,
-        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.leftFoot ?? 0,
-      }),
-      createHold(centerX + footSpread, baseY + footOffsetY + randomBetween(-10, 10), pickHoldType(routeHoldTypes), {
-        routeRole: "golden",
-        routeZone: zoneKey,
-        lane: "rightFoot",
-        stanceIndex,
-        zLayer: routeConfig.spatialExperiment?.goldenLaneDepths?.rightFoot ?? 0,
-      }),
-    ],
-  };
-}
-
-function createGoldenPath(viewportWidth, viewportHeight, levelConfig) {
-  const routeConfig = levelConfig.routeGeneration;
-  const centerX = viewportWidth / 2;
-  const path = [];
-  let stanceCenterX = centerX;
-  let currentBaseY = viewportHeight - 180;
-  let stanceIndex = 0;
-
-  while (currentBaseY > -levelConfig.wallHeight) {
-    currentBaseY -= randomBetween(routeConfig.stepYMin, routeConfig.stepYMax);
-    stanceCenterX = clampRouteX(viewportWidth, stanceCenterX + randomBetween(-routeConfig.centerDrift, routeConfig.centerDrift), routeConfig);
-    path.push(createGoldenStance(stanceCenterX, currentBaseY, stanceIndex, "recovery", null, routeConfig));
-    stanceIndex += 1;
-  }
-
-  return path;
-}
-
-function createRouteSegments(stanceCount, routeConfig) {
-  const segments = [];
-  let stanceIndex = 0;
-  let sequenceIndex = 0;
-
-  while (stanceIndex < stanceCount) {
-    const zoneKey = routeConfig.zoneSequence[sequenceIndex % routeConfig.zoneSequence.length];
-    const zoneProfile = routeConfig.zones[zoneKey];
-    const segmentLength = Math.min(
-      stanceCount - stanceIndex,
-      randomInt(zoneProfile.segmentSpanMin, zoneProfile.segmentSpanMax),
-    );
-
-    segments.push({
-      id: `${zoneKey}-${segments.length}`,
-      zoneKey,
-      startStanceIndex: stanceIndex,
-      endStanceIndex: stanceIndex + segmentLength - 1,
-      windMultiplier: zoneProfile.windMultiplier,
-      staminaModifier: zoneProfile.staminaModifier,
-    });
-
-    stanceIndex += segmentLength;
-    sequenceIndex += 1;
-  }
-
-  return segments;
-}
-
-function getRouteSegmentForStance(routeSegments, stanceIndex) {
-  return (
-    routeSegments.find((segment) => stanceIndex >= segment.startStanceIndex && stanceIndex <= segment.endStanceIndex) ??
-    routeSegments[routeSegments.length - 1]
-  );
-}
-
-function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
-  const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
-  const timedSoftChance = zoneProfile?.mechanicBudget?.timedSoft ?? 0;
-  const obstacleChance = zoneProfile?.mechanicBudget?.obstacle ?? 0;
-  const resourceChance = zoneProfile?.mechanicBudget?.resource ?? 0;
-
-  if (fragileChance > 0 && randomSource() < fragileChance) {
-    return {
-      hazardType: "fragile",
-      hazardState: "intact",
-    };
-  }
-
-  if (timedSoftChance > 0 && randomSource() < timedSoftChance) {
-    const timedSoftRules = routeConfig.mechanicRules?.timedSoft ?? {
-      collapseFramesMin: 150,
-      collapseFramesMax: 240,
-    };
-
-    return {
-      hazardType: "timedSoft",
-      hazardState: "stable",
-      attachedFrames: 0,
-      collapseFrames: randomInt(timedSoftRules.collapseFramesMin, timedSoftRules.collapseFramesMax),
-    };
-  }
-
-  if (obstacleChance > 0 && randomSource() < obstacleChance) {
-    const obstacleRules = routeConfig.mechanicRules?.obstacle ?? {
-      radiusMin: 14,
-      radiusMax: 24,
-    };
-
-    return {
-      hazardType: "obstacle",
-      hazardState: "solid",
-      drillFrames: 0,
-      radius: randomBetween(obstacleRules.radiusMin, obstacleRules.radiusMax),
-    };
-  }
-
-  if (resourceChance > 0 && randomSource() < resourceChance) {
-    const resourceRules = routeConfig.mechanicRules?.resourceFruit ?? {
-      radius: 6,
-    };
-
-    return {
-      hazardType: "resourceFruit",
-      hazardState: "ripe",
-      radius: resourceRules.radius,
-    };
-  }
-
-  return {};
-}
-
-function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConfig) {
-  const noiseHolds = [];
-  const noiseCount = randomInt(
-    zoneProfile?.noiseCountMin ?? routeConfig.noiseCountMin,
-    zoneProfile?.noiseCountMax ?? routeConfig.noiseCountMax,
-  );
-  const noiseHoldTypes = zoneProfile?.noiseHoldTypes ?? [0, 1, 1, 2, 2];
-  const noiseOffsetX = routeConfig.noiseOffsetX * (zoneProfile?.noiseOffsetXMultiplier ?? 1);
-  const noiseOffsetY = routeConfig.noiseOffsetY * (zoneProfile?.noiseOffsetYMultiplier ?? 1);
-
-  for (let index = 0; index < noiseCount; index += 1) {
-    const offsetX = randomBetween(-noiseOffsetX, noiseOffsetX);
-    const offsetY = randomBetween(-noiseOffsetY, noiseOffsetY);
-    const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX, routeConfig);
-    const noiseY = stance.baseY + offsetY;
-    noiseHolds.push(
-      createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
-        routeRole: "noise",
-        routeZone: zoneKey,
-        stanceIndex: stance.stanceIndex,
-        zLayer: randomBetween(
-          routeConfig.spatialExperiment?.noiseDepthMin ?? 0,
-          routeConfig.spatialExperiment?.noiseDepthMax ?? 0,
-        ),
-        ...getNoiseHoldHazardMeta(zoneProfile, routeConfig),
-      }),
-    );
-  }
-
-  return noiseHolds;
-}
-
-function createRescueTargetHolds(goldenPath, rescueTargets = []) {
-  return rescueTargets
-    .map((targetConfig) => {
-      const stance = goldenPath[targetConfig.stanceIndex];
-
-      if (!stance) {
-        return null;
-      }
-
-      return createHold(stance.centerX + targetConfig.offsetX, stance.baseY + targetConfig.offsetY, 0, {
-        routeRole: "rescueTarget",
-        routeZone: stance.zoneKey,
-        stanceIndex: stance.stanceIndex,
-        hazardType: "rescueTarget",
-        hazardState: "waiting",
-        rescueTargetId: targetConfig.id,
-        rescueRadius: targetConfig.rescueRadius,
-        burdenFrames: targetConfig.burdenFrames,
-        burdenStaminaPenalty: targetConfig.staminaPenalty,
-        radius: targetConfig.radius,
-        zLayer: 0,
-      });
-    })
-    .filter(Boolean);
-}
-
-function createLaneBlockerHolds(goldenPath, laneBlockers = []) {
-  return laneBlockers
-    .map((blockerConfig) => {
-      const stance = goldenPath[blockerConfig.stanceIndex];
-
-      if (!stance) {
-        return null;
-      }
-
-      return createHold(stance.centerX + blockerConfig.offsetX, stance.baseY + blockerConfig.offsetY, 2, {
-        routeRole: "laneBlocker",
-        routeZone: stance.zoneKey,
-        stanceIndex: stance.stanceIndex,
-        hazardType: "laneBlocker",
-        hazardState: "watching",
-        laneBlockerId: blockerConfig.id,
-        dangerRadius: blockerConfig.dangerRadius,
-        staminaPenalty: blockerConfig.staminaPenalty,
-        radius: blockerConfig.radius,
-        zLayer: 0,
-      });
-    })
-    .filter(Boolean);
-}
-
-export function validateGoldenPath(path, levelConfig = getLevelConfig()) {
-  const safeReach =
-    Math.min(GAME_CONFIG.limbProfiles.leftHand.maxReach, GAME_CONFIG.limbProfiles.rightHand.maxReach) -
-    levelConfig.routeGeneration.routeSafetyBuffer;
-
-  return path.every((stance, index) => {
-    if (index === 0) {
-      return true;
-    }
-
-    const previousStance = path[index - 1];
-    return Math.hypot(stance.centerX - previousStance.centerX, stance.baseY - previousStance.baseY) <= safeReach;
-  });
-}
-
-function buildWallBlueprint(viewportWidth, viewportHeight, levelConfig) {
-  const routeConfig = levelConfig.routeGeneration;
-  const holds = [];
-  const centerX = viewportWidth / 2;
-  const spawnHolds = createSpawnHolds(centerX, viewportHeight);
-  const goldenPathBase = createGoldenPath(viewportWidth, viewportHeight, levelConfig);
-  const routeSegments = createRouteSegments(goldenPathBase.length, routeConfig);
-  const goldenPath = goldenPathBase.map((baseStance) => {
-    const segment = getRouteSegmentForStance(routeSegments, baseStance.stanceIndex);
-    const zoneProfile = routeConfig.zones[segment.zoneKey];
-    const stance = createGoldenStance(
-      baseStance.centerX,
-      baseStance.baseY,
-      baseStance.stanceIndex,
-      segment.zoneKey,
-      zoneProfile,
-      routeConfig,
-    );
-    const holdIndices = [];
-
-    stance.holds.forEach((hold) => {
-      holdIndices.push(holds.length + spawnHolds.length);
-      holds.push(hold);
-    });
-
-    createNoiseHolds(stance, viewportWidth, segment.zoneKey, zoneProfile, routeConfig).forEach((hold) => {
-      holds.push(hold);
-    });
-
-    return {
-      centerX: stance.centerX,
-      baseY: stance.baseY,
-      zoneKey: segment.zoneKey,
-      segmentId: segment.id,
-      holdIndices,
-    };
-  });
-  const rescueTargetHolds = createRescueTargetHolds(goldenPath, levelConfig.rescueTargets);
-  const laneBlockerHolds = createLaneBlockerHolds(goldenPath, levelConfig.laneBlockers);
-
-  return {
-    holds: [...spawnHolds, ...holds, ...rescueTargetHolds, ...laneBlockerHolds],
-    goldenPath,
-    routeSegments,
-    levelId: levelConfig.id,
-    levelLabel: levelConfig.label,
-    mechanicRules: routeConfig.mechanicRules ?? {},
-    environmentEvents: levelConfig.environmentEvents ?? [],
-    pursuit: levelConfig.pursuit ?? null,
-    ropeThreat: levelConfig.ropeThreat ?? null,
-  };
-}
-
 function isHoldAvailable(hold) {
   return Boolean(
     hold &&
@@ -2416,29 +1856,6 @@ function isHoldAvailable(hold) {
       hold.hazardType !== "rescueTarget" &&
       hold.hazardType !== "laneBlocker",
   );
-}
-
-export function generateWallFromLevelConfig(viewportWidth, viewportHeight, levelConfig) {
-  const blueprint = withRandomSource(
-    createSeededRandom(`${levelConfig.id}:${levelConfig.seed}:${viewportWidth}x${viewportHeight}`),
-    () => buildWallBlueprint(viewportWidth, viewportHeight, levelConfig),
-  );
-
-  return {
-    ...blueprint,
-    goldenPathValid: validateGoldenPath(blueprint.goldenPath, levelConfig),
-  };
-}
-
-export function generateWall(viewportWidth, viewportHeight, levelId) {
-  const levelConfig = getLevelConfig(levelId);
-  const blueprint = generateWallFromLevelConfig(viewportWidth, viewportHeight, levelConfig);
-
-  if (!blueprint.goldenPathValid) {
-    return generateWall(viewportWidth, viewportHeight, levelConfig.id);
-  }
-
-  return blueprint;
 }
 
 function getLimbRootPosition(player, limb) {
@@ -2750,22 +2167,7 @@ export function getUiSnapshot(state, frame) {
       invincible: state.debugState.invincible,
       windLine: { ...state.debugState.windLine },
     },
-    levelAnalysis: {
-      ...state.levelAnalysis,
-      contentCounts: { ...state.levelAnalysis.contentCounts },
-      zoneKeys: [...state.levelAnalysis.zoneKeys],
-      eventTypes: [...state.levelAnalysis.eventTypes],
-      majorEncounters: state.levelAnalysis.majorEncounters.map((encounter) => ({ ...encounter })),
-      goldenPathSafetySummary: { ...state.levelAnalysis.goldenPathSafetySummary },
-      pressureSummary: { ...state.levelAnalysis.pressureSummary },
-      resourcePressureSummary: { ...state.levelAnalysis.resourcePressureSummary },
-      eventDensitySummary: {
-        ...state.levelAnalysis.eventDensitySummary,
-        maxPressureEventsInWindow: { ...state.levelAnalysis.eventDensitySummary.maxPressureEventsInWindow },
-        maxResourceFruitsInWindow: { ...state.levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow },
-        resourceGapSummary: { ...state.levelAnalysis.eventDensitySummary.resourceGapSummary },
-      },
-    },
+    levelAnalysis: cloneLevelAnalysisSnapshot(state.levelAnalysis),
     tutorialVisible: state.tutorialVisible,
     endMessage: state.endMessage,
   };

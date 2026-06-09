@@ -33,6 +33,14 @@ npm run report:levels
   - Legacy balancing presets for starting item counts and small dyno / hold / thirst multipliers. Still used by validation and engine compatibility, but no longer exposed in the player HUD.
 - `src/data/gameConfig.js`
   - Low-level movement, stamina, weather, injury, recovery, survival, and visual constants.
+- `src/logic/analysis/levelAnalysis.js`
+  - Shared generated-route analysis, target checks, Golden Path safety summaries, resource-pressure summaries, and event-density summaries used by runtime snapshots, the level editor, reports, and validators.
+- `src/logic/engine/routeGeneration.js`
+  - Seeded wall blueprint generation, Golden Path validation entry points, route segments, non-Golden Path hazard/resource placement, rescue targets, and lane blockers. `gameEngine.js` re-exports the stable public route API for existing callers.
+- `src/logic/engine/weatherSystem.js`
+  - Weather state initialization, wind vector updates, wind debug override, and wind-line tuning entry points used by the runtime engine and game hook.
+- `src/logic/engine/environmentEvents.js`
+  - Earthquake and avalanche event activation, noise-hold alteration, active-event timers, and event particle feedback.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -100,6 +108,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
   - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, route preset selection, starting inventory overrides, event toggles, run-config JSON import/export, `Copy config`, and `Copy level config`.
+  - Current status: wind debug override and wind-line tuning now route through `src/logic/engine/weatherSystem.js`.
   - Current status: generated analysis values are shown next to target ranges for content counts, Golden Path safety, pressure, resource pressure, and event density.
   - Current status: `Copy level summary` exports a focused Markdown tuning handoff for the currently applied level.
   - Current status: a first-pass separate level-config screen now exists, opened from the `DEV` panel, with `Start / Route / Events / Validation` tabs and local draft JSON editing.
@@ -107,6 +116,9 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Boundary: keep this as a developer tuning panel, not a player-facing UGC editor.
 - Level config contract:
   - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.
+  - Current status: generated-route analysis and target validation now share `src/logic/analysis/levelAnalysis.js` across runtime snapshots, level-editor previews, reports, and validation scripts.
+  - Current status: UI snapshots clone level-analysis data through `cloneLevelAnalysisSnapshot`, keeping new analysis fields out of ad hoc engine copy code.
+  - Current status: seeded wall and route generation now lives in `src/logic/engine/routeGeneration.js`, while `gameEngine.js` keeps the runtime entry points and compatibility exports.
   - Current status: `npm run report:level -- <level-id>` prints a focused single-level tuning report for balancing one route at a time.
   - Next step: keep adding validators whenever a new route-affecting mechanic is added.
   - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
@@ -132,9 +144,10 @@ These are good near-term implementation candidates because they extend existing 
 
 - Rescue routes:
   - Current status: rescue targets use protection placements and trigger temporary burden pressure.
-  - Next step: validate whether configured starting inventory can handle rescue-route goals without trivializing general routes.
+  - Current status: level analysis now reports rescue start-state coverage against `protectionCam` counts and validates that the default loadout can cover configured rescue targets.
+  - Next step: use the coverage summary to decide whether rescue routes should prefer the default start state or a dedicated future rescue start state.
   - Next step: tune rescue burden duration and stamina pressure against resource availability.
-  - Recommended next small implementation: add a focused rescue-route/start-state validation summary.
+  - Recommended next small implementation: tune under-covered legacy loadouts only if those loadouts become player-facing again.
 - Resource routing:
   - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
   - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
@@ -146,6 +159,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
+  - Current status: earthquake and avalanche runtime activation now lives in `src/logic/engine/environmentEvents.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
   - Next step: decide whether avalanche should directly affect stability, visibility, or only route topology.

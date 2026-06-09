@@ -73,6 +73,25 @@ function formatLimitLine(label, value, max, detail = "") {
   return `- ${label}: ${value} (limit <=${max})${detail ? ` ${detail}` : ""}`;
 }
 
+function formatSignedCount(value) {
+  return value >= 0 ? `+${value}` : `${value}`;
+}
+
+function formatRescueStartStateSummary(rescueStartStateSummary) {
+  const defaultLoadout = rescueStartStateSummary.defaultLoadout;
+  const bestLoadout = rescueStartStateSummary.bestLoadout;
+  const underCovered = rescueStartStateSummary.underProvisionedLoadouts
+    .map((entry) => `${entry.id}(${entry.itemCount})`)
+    .join(", ") || "none";
+
+  return [
+    `- required ${rescueStartStateSummary.requiredItemId}: ${rescueStartStateSummary.rescueTargetCount}`,
+    `- default ${rescueStartStateSummary.defaultLoadoutId}: ${defaultLoadout?.itemCount ?? 0} (${formatSignedCount(defaultLoadout?.surplus ?? 0)})`,
+    `- best ${bestLoadout?.id ?? "none"}: ${bestLoadout?.itemCount ?? 0} (${formatSignedCount(bestLoadout?.surplus ?? 0)})`,
+    `- under-covered: ${underCovered}`,
+  ];
+}
+
 function formatLevelAnalysisSummary(levelConfig, levelAnalysis) {
   const authoring = levelConfig.authoring;
   const lines = [
@@ -194,6 +213,14 @@ function formatLevelAnalysisSummary(levelConfig, levelAnalysis) {
       `@ ${levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
     ),
     formatLimitLine("max fruit gap frames", levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, authoring.pressureRules.maxResourceGapFrames),
+    ...(levelAnalysis.rescueStartStateSummary.rescueTargetCount > 0
+      ? [
+          "",
+          "## Rescue Start State",
+          "",
+          ...formatRescueStartStateSummary(levelAnalysis.rescueStartStateSummary),
+        ]
+      : []),
   ].join("\n");
 }
 
