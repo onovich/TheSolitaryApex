@@ -2,7 +2,8 @@ import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotio
 import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import { advanceDynoCharge, decayDynoState } from "./dynoSystem.js";
-import { updateDynoAutoAttachState, updateDynoFlightState } from "./dynoFlightSystem.js";
+import { updateDynoAutoAttachState } from "./dynoAutoAttachSystem.js";
+import { updateDynoFlightState } from "./dynoFlightSystem.js";
 import { updateFallState } from "./fallRecoverySystem.js";
 import { tickRecoveryState } from "./recoveryStateSystem.js";
 import { tickFeedbackState } from "./feedbackSystem.js";
