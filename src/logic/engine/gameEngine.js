@@ -15,7 +15,7 @@ import {
   updateSuspendedLimbs,
 } from "./attachmentSystem.js";
 import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotionSystem.js";
-import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
+import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
   clearDragConstraintSnapshot,
@@ -72,9 +72,9 @@ import { pushParticles, updateParticles } from "./particleSystem.js";
 import {
   generateWall,
   generateWallFromLevelConfig,
-  getRouteSegmentForStance,
   validateGoldenPath,
 } from "./routeGeneration.js";
+import { updateHeightAndCamera, updateRouteState } from "./routeProgressSystem.js";
 import {
   createInitialWindLineDebugTuning,
   getScaledWindVector,
@@ -302,32 +302,6 @@ function stabilizeInvincibleState(state, reason, viewportHeight) {
   }
 
   restoreCheckpointPose(state, getFallRecoveryRuntime());
-}
-
-function getClosestGoldenStanceIndex(state) {
-  let closestIndex = 0;
-  let closestDistance = Infinity;
-
-  state.goldenPath.forEach((stance, index) => {
-    const distance = Math.abs(stance.baseY - state.player.com.y);
-
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  });
-
-  return closestIndex;
-}
-
-function updateRouteState(state) {
-  const currentStanceIndex = getClosestGoldenStanceIndex(state);
-  const currentSegment = getRouteSegmentForStance(state.routeSegments, currentStanceIndex);
-
-  state.routeState.currentStanceIndex = currentStanceIndex;
-  state.routeState.currentSegmentId = currentSegment.id;
-  state.routeState.currentZoneKey = currentSegment.zoneKey;
-  return currentSegment;
 }
 
 export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
@@ -717,17 +691,6 @@ function updateDynoFlightState(state, currentRouteSegment, viewportHeight) {
   if (previousVelocityY < 0 && state.movementState.bodyVelocity.y >= 0) {
     attemptDynoAutoAttach(state);
   }
-}
-
-function updateHeightAndCamera(state, viewportHeight) {
-  const currentHeight = getCurrentHeight(state, viewportHeight);
-
-  if (currentHeight > state.maxHeightReached) {
-    state.maxHeightReached = currentHeight;
-  }
-
-  const targetCameraY = state.player.com.y - viewportHeight * 0.6;
-  state.cameraY += (targetCameraY - state.cameraY) * GAME_CONFIG.cameraLerp;
 }
 
 export function updateFrame(state, viewportWidth, viewportHeight) {
