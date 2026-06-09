@@ -1,6 +1,7 @@
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { isHoldAvailable } from "./attachmentSystem.js";
-import { canLimbReachTarget, findClosestLandingAttachHold } from "./limbReachSystem.js";
+import { findClosestLandingAttachHold } from "./limbHoldLookupSystem.js";
+import { canLimbReachTarget } from "./limbReachMetricsSystem.js";
 import { pushParticles } from "./particleSystem.js";
 
 export function createDynoLandingTargets(state, runtime) {

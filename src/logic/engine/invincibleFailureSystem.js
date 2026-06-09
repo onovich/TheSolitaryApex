@@ -3,7 +3,8 @@ import { getAttachedLimbs, isHoldAvailable } from "./attachmentSystem.js";
 import { resetDynoState } from "./dynoStateSystem.js";
 import { clearDragConstraintSnapshot, clearDragRejectFeedback } from "./feedbackSystem.js";
 import { restoreCheckpointPose } from "./fallRecoverySystem.js";
-import { findClosestLandingAttachHold, syncAttachedLimbAnchors } from "./limbReachSystem.js";
+import { findClosestLandingAttachHold } from "./limbHoldLookupSystem.js";
+import { syncAttachedLimbAnchors } from "./limbReachSystem.js";
 import { createInitialFallState } from "./recoveryStateSystem.js";
 
 export function isInvincibleEnabled(state) {

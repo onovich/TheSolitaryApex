@@ -3,10 +3,9 @@ import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { getAttachedLimbs, releaseHoldAttachment } from "./attachmentSystem.js";
 import { clearDragConstraintSnapshot, clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem.js";
 import { createInitialFallState } from "./recoveryStateSystem.js";
+import { findClosestReachableHold, getClosestHoldIndex } from "./limbHoldLookupSystem.js";
 import {
   canLimbReachTarget,
-  findClosestReachableHold,
-  getClosestHoldIndex,
   setDragConstraintSnapshot,
   syncAttachedLimbAnchors,
   updateDragConstraintFeedback,
