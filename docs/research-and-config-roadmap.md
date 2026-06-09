@@ -47,6 +47,8 @@ npm run report:levels
   - Field-by-field maintenance guide for tuning official level templates, reading reports, and validating before commits.
 - `docs/level-editor-plan.md`
   - Proposed standalone level-config editor structure and data split.
+- `docs/manual-smoke-checklist.md`
+  - Short local and online smoke checklist for validation, launcher checks, UI language switching, DEV tooling, level-editor validation, and Pages deployment timing.
 
 ## Implemented Gameplay Prototypes
 
@@ -94,19 +96,19 @@ These tasks are the top priority because every new mechanic increases route-conf
 - Developer workflow:
   - Current status: root launchers can start local manual testing with fallback ports and open the online demo.
   - Current status: reusable global skills now exist for web test launchers and 2/3/5-language web i18n.
-  - Next step: add a tiny documented smoke checklist for manual local and online testing after a push.
-  - Next step: consider adding a Pages deployment/status note after push so the user knows when the online build is likely refreshed.
+  - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
+  - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
   - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, route preset selection, starting inventory overrides, event toggles, run-config JSON import/export, `Copy config`, and `Copy level config`.
-  - Next step: show actual generated analysis values next to target ranges, especially content counts, Golden Path safety, pressure, resource pressure, and event density.
-  - Next step: add focused copy/export actions for tuning handoff, such as copied level report summary or copied target deltas.
+  - Current status: generated analysis values are shown next to target ranges for content counts, Golden Path safety, pressure, resource pressure, and event density.
+  - Current status: `Copy level summary` exports a focused Markdown tuning handoff for the currently applied level.
   - Current status: a first-pass separate level-config screen now exists, opened from the `DEV` panel, with `Start / Route / Events / Validation` tabs and local draft JSON editing.
   - Next step: decide which parts of that screen should become true persistent authoring instead of local draft tooling.
   - Boundary: keep this as a developer tuning panel, not a player-facing UGC editor.
 - Level config contract:
   - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.
+  - Current status: `npm run report:level -- <level-id>` prints a focused single-level tuning report for balancing one route at a time.
   - Next step: keep adding validators whenever a new route-affecting mechanic is added.
-  - Next step: make report output easier to scan when balancing one level at a time.
   - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
 - Localization support:
   - Current status: HUD, item labels, tutorial text, game-over overlay, and DEV panel text render from five language bundles.
@@ -117,7 +119,7 @@ These tasks are the top priority because every new mechanic increases route-conf
 - Debug start-state support:
   - Current status: players no longer choose route type or strategy in the HUD.
   - Current status: official route presets, starting items, and event-family switches now belong to developer debugging.
-  - Next step: add JSON import/export for run-debug presets.
+  - Current status: run-debug presets support JSON import/export in the `DEV` panel.
   - Next step: decide whether a future player-facing pre-run choice should exist at all, and only reintroduce it with strong gameplay meaning.
 - Random versus authored level content:
   - Keep authored: zone order, segment ranges, major event timing, pursuit timing, rope-threat timing, rescue target placement, lane blocker placement, target ranges, and validation rules.

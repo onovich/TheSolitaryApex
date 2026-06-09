@@ -99,7 +99,13 @@ After editing `src/data/levelConfig.js`, run:
 npm run report:levels
 ```
 
-Use the report to inspect:
+When balancing one route, use the focused report form:
+
+```bash
+npm run report:level -- pursuit-crux-ascent
+```
+
+Use the report output to inspect:
 
 - `Content`: actual generated mechanic counts.
 - `Golden Path`: blocked hazard count must stay `0`.

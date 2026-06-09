@@ -17,14 +17,7 @@ import {
   sanitizeRunDebugConfig,
 } from "../../dev/runDebugConfig";
 import { getDefaultWindLineDebugTuning, WIND_LINE_DEBUG_FIELDS } from "../../dev/windDebugTuning";
-
-function copyToClipboard(value) {
-  if (!navigator.clipboard) {
-    return Promise.reject(new Error("Clipboard API unavailable"));
-  }
-
-  return navigator.clipboard.writeText(value);
-}
+import { copyToClipboard } from "../utils/clipboard";
 
 function formatLevelConfig(levelConfig) {
   return JSON.stringify(
@@ -56,6 +49,152 @@ function formatActualAgainstRange(value, range, digits = 1) {
 
 function formatActualAgainstLimit(value, max) {
   return `${value} / <=${max}`;
+}
+
+function formatMaybeNumber(value, digits = 1) {
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue.toFixed(digits) : "n/a";
+}
+
+function formatTargetRange(range, digits = 1) {
+  if (!range) {
+    return "n/a";
+  }
+
+  return `${formatMaybeNumber(range.min, digits)} - ${formatMaybeNumber(range.max, digits)}`;
+}
+
+function formatTargetLine(label, value, range, digits = 1) {
+  return `- ${label}: ${formatMaybeNumber(value, digits)} (target ${formatTargetRange(range, digits)})`;
+}
+
+function formatLimitLine(label, value, max, detail = "") {
+  return `- ${label}: ${value} (limit <=${max})${detail ? ` ${detail}` : ""}`;
+}
+
+function formatLevelAnalysisSummary(levelConfig, levelAnalysis) {
+  const authoring = levelConfig.authoring;
+  const lines = [
+    `# ${levelConfig.label} tuning summary`,
+    "",
+    `- id: ${levelConfig.id}`,
+    `- template: ${authoring.templateId}`,
+    `- seed: ${levelConfig.seed}`,
+    `- wall height: ${levelConfig.wallHeight}`,
+    `- intended pace: ${authoring.intendedPace}`,
+  ];
+
+  if (!levelAnalysis) {
+    return [
+      ...lines,
+      "",
+      "## Analysis",
+      "",
+      "- Current generated analysis is unavailable until this level is applied and restarted.",
+    ].join("\n");
+  }
+
+  const contentTargetLines = Object.entries(authoring.contentTargets).map(([key, range]) =>
+    formatTargetLine(key, levelAnalysis.contentCounts[key] ?? 0, range, 0),
+  );
+  const timeline = levelAnalysis.majorEncounters.map((encounter) => `${encounter.type}@${encounter.frame}`).join(", ") || "none";
+  const eventTypes = levelAnalysis.eventTypes.join(", ") || "none";
+
+  return [
+    ...lines,
+    "",
+    "## Route",
+    "",
+    `- holds: ${levelAnalysis.holdCount}`,
+    `- stances: ${levelAnalysis.stanceCount}`,
+    `- segments: ${levelAnalysis.segmentCount}`,
+    `- zones: ${levelAnalysis.zoneKeys.join(", ")}`,
+    "",
+    "## Encounters",
+    "",
+    `- environment events: ${eventTypes}`,
+    `- rescues: ${levelAnalysis.rescueTargetCount}`,
+    `- blockers: ${levelAnalysis.laneBlockerCount}`,
+    `- pursuit: ${levelAnalysis.pursuitEnabled ? "on" : "off"}`,
+    `- rope threat: ${levelAnalysis.ropeThreatEnabled ? "on" : "off"}`,
+    `- timeline: ${timeline}`,
+    "",
+    "## Content Targets",
+    "",
+    ...contentTargetLines,
+    "",
+    "## Golden Path",
+    "",
+    `- golden holds: ${levelAnalysis.goldenPathSafetySummary.goldenHoldCount}`,
+    `- forbidden hazards: ${levelAnalysis.goldenPathSafetySummary.forbiddenHazards.join(", ")}`,
+    `- blocked forbidden holds: ${levelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount}`,
+    "",
+    "## Pressure Targets",
+    "",
+    formatTargetLine(
+      "average wind multiplier",
+      levelAnalysis.pressureSummary.averageWindMultiplier,
+      authoring.pressureTargets.averageWindMultiplier,
+      2,
+    ),
+    formatTargetLine(
+      "average stamina modifier",
+      levelAnalysis.pressureSummary.averageStaminaModifier,
+      authoring.pressureTargets.averageStaminaModifier,
+      3,
+    ),
+    formatTargetLine("hazards per 100 stances", levelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances, 1),
+    formatTargetLine(
+      "resources per 100 stances",
+      levelAnalysis.pressureSummary.resourcePer100Stances,
+      authoring.pressureTargets.resourcePer100Stances,
+      1,
+    ),
+    "",
+    "## Resource Pressure Targets",
+    "",
+    formatTargetLine(
+      "fruit stamina per 100 stances",
+      levelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
+      authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
+      1,
+    ),
+    formatTargetLine(
+      "thirst relief per 100 stances",
+      levelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
+      authoring.resourcePressureTargets.thirstReliefPer100Stances,
+      1,
+    ),
+    formatTargetLine(
+      "worst loadout thirst gain",
+      levelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
+      authoring.resourcePressureTargets.worstLoadoutThirstGain,
+      1,
+    ),
+    formatTargetLine(
+      "worst loadout net thirst relief",
+      levelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
+      authoring.resourcePressureTargets.worstLoadoutNetThirstRelief,
+      1,
+    ),
+    "",
+    "## Event Density",
+    "",
+    formatLimitLine(
+      "pressure events per window",
+      levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
+      authoring.pressureRules.maxPressureEventsPerWindow,
+      `@ ${levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`,
+    ),
+    formatLimitLine(
+      "fruit events per window",
+      levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
+      authoring.pressureRules.maxResourceFruitsPerWindow,
+      `@ ${levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`,
+    ),
+    formatLimitLine("max fruit gap frames", levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, authoring.pressureRules.maxResourceGapFrames),
+  ].join("\n");
 }
 
 function getRangeStatus(value, range) {
@@ -119,11 +258,14 @@ export function DeveloperPanel({
   const [message, setMessage] = useState("");
   const levelConfig = getLevelConfig(draftRunConfig?.levelId ?? activeLevelId);
   const authoring = levelConfig.authoring;
+  const currentLevelAnalysis = levelConfig.id === activeLevelId ? levelAnalysis : null;
   const runConfigJsonLabel = devText.runConfigJsonLabel ?? "Run config JSON";
   const copyRunConfigLabel = devText.copyRunConfigLabel ?? "Copy run config";
   const importRunConfigLabel = devText.importRunConfigLabel ?? "Import run config";
   const resetRunConfigLabel = devText.resetRunConfigLabel ?? "Reset run config";
   const copiedRunConfigMessage = devText.copiedRunConfigMessage ?? "Copied run config";
+  const copyLevelSummaryLabel = devText.copyLevelSummaryLabel ?? "Copy level summary";
+  const copiedLevelSummaryMessage = devText.copiedLevelSummaryMessage ?? "Copied level summary";
   const importedRunConfigMessage = devText.importedRunConfigMessage ?? "Imported run config";
   const invalidRunConfigMessage = devText.invalidRunConfigMessage ?? "Run config JSON is invalid";
   const runConfigResetMessage = devText.runConfigResetMessage ?? "Run config reset";
@@ -133,65 +275,65 @@ export function DeveloperPanel({
     protectionCam: text.protectionCamLabel,
     energyGel: text.energyGelLabel,
   };
-  const contentSummary = levelAnalysis
+  const contentSummary = currentLevelAnalysis
     ? [
-        `fragile:${levelAnalysis.contentCounts.fragile}`,
-        `timedSoft:${levelAnalysis.contentCounts.timedSoft}`,
-        `obstacle:${levelAnalysis.contentCounts.obstacle}`,
-        `fruit:${levelAnalysis.contentCounts.resourceFruit}`,
-        `rescue:${levelAnalysis.contentCounts.rescueTarget}`,
+        `fragile:${currentLevelAnalysis.contentCounts.fragile}`,
+        `timedSoft:${currentLevelAnalysis.contentCounts.timedSoft}`,
+        `obstacle:${currentLevelAnalysis.contentCounts.obstacle}`,
+        `fruit:${currentLevelAnalysis.contentCounts.resourceFruit}`,
+        `rescue:${currentLevelAnalysis.contentCounts.rescueTarget}`,
       ].join(" / ")
     : null;
-  const timelineSummary = levelAnalysis?.majorEncounters?.map((encounter) => `${encounter.type}@${encounter.frame}`).join(" / ") || "none";
-  const windTargetStatus = levelAnalysis
-    ? getRangeStatus(levelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier)
+  const timelineSummary = currentLevelAnalysis?.majorEncounters?.map((encounter) => `${encounter.type}@${encounter.frame}`).join(" / ") || "none";
+  const windTargetStatus = currentLevelAnalysis
+    ? getRangeStatus(currentLevelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier)
     : null;
-  const hazardDensityStatus = levelAnalysis
-    ? getRangeStatus(levelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances)
+  const hazardDensityStatus = currentLevelAnalysis
+    ? getRangeStatus(currentLevelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances)
     : null;
-  const resourceDensityStatus = levelAnalysis
-    ? getRangeStatus(levelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances)
+  const resourceDensityStatus = currentLevelAnalysis
+    ? getRangeStatus(currentLevelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances)
     : null;
-  const fruitStaminaStatus = levelAnalysis
+  const fruitStaminaStatus = currentLevelAnalysis
     ? getRangeStatus(
-        levelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
+        currentLevelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
         authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
       )
     : null;
-  const thirstReliefStatus = levelAnalysis
+  const thirstReliefStatus = currentLevelAnalysis
     ? getRangeStatus(
-        levelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
+        currentLevelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
         authoring.resourcePressureTargets.thirstReliefPer100Stances,
       )
     : null;
-  const worstThirstStatus = levelAnalysis
+  const worstThirstStatus = currentLevelAnalysis
     ? getRangeStatus(
-        levelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
+        currentLevelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
         authoring.resourcePressureTargets.worstLoadoutThirstGain,
       )
     : null;
-  const netReliefStatus = levelAnalysis
+  const netReliefStatus = currentLevelAnalysis
     ? getRangeStatus(
-        levelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
+        currentLevelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
         authoring.resourcePressureTargets.worstLoadoutNetThirstRelief,
       )
     : null;
-  const pressureWindowStatus = levelAnalysis
+  const pressureWindowStatus = currentLevelAnalysis
     ? getLimitStatus(
-        levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
+        currentLevelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
         authoring.pressureRules.maxPressureEventsPerWindow,
       )
     : null;
-  const fruitWindowStatus = levelAnalysis
+  const fruitWindowStatus = currentLevelAnalysis
     ? getLimitStatus(
-        levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
+        currentLevelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
         authoring.pressureRules.maxResourceFruitsPerWindow,
       )
     : null;
-  const fruitGapStatus = levelAnalysis
-    ? getLimitStatus(levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, authoring.pressureRules.maxResourceGapFrames)
+  const fruitGapStatus = currentLevelAnalysis
+    ? getLimitStatus(currentLevelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames, authoring.pressureRules.maxResourceGapFrames)
     : null;
-  const goldenBansStatus = levelAnalysis ? getBlockedStatus(levelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount) : null;
+  const goldenBansStatus = currentLevelAnalysis ? getBlockedStatus(currentLevelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount) : null;
 
   useEffect(() => {
     setDraftRunConfig(runDebugConfig ?? getDefaultRunDebugConfig());
@@ -258,6 +400,12 @@ export function DeveloperPanel({
   const copyLevelConfig = () => {
     copyToClipboard(formatLevelConfig(levelConfig))
       .then(() => setMessage(devText.copiedLevelConfigMessage))
+      .catch(() => setMessage(devText.copyFailedMessage));
+  };
+
+  const copyLevelSummary = () => {
+    copyToClipboard(formatLevelAnalysisSummary(levelConfig, currentLevelAnalysis))
+      .then(() => setMessage(copiedLevelSummaryMessage))
       .catch(() => setMessage(devText.copyFailedMessage));
   };
 
@@ -470,50 +618,50 @@ export function DeveloperPanel({
               </div>
               <div className={getSummaryItemClassName(null)}>
                 <span>{devText.rescuesLabel}</span>
-                <strong>{levelAnalysis?.rescueTargetCount ?? levelConfig.rescueTargets.length}</strong>
+                <strong>{currentLevelAnalysis?.rescueTargetCount ?? levelConfig.rescueTargets.length}</strong>
               </div>
               <div className={getSummaryItemClassName(null)}>
                 <span>{devText.blockersLabel}</span>
-                <strong>{levelAnalysis?.laneBlockerCount ?? levelConfig.laneBlockers?.length ?? 0}</strong>
+                <strong>{currentLevelAnalysis?.laneBlockerCount ?? levelConfig.laneBlockers?.length ?? 0}</strong>
               </div>
               <div className={getSummaryItemClassName(null)}>
                 <span>{devText.pursuitLabel}</span>
-                <strong>{(levelAnalysis?.pursuitEnabled ?? levelConfig.pursuit) ? devText.onLabel : devText.offLabel}</strong>
+                <strong>{(currentLevelAnalysis?.pursuitEnabled ?? levelConfig.pursuit) ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div className={getSummaryItemClassName(null)}>
                 <span>{devText.ropeThreatLabel}</span>
-                <strong>{(levelAnalysis?.ropeThreatEnabled ?? levelConfig.ropeThreat) ? devText.onLabel : devText.offLabel}</strong>
+                <strong>{(currentLevelAnalysis?.ropeThreatEnabled ?? levelConfig.ropeThreat) ? devText.onLabel : devText.offLabel}</strong>
               </div>
               <div className={getSummaryItemClassName(windTargetStatus)}>
                 <span>{devText.windTargetLabel}</span>
                 <strong>
-                  {levelAnalysis
-                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier, 2)
+                  {currentLevelAnalysis
+                    ? formatActualAgainstRange(currentLevelAnalysis.pressureSummary.averageWindMultiplier, authoring.pressureTargets.averageWindMultiplier, 2)
                     : formatRange(authoring.pressureTargets.averageWindMultiplier)}
                 </strong>
               </div>
               <div className={getSummaryItemClassName(hazardDensityStatus)}>
                 <span>{devText.hazardDensityLabel}</span>
                 <strong>
-                  {levelAnalysis
-                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances, 1)
+                  {currentLevelAnalysis
+                    ? formatActualAgainstRange(currentLevelAnalysis.pressureSummary.hazardPer100Stances, authoring.pressureTargets.hazardPer100Stances, 1)
                     : formatRange(authoring.pressureTargets.hazardPer100Stances)}
                 </strong>
               </div>
               <div className={getSummaryItemClassName(resourceDensityStatus)}>
                 <span>{devText.resourceDensityLabel}</span>
                 <strong>
-                  {levelAnalysis
-                    ? formatActualAgainstRange(levelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances, 1)
+                  {currentLevelAnalysis
+                    ? formatActualAgainstRange(currentLevelAnalysis.pressureSummary.resourcePer100Stances, authoring.pressureTargets.resourcePer100Stances, 1)
                     : formatRange(authoring.pressureTargets.resourcePer100Stances)}
                 </strong>
               </div>
               <div className={getSummaryItemClassName(fruitStaminaStatus)}>
                 <span>{devText.fruitStaminaLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? formatActualAgainstRange(
-                        levelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
+                        currentLevelAnalysis.resourcePressureSummary.staminaRecoveryPer100Stances,
                         authoring.resourcePressureTargets.staminaRecoveryPer100Stances,
                         1,
                       )
@@ -523,9 +671,9 @@ export function DeveloperPanel({
               <div className={getSummaryItemClassName(thirstReliefStatus)}>
                 <span>{devText.thirstReliefLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? formatActualAgainstRange(
-                        levelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
+                        currentLevelAnalysis.resourcePressureSummary.thirstReliefPer100Stances,
                         authoring.resourcePressureTargets.thirstReliefPer100Stances,
                         1,
                       )
@@ -535,9 +683,9 @@ export function DeveloperPanel({
               <div className={getSummaryItemClassName(worstThirstStatus)}>
                 <span>{devText.worstThirstLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? formatActualAgainstRange(
-                        levelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
+                        currentLevelAnalysis.resourcePressureSummary.worstLoadoutThirstGain,
                         authoring.resourcePressureTargets.worstLoadoutThirstGain,
                         1,
                       )
@@ -547,9 +695,9 @@ export function DeveloperPanel({
               <div className={getSummaryItemClassName(netReliefStatus)}>
                 <span>{devText.netReliefLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? formatActualAgainstRange(
-                        levelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
+                        currentLevelAnalysis.resourcePressureSummary.worstLoadoutNetThirstRelief,
                         authoring.resourcePressureTargets.worstLoadoutNetThirstRelief,
                         1,
                       )
@@ -559,31 +707,31 @@ export function DeveloperPanel({
               <div className={getSummaryItemClassName(pressureWindowStatus)}>
                 <span>{devText.pressureWindowLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? `${formatActualAgainstLimit(
-                        levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
+                        currentLevelAnalysis.eventDensitySummary.maxPressureEventsInWindow.count,
                         authoring.pressureRules.maxPressureEventsPerWindow,
-                      )} @ ${levelAnalysis.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`
+                      )} @ ${currentLevelAnalysis.eventDensitySummary.maxPressureEventsInWindow.startFrame ?? "none"}`
                     : `${authoring.pressureRules.maxPressureEventsPerWindow}/${authoring.pressureRules.pressureEventWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
               <div className={getSummaryItemClassName(fruitWindowStatus)}>
                 <span>{devText.fruitWindowLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? `${formatActualAgainstLimit(
-                        levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
+                        currentLevelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.count,
                         authoring.pressureRules.maxResourceFruitsPerWindow,
-                      )} @ ${levelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`
+                      )} @ ${currentLevelAnalysis.eventDensitySummary.maxResourceFruitsInWindow.startFrame ?? "none"}`
                     : `${authoring.pressureRules.maxResourceFruitsPerWindow}/${authoring.pressureRules.resourceWindowFrames}${devText.framesSuffix}`}
                 </strong>
               </div>
               <div className={getSummaryItemClassName(fruitGapStatus)}>
                 <span>{devText.fruitGapLabel}</span>
                 <strong>
-                  {levelAnalysis
+                  {currentLevelAnalysis
                     ? formatActualAgainstLimit(
-                        levelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames,
+                        currentLevelAnalysis.eventDensitySummary.resourceGapSummary.maxGapFrames,
                         authoring.pressureRules.maxResourceGapFrames,
                       )
                     : `<=${authoring.pressureRules.maxResourceGapFrames}${devText.framesSuffix}`}
@@ -592,18 +740,21 @@ export function DeveloperPanel({
               <div className={getSummaryItemClassName(goldenBansStatus)}>
                 <span>{devText.goldenBansLabel}</span>
                 <strong>
-                  {levelAnalysis
-                    ? `${levelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount} / ${authoring.goldenPathRules.forbidHazards.length}`
+                  {currentLevelAnalysis
+                    ? `${currentLevelAnalysis.goldenPathSafetySummary.blockedGoldenHoldCount} / ${authoring.goldenPathRules.forbidHazards.length}`
                     : authoring.goldenPathRules.forbidHazards.length}
                 </strong>
               </div>
             </div>
             <p className="dev-panel-note">{authoring.intendedPace}</p>
             {contentSummary ? <p className="dev-panel-note">content: {contentSummary}</p> : null}
-            {levelAnalysis ? <p className="dev-panel-note">timeline: {timelineSummary}</p> : null}
+            {currentLevelAnalysis ? <p className="dev-panel-note">timeline: {timelineSummary}</p> : null}
             <div className="dev-panel-actions">
               <button type="button" onClick={onOpenLevelEditor}>
                 {openLevelEditorLabel}
+              </button>
+              <button type="button" onClick={copyLevelSummary}>
+                {copyLevelSummaryLabel}
               </button>
               <button type="button" onClick={copyLevelConfig}>
                 {devText.copyLevelConfigLabel}

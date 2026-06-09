@@ -86,6 +86,8 @@ For a quick regression check covering i18n dictionaries, level config, gameplay 
 npm run validate
 ```
 
+For the short manual local and online smoke pass, see `docs/manual-smoke-checklist.md`.
+
 To create a production build:
 
 ```bash
@@ -102,7 +104,7 @@ For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus
 
 Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, content targets for generated mechanic counts, pressure targets for route feel, resource-pressure targets for recovery and thirst pressure, Golden Path hazard-isolation rules, plus pressure rules for event spacing, major encounter density, wider pressure-event density, resource-fruit density, and maximum resource gaps. Each level also has a stable `seed` so route changes are reproducible while tuning. The player HUD no longer exposes route type or strategy selection; instead, the in-game `DEV` panel owns run debugging through route preset choice, starting inventory overrides, event toggles, run-config JSON import/export, and level-config copy/export support. Use `npm run validate:levels` to check level definitions, content targets, Golden Path safety, pressure targets, resource-pressure targets, pressure rules, generated-route coverage, seed repeatability, and a short per-template pressure summary before committing route template changes.
 
-For a readable tuning handoff, `npm run report:levels` prints a Markdown report with each level's route shape, encounters, generated content counts, Golden Path safety, pressure summary, resource-pressure summary, event-density summary, and configured pressure targets.
+For a readable tuning handoff, `npm run report:levels` prints a Markdown report with each level's route shape, encounters, generated content counts, Golden Path safety, pressure summary, resource-pressure summary, event-density summary, and configured pressure targets. To focus on one route while tuning, run `npm run report:level -- pursuit-crux-ascent`.
 
 For the field-by-field level tuning workflow, see `docs/level-config-maintenance.md`.
 

@@ -4,6 +4,7 @@ import { getLevelConfig, validateLevelConfig } from "../../data/levelConfig";
 import { ESTIMATED_FRAMES_PER_STANCE, createLevelAnalysisSnapshot } from "../../dev/levelAnalysis";
 import { DEBUG_EVENT_FIELDS, formatRunDebugConfig, sanitizeRunDebugConfig } from "../../dev/runDebugConfig";
 import { generateWall, generateWallFromLevelConfig } from "../../logic/engine/gameEngine";
+import { copyToClipboard } from "../utils/clipboard";
 
 const EDITOR_TEXT = {
   "zh-CN": {
@@ -260,14 +261,6 @@ const EDITOR_TEXT = {
 
 function getEditorText(language) {
   return EDITOR_TEXT[language] ?? EDITOR_TEXT.en;
-}
-
-function copyToClipboard(value) {
-  if (!navigator.clipboard) {
-    return Promise.reject(new Error("Clipboard API unavailable"));
-  }
-
-  return navigator.clipboard.writeText(value);
 }
 
 function formatJson(value) {

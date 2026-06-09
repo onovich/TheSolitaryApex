@@ -11,6 +11,7 @@
     "validate:levels": "node ./scripts/validate-level-config.mjs",
     "validate:gameplay": "node ./scripts/validate-gameplay.mjs",
     "report:levels": "node ./scripts/report-level-config.mjs",
+    "report:level": "node ./scripts/report-level-config.mjs --level",
     "validate": "npm run validate:i18n && npm run validate:levels && npm run validate:gameplay && npm run build"
   },
   "dependencies": {
