@@ -56,7 +56,9 @@ npm run report:engine:top
 - `src/logic/engine/particleSystem.js`
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/logic/engine/holdInteractions.js`
-  - Fragile hold departure collapse, timed-soft hold loading, drillable obstacles, resource fruit collection, thirst pressure, and related hold-feedback particles.
+  - Fragile hold departure collapse, timed-soft hold loading, drillable obstacles, and related hold-feedback particles.
+- `src/logic/engine/survivalResourceSystem.js`
+  - Thirst pressure ticking, resource fruit pickup detection, stamina/thirst/sensory-flow rewards, and fruit pickup feedback.
 - `src/logic/engine/itemSystem.js`
   - Item activation flow, channel items, checkpoint capture, and rescue-target item interactions.
 - `src/logic/engine/itemInventorySystem.js`
@@ -238,7 +240,7 @@ These are good near-term implementation candidates because they extend existing 
   - Recommended next small implementation: tune under-covered legacy loadouts only if those loadouts become player-facing again.
 - Resource routing:
   - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
-  - Current status: resource fruit pickup and thirst pressure now live in `src/logic/engine/holdInteractions.js`.
+  - Current status: resource fruit pickup, thirst pressure, stamina/thirst/sensory-flow rewards, and pickup feedback now live in `src/logic/engine/survivalResourceSystem.js`.
   - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
   - Next step: design route-side acquisition for chalk, energy gel, and protection, such as exposed pickups, rescue rewards, obstacle caches, or post-crux rest ledges.
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.

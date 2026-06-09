@@ -8,8 +8,6 @@ import { tickRecoveryState } from "./recoveryStateSystem.js";
 import { tickFeedbackState } from "./feedbackSystem.js";
 import {
   tickObstacleDrilling,
-  tickResourceCollection,
-  tickSurvivalPressure,
   tickTimedSoftHolds,
 } from "./holdInteractions.js";
 import { tickActiveEffects } from "./itemEffectsSystem.js";
@@ -18,6 +16,7 @@ import { syncAttachedLimbAnchors } from "./limbReachSystem.js";
 import { updateParticles } from "./particleSystem.js";
 import { updateHeightAndCamera, updateRouteState } from "./routeProgressSystem.js";
 import { applyStaminaDelta, getClimbingStaminaChange } from "./staminaSystem.js";
+import { tickResourceCollection, tickSurvivalPressure } from "./survivalResourceSystem.js";
 import { updateWeatherState } from "./weatherSystem.js";
 
 export function updateFrame(state, viewportWidth, viewportHeight, runtime) {
