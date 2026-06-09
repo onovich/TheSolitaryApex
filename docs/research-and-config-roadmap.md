@@ -68,6 +68,8 @@ npm run report:engine
   - Player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories.
 - `src/logic/engine/limbReachSystem.js`
   - Limb root projection, dynamic reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection.
+- `src/logic/engine/dragInteractionSystem.js`
+  - Pointer updates, spatial-scan reach resync, limb drag start, drag-release hold snapping, grip particles, drag rejection feedback, and hanging recovery completion through reattachment.
 - `src/logic/engine/attachmentSystem.js`
   - Hold availability, limb attachment release, attached-limb queries, checkpoint anchor lookup, and detached/suspended limb anchor updates shared across runtime systems.
 - `src/logic/engine/feedbackSystem.js`
@@ -153,6 +155,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
   - Current status: player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`.
   - Current status: limb reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection now live in `src/logic/engine/limbReachSystem.js`.
+  - Current status: pointer updates, spatial-scan reach resync, limb drag start, drag-release hold snapping, grip particles, drag rejection feedback, and hanging recovery completion through reattachment now live in `src/logic/engine/dragInteractionSystem.js`.
   - Current status: hold availability, limb attachment release, attached-limb queries, checkpoint anchors, and detached/suspended limb updates now live in `src/logic/engine/attachmentSystem.js`.
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
   - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, with `gameEngine.js` preserving the public `getUiSnapshot` export.

@@ -18,6 +18,12 @@ import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotio
 import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
+  beginDrag as beginDragAction,
+  releaseDrag as releaseDragAction,
+  setSpatialScan as setSpatialScanAction,
+  updatePointer as updatePointerAction,
+} from "./dragInteractionSystem.js";
+import {
   clearDragConstraintSnapshot,
   clearDragRejectFeedback,
   setDragRejectFeedback,
@@ -53,14 +59,9 @@ import {
   createPlayer,
 } from "./initialStateSystem.js";
 import {
-  canLimbReachTarget,
   findClosestLandingAttachHold,
-  findClosestReachableHold,
-  getClosestHoldIndex,
   getLimbRootPosition,
-  setDragConstraintSnapshot,
   syncAttachedLimbAnchors,
-  updateDragConstraintFeedback,
 } from "./limbReachSystem.js";
 import {
   createInitialInventory,
@@ -68,7 +69,7 @@ import {
   tickChannelItem,
   useItem as useItemAction,
 } from "./itemSystem.js";
-import { pushParticles, updateParticles } from "./particleSystem.js";
+import { updateParticles } from "./particleSystem.js";
 import {
   generateWall,
   generateWallFromLevelConfig,
@@ -181,6 +182,12 @@ function getLimbReachRuntime() {
     isHoldAvailable,
     releaseHoldAttachment,
     setDragRejectFeedback,
+  };
+}
+
+function getDragInteractionRuntime() {
+  return {
+    getLimbReachRuntime,
   };
 }
 
@@ -402,53 +409,15 @@ export function getUiSnapshot(state, frame) {
 }
 
 export function updatePointer(state, screenX, screenY) {
-  state.pointer.x = screenX;
-  state.pointer.y = screenY;
-
-  if (state.draggedLimbIndex !== -1) {
-    updateDragConstraintFeedback(state, screenX, screenY + state.cameraY, getLimbReachRuntime());
-  }
+  updatePointerAction(state, screenX, screenY, getDragInteractionRuntime());
 }
 
 export function setSpatialScan(state, enabled, angle = state.spatialScan.angle) {
-  if (!state.spatialScan.available) {
-    return false;
-  }
-
-  state.spatialScan.enabled = Boolean(enabled);
-  state.spatialScan.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
-  syncAttachedLimbAnchors(state, getLimbReachRuntime(), { releaseOutOfReach: true });
-  return true;
+  return setSpatialScanAction(state, enabled, angle, getDragInteractionRuntime());
 }
 
 export function beginDrag(state, screenX, screenY) {
-  if (
-    !state.isPlaying ||
-    state.movementState?.dyno?.flightActive ||
-    state.movementState?.dyno?.autoAttachActive ||
-    (state.fallState?.active && state.fallState.mode !== "hanging")
-  ) {
-    return false;
-  }
-
-  updatePointer(state, screenX, screenY);
-
-  for (let index = 0; index < state.player.limbs.length; index += 1) {
-    const limb = state.player.limbs[index];
-    const limbScreenY = limb.y - state.cameraY;
-    const distance = Math.hypot(limb.x - screenX, limbScreenY - screenY);
-
-    if (distance < GAME_CONFIG.limbHitRadius) {
-      state.draggedLimbIndex = index;
-      releaseHoldAttachment(state, limb);
-      state.tutorialVisible = false;
-      setDragConstraintSnapshot(state, index, limb);
-      updateDragConstraintFeedback(state, screenX, screenY + state.cameraY, getLimbReachRuntime());
-      return true;
-    }
-  }
-
-  return false;
+  return beginDragAction(state, screenX, screenY, getDragInteractionRuntime());
 }
 
 export function beginBodyAction(state, screenX, screenY) {
@@ -518,37 +487,7 @@ export function cancelDynoCharge(state) {
 }
 
 export function releaseDrag(state) {
-  if (!state.isPlaying || (state.fallState?.active && state.fallState.mode !== "hanging") || state.draggedLimbIndex === -1) {
-    return;
-  }
-
-  const draggedLimb = state.player.limbs[state.draggedLimbIndex];
-  const targetX = state.pointer.x;
-  const targetY = state.pointer.y + state.cameraY;
-  const nearestHoldIndex = getClosestHoldIndex(state, targetX, targetY, getLimbReachRuntime());
-  const closestReachableHoldIndex = findClosestReachableHold(state, draggedLimb, targetX, targetY, getLimbReachRuntime());
-
-  if (closestReachableHoldIndex !== -1) {
-    const hold = state.holds[closestReachableHoldIndex];
-    const holdAnchor = getHoldAnchorPosition(state, hold);
-    draggedLimb.attachedHoldIndex = closestReachableHoldIndex;
-    draggedLimb.x = holdAnchor.x;
-    draggedLimb.y = holdAnchor.y;
-    pushParticles(state, draggedLimb.x, draggedLimb.y - state.cameraY, GAME_CONFIG.gripParticleCount, "#ffffff");
-    clearDragRejectFeedback(state);
-
-    if (state.fallState?.active && state.fallState.mode === "hanging" && getAttachedLimbs(state).length >= 2) {
-      state.fallState = createInitialFallState();
-      state.movementState.bodyVelocity = { x: 0, y: 0 };
-      state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-      state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-    }
-  } else if (!canLimbReachTarget(state, draggedLimb, targetX, targetY) || nearestHoldIndex !== -1) {
-    setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, nearestHoldIndex);
-  }
-
-  clearDragConstraintSnapshot(state);
-  state.draggedLimbIndex = -1;
+  releaseDragAction(state, getDragInteractionRuntime());
 }
 
 export function useItem(state, itemId) {
