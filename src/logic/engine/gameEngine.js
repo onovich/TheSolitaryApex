@@ -1,4 +1,3 @@
-import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 import {
   getAttachedLimbs,
@@ -10,6 +9,11 @@ import {
   updateDetachedLimbs,
   updateSuspendedLimbs,
 } from "./attachmentSystem.js";
+import {
+  beginBodyAction as beginBodyActionAction,
+  cancelBodyAction as cancelBodyActionAction,
+  endBodyAction as endBodyActionAction,
+} from "./bodyActionSystem.js";
 import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotionSystem.js";
 import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
@@ -174,6 +178,14 @@ function getDragInteractionRuntime() {
   };
 }
 
+function getBodyActionRuntime() {
+  return {
+    beginDynoCharge,
+    cancelDynoPreparation,
+    releaseDynoCharge,
+  };
+}
+
 function getItemRuntime() {
   return {
     getAttachedLimbs,
@@ -309,57 +321,15 @@ export function beginDrag(state, screenX, screenY) {
 }
 
 export function beginBodyAction(state, screenX, screenY) {
-  const bodyScreenY = state.player.com.y - state.cameraY;
-  const distance = Math.hypot(state.player.com.x - screenX, bodyScreenY - screenY);
-
-  if (distance > GAME_CONFIG.limbHitRadius * 1.4) {
-    return false;
-  }
-
-  if (!state.isPlaying) {
-    return false;
-  }
-
-  if (state.movementState?.dyno?.flightActive || state.movementState?.dyno?.autoAttachActive) {
-    return false;
-  }
-
-  if (state.fallState?.active && state.fallState.mode === "hanging") {
-    state.fallState.reeling = true;
-    state.tutorialVisible = false;
-    return true;
-  }
-
-  if (state.fallState?.active) {
-    return false;
-  }
-
-  return beginDynoCharge(state, screenX, screenY);
+  return beginBodyActionAction(state, screenX, screenY, getBodyActionRuntime());
 }
 
 export function endBodyAction(state) {
-  if (state.fallState?.active && state.fallState.mode === "hanging") {
-    state.fallState.reeling = false;
-    return true;
-  }
-
-  return releaseDynoCharge(state);
+  return endBodyActionAction(state, getBodyActionRuntime());
 }
 
 export function cancelBodyAction(state) {
-  let handled = false;
-
-  if (state.fallState?.active && state.fallState.mode === "hanging" && state.fallState.reeling) {
-    state.fallState.reeling = false;
-    handled = true;
-  }
-
-  if (state.movementState?.dyno?.pointerActive || state.movementState?.dyno?.charging) {
-    cancelDynoPreparation(state);
-    handled = true;
-  }
-
-  return handled;
+  return cancelBodyActionAction(state, getBodyActionRuntime());
 }
 
 export function beginDynoCharge(state, screenX = state.pointer.x, screenY = state.pointer.y) {
