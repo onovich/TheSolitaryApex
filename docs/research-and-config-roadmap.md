@@ -72,7 +72,9 @@ npm run report:engine:top
 - `src/logic/engine/frameUpdateSystem.js`
   - Per-frame engine orchestration for particles, feedback, weather, hazards, fall recovery, dyno flight, route progress, stamina, item channels, recovery windows, and camera updates.
 - `src/logic/engine/dynoSystem.js`
-  - Dyno charge availability, charge/reach ratios, begin/release/cancel actions, launch stamina cost, and cooldown decay.
+  - Dyno begin/release/cancel actions, charge ticking, launch application, stamina spend, and cooldown decay.
+- `src/logic/engine/dynoMetricsSystem.js`
+  - Dyno availability reasons, stamina-cost query, raw/eased charge ratios, reach ratio, and pull-vector calculation.
 - `src/logic/engine/dynoStateSystem.js`
   - Dyno state initialization, reset, preparation cancellation, and flight-finish cleanup.
 - `src/logic/engine/dynoFlightSystem.js`
@@ -174,7 +176,8 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: fall/recovery state initialization, rescue-window queries, rescue stamina/wind bonuses, and per-frame rescue-window decay now live in `src/logic/engine/recoveryStateSystem.js`.
   - Current status: game-over finalization, invincible debug toggling, failure-to-fall routing, fall/dyno reset, and invincible-state landing stabilization now live in `src/logic/engine/failureSystem.js`.
   - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with `gameEngine.js` preserving the public `updateFrame` export.
-  - Current status: dyno charge availability, begin/release/cancel actions, launch cost, reach ratios, and cooldown decay now live in `src/logic/engine/dynoSystem.js`.
+  - Current status: dyno begin/release/cancel actions, charge ticking, launch application, stamina spend, and cooldown decay now live in `src/logic/engine/dynoSystem.js`.
+  - Current status: dyno availability reasons, stamina-cost query, raw/eased charge ratios, reach ratio, and pull-vector calculation now live in `src/logic/engine/dynoMetricsSystem.js`.
   - Current status: dyno state initialization, reset, preparation cancellation, and flight-finish cleanup now live in `src/logic/engine/dynoStateSystem.js`.
   - Current status: dyno airborne motion, auto-attach transitions, landing target selection, landing hold validation, and failed-landing balance resolution now live in `src/logic/engine/dynoFlightSystem.js`.
   - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.

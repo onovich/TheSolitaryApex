@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
-import { getDynoReachRatio } from "./dynoSystem.js";
+import { getDynoReachRatio } from "./dynoMetricsSystem.js";
 
 export function getLimbRootPosition(player, limb) {
   return {

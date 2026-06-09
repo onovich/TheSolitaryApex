@@ -4,7 +4,7 @@ import {
   getDynoChargeRatio,
   getDynoReachRatio,
   getDynoStaminaCost,
-} from "./dynoSystem.js";
+} from "./dynoMetricsSystem.js";
 import { getRecoveryWindowRatio } from "./recoveryStateSystem.js";
 import { getInventoryUiState } from "./itemInventorySystem.js";
 
