@@ -1,9 +1,10 @@
 import { ITEM_CATALOG } from "../../data/itemCatalog.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
-import { armRopeThreatState, startRescueBurden } from "./encounterSystems.js";
+import { startRescueBurden } from "./encounterSystems.js";
 import { applyItemEffects } from "./itemEffectsSystem.js";
 import { canUseItem } from "./itemInventorySystem.js";
 import { pushParticles } from "./particleSystem.js";
+import { armRopeThreatState } from "./ropeThreatSystem.js";
 
 export { getEffectValue, hasEffectType, tickActiveEffects } from "./itemEffectsSystem.js";
 export { createInitialInventory, getCheckpointActivation, getInventoryUiState } from "./itemInventorySystem.js";

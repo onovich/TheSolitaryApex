@@ -50,7 +50,9 @@ npm run report:engine:top
 - `src/logic/engine/environmentEvents.js`
   - Earthquake and avalanche event activation, noise-hold alteration, active-event timers, and event particle feedback.
 - `src/logic/engine/encounterSystems.js`
-  - Pursuit pressure, rope-threat checkpoint pressure, rescue burden timers, lane-blocker proximity pressure, and shared encounter-height calculations.
+  - Pursuit pressure, rescue burden timers, lane-blocker proximity pressure, and shared encounter-height calculations.
+- `src/logic/engine/ropeThreatSystem.js`
+  - Rope-threat arming, delayed checkpoint pressure, threat progress/danger state, and checkpoint break cleanup.
 - `src/logic/engine/particleSystem.js`
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/logic/engine/holdInteractions.js`
@@ -239,7 +241,8 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
-  - Current status: pursuit, rope threat, rescue burden, and lane-blocker runtime pressure now live in `src/logic/engine/encounterSystems.js`.
+  - Current status: pursuit, rescue burden, and lane-blocker runtime pressure now live in `src/logic/engine/encounterSystems.js`.
+  - Current status: rope-threat arming, delayed checkpoint pressure, threat progress/danger state, and checkpoint break cleanup now live in `src/logic/engine/ropeThreatSystem.js`.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
