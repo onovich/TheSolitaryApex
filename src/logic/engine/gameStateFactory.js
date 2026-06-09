@@ -15,7 +15,7 @@ import {
   createInitialSpatialScanState,
   createPlayer,
 } from "./initialStateSystem.js";
-import { createInitialInventory } from "./itemSystem.js";
+import { createInitialInventory } from "./itemInventorySystem.js";
 import { generateWall } from "./routeGeneration.js";
 
 export function createInitialGameState(viewportWidth, viewportHeight, levelId) {

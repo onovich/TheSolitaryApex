@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getCheckpointActivation } from "./itemSystem.js";
+import { getCheckpointActivation } from "./itemInventorySystem.js";
 import { pushParticles } from "./particleSystem.js";
 import { getScaledWindVector } from "./weatherSystem.js";
 

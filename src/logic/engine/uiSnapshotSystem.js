@@ -6,7 +6,7 @@ import {
   getDynoStaminaCost,
 } from "./dynoSystem.js";
 import { getRecoveryWindowRatio } from "./fallRecoverySystem.js";
-import { getInventoryUiState } from "./itemSystem.js";
+import { getInventoryUiState } from "./itemInventorySystem.js";
 
 export function buildUiSnapshot(state, frame, runtime) {
   const dynoAvailability = getDynoAvailabilityReason(state, runtime.getDynoRuntime());
