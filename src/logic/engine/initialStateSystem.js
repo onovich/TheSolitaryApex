@@ -1,7 +1,9 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { createInitialDynoState } from "./dynoStateSystem.js";
 import { createInitialFallState, createInitialRecoveryState } from "./recoveryStateSystem.js";
-import { createInitialWeatherState, createInitialWindLineDebugTuning } from "./weatherSystem.js";
+import { createInitialWindLineDebugTuning } from "./weatherSystem.js";
+
+export { createInitialConditionState } from "./conditionStateSystem.js";
 
 function createLimb(name, isHand, profileKey, hold, holdIndex) {
   return {
@@ -43,61 +45,6 @@ export function createInitialMovementState() {
       footSpan: 0,
       handsDetached: false,
       stabilityFrames: 0,
-    },
-  };
-}
-
-export function createInitialConditionState() {
-  return {
-    weather: createInitialWeatherState(),
-    injury: {
-      handStrain: 0,
-      severity: "stable",
-      bloodiedHoldCount: 0,
-    },
-    survival: {
-      thirst: 0,
-      fruitCollected: 0,
-      senseFrames: 0,
-    },
-    environment: {
-      activeEventId: null,
-      type: "none",
-      remainingFrames: 0,
-      totalFrames: 0,
-      triggeredEventIds: [],
-    },
-    encounter: {
-      pursuitActive: false,
-      pursuitTriggered: false,
-      pursuitCompleted: false,
-      pursuitPhase: "idle",
-      pursuitFrames: 0,
-      threatHeight: 0,
-      gap: Infinity,
-      danger: false,
-      rescueCount: 0,
-      rescueBurden: {
-        active: false,
-        remainingFrames: 0,
-        totalFrames: 0,
-        staminaPenalty: 0,
-        targetId: null,
-      },
-      laneBlocker: {
-        active: false,
-        blockerId: null,
-        distance: Infinity,
-        staminaPenalty: 0,
-      },
-      ropeThreat: {
-        armed: false,
-        active: false,
-        progress: 0,
-        danger: false,
-        checkpointBrokenCount: 0,
-        placedFrame: null,
-      },
     },
   };
 }
