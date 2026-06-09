@@ -66,7 +66,11 @@ npm run report:engine:top
 - `src/logic/engine/survivalResourceSystem.js`
   - Thirst pressure ticking, resource fruit pickup detection, stamina/thirst/sensory-flow rewards, and fruit pickup feedback.
 - `src/logic/engine/itemSystem.js`
-  - Item activation flow, channel items, checkpoint capture, and rescue-target item interactions.
+  - Item activation orchestration, channel items, and shared item feedback.
+- `src/logic/engine/checkpointItemSystem.js`
+  - Protection checkpoint snapshot capture and rope-threat arming.
+- `src/logic/engine/rescueItemSystem.js`
+  - Rescue-target lookup, protection item rescue handoff, rescue burden startup, and rescue feedback particles.
 - `src/logic/engine/itemInventorySystem.js`
   - Starting inventory creation, item active-state checks, use-availability rules, inventory UI snapshots, and checkpoint activation lookup.
 - `src/logic/engine/itemEffectsSystem.js`
@@ -185,7 +189,8 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: `npm run validate:logic` runs the high-signal level and gameplay checks used between engine refactor slices.
   - Current status: `npm run report:engine` prints engine module size and export/import counts, while `npm run report:engine:top` prints the largest modules for low-token refactor planning.
   - Current status: shared visual-feedback helpers now live in `src/logic/engine/particleSystem.js`, reducing repeated helper code across engine modules.
-  - Current status: item activation, channel items, checkpoint capture, and rescue-target item use now live in `src/logic/engine/itemSystem.js`.
+  - Current status: item activation orchestration, channel items, and shared item feedback now live in `src/logic/engine/itemSystem.js`.
+  - Current status: protection checkpoint capture now lives in `src/logic/engine/checkpointItemSystem.js`, while rescue-target protection interactions now live in `src/logic/engine/rescueItemSystem.js`.
   - Current status: inventory creation, item active-state checks, use-availability rules, inventory UI snapshots, and checkpoint activation lookup now live in `src/logic/engine/itemInventorySystem.js`.
   - Current status: active item-effect queries, per-frame decay, and refresh/stacking application now live in `src/logic/engine/itemEffectsSystem.js`.
   - Current status: fall entry and checkpoint pose restore now live in `src/logic/engine/fallEntrySystem.js`, while rope catch, death-fall, hanging recovery, and recovery completion now live in `src/logic/engine/fallRecoverySystem.js`.
