@@ -66,6 +66,8 @@ npm run report:engine
   - Rest-pose detection, hand-injury progression, bloodied-hold marking, and body velocity damping.
 - `src/logic/engine/initialStateSystem.js`
   - Player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories.
+- `src/logic/engine/gameStateFactory.js`
+  - Full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly.
 - `src/logic/engine/limbReachSystem.js`
   - Limb root projection, dynamic reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection.
 - `src/logic/engine/dragInteractionSystem.js`
@@ -154,6 +156,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: dyno airborne motion, auto-attach transitions, landing target selection, landing hold validation, and failed-landing balance resolution now live in `src/logic/engine/dynoFlightSystem.js`.
   - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
   - Current status: player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`.
+  - Current status: full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`.
   - Current status: limb reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection now live in `src/logic/engine/limbReachSystem.js`.
   - Current status: pointer updates, spatial-scan reach resync, limb drag start, drag-release hold snapping, grip particles, drag rejection feedback, and hanging recovery completion through reattachment now live in `src/logic/engine/dragInteractionSystem.js`.
   - Current status: hold availability, limb attachment release, attached-limb queries, checkpoint anchors, and detached/suspended limb updates now live in `src/logic/engine/attachmentSystem.js`.
