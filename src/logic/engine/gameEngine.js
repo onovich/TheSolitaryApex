@@ -18,6 +18,12 @@ import { applyBodyVelocity, getRestPoseState, updateInjuryState } from "./bodySt
 import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
+  clearDragConstraintSnapshot,
+  clearDragRejectFeedback,
+  setDragRejectFeedback,
+  tickFeedbackState,
+} from "./feedbackSystem.js";
+import {
   advanceDynoCharge,
   beginDynoCharge as beginDynoChargeAction,
   cancelDynoCharge as cancelDynoChargeAction,
@@ -203,37 +209,6 @@ function getItemRuntime() {
     isSingleHandHang,
     restoreStamina,
   };
-}
-
-function setDragRejectFeedback(state, limbIndex, targetX, targetY, holdIndex = -1) {
-  state.feedbackState.dragRejectFrames = GAME_CONFIG.feedback.dragRejectFrames;
-  state.feedbackState.limbIndex = limbIndex;
-  state.feedbackState.holdIndex = holdIndex;
-  state.feedbackState.targetX = targetX;
-  state.feedbackState.targetY = targetY;
-}
-
-function clearDragConstraintSnapshot(state) {
-  state.feedbackState.dragSnapshotActive = false;
-  state.feedbackState.dragSnapshotLimbIndex = -1;
-}
-
-function clearDragRejectFeedback(state) {
-  state.feedbackState.dragRejectFrames = 0;
-  state.feedbackState.limbIndex = -1;
-  state.feedbackState.holdIndex = -1;
-}
-
-function tickFeedbackState(state) {
-  if (state.feedbackState.dragRejectFrames <= 0) {
-    return;
-  }
-
-  state.feedbackState.dragRejectFrames -= 1;
-
-  if (state.feedbackState.dragRejectFrames === 0) {
-    clearDragRejectFeedback(state);
-  }
 }
 
 export function setInvincibleDebug(state, enabled) {
