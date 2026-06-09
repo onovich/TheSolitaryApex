@@ -33,7 +33,7 @@ import {
   releaseDynoCharge as releaseDynoChargeAction,
   resetDynoState,
 } from "./dynoSystem.js";
-import { beginFall, getRecoveryStaminaBonus, getRecoveryWindMultiplier, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
+import { beginFall, getRecoveryWindMultiplier, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
 import {
   tickObstacleDrilling,
   tickResourceCollection,
@@ -64,8 +64,6 @@ import {
 } from "./limbReachSystem.js";
 import {
   createInitialInventory,
-  getEffectValue,
-  hasEffectType,
   tickActiveEffects,
   tickChannelItem,
   useItem as useItemAction,
@@ -85,6 +83,7 @@ import {
   updateWeatherState,
 } from "./weatherSystem.js";
 import { buildUiSnapshot } from "./uiSnapshotSystem.js";
+import { applyStaminaDelta, getClimbingStaminaChange, restoreStamina } from "./staminaSystem.js";
 
 export { generateWall, generateWallFromLevelConfig, validateGoldenPath };
 export { createInitialWindLineDebugTuning, setWindDebugOverride, setWindLineDebugTuning };
@@ -188,14 +187,6 @@ function getLimbReachRuntime() {
     releaseHoldAttachment,
     setDragRejectFeedback,
   };
-}
-
-function applyStaminaDelta(state, delta) {
-  state.stamina = clamp(state.stamina + delta, 0, state.staminaCap);
-}
-
-function restoreStamina(state, amount) {
-  state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
 }
 
 function getItemRuntime() {
@@ -859,76 +850,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
       effectiveWind.y * GAME_CONFIG.conditions.weather.suspendedLimbPush * 0.7;
   });
 
-  let staminaChange = 0;
-  const restPoseMode = state.movementState.restPose.mode;
-  const dynoPriming = state.movementState.dyno.pointerActive;
-
-  if (!dynoPriming) {
-    if (restPoseMode === "perfect") {
-      staminaChange += GAME_CONFIG.movement.restPose.perfectRecoveryBonus;
-    } else if (restPoseMode === "locking" && attachedLimbs.length <= 2) {
-      staminaChange -= GAME_CONFIG.baseStaminaDrain * GAME_CONFIG.movement.restPose.lockingDrainMultiplier;
-    } else {
-      if (attachedLimbs.length === 4) {
-        staminaChange += 0.1;
-      } else if (attachedLimbs.length === 3) {
-        staminaChange -= GAME_CONFIG.baseStaminaDrain;
-      } else if (attachedLimbs.length === 2) {
-        staminaChange -= GAME_CONFIG.baseStaminaDrain * 8;
-      }
-    }
-
-    attachedLimbs.forEach((limb) => {
-      const hold = state.holds[limb.attachedHoldIndex];
-      staminaChange -= (GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0) * state.loadout.modifiers.holdPenaltyMultiplier;
-
-      if (limb.isHand && hold.bloodied) {
-        const chalkMultiplier = hasEffectType(state, "staminaRecoveryBonus")
-          ? GAME_CONFIG.conditions.injury.bloodiedChalkPenaltyMultiplier
-          : 1;
-        staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty * chalkMultiplier;
-      }
-    });
-
-    if (restPoseMode === "supported") {
-      staminaChange += GAME_CONFIG.movement.restPose.supportedRecoveryBonus;
-    }
-
-    staminaChange -=
-      effectiveWind.magnitude *
-      GAME_CONFIG.conditions.weather.staminaPenaltyScale *
-      Math.max(0, 4 - attachedLimbs.length);
-
-    if (state.conditionState.injury.severity === "severe") {
-      staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
-    }
-
-    if (state.conditionState.survival.thirst > GAME_CONFIG.conditions.survival.highThirstThreshold) {
-      staminaChange -=
-        (state.conditionState.survival.thirst - GAME_CONFIG.conditions.survival.highThirstThreshold) *
-        GAME_CONFIG.conditions.survival.staminaPenaltyScale;
-    }
-
-    if (state.conditionState.encounter.danger) {
-      staminaChange -= state.pursuit?.staminaPenalty ?? 0;
-    }
-
-    if (state.conditionState.encounter.ropeThreat?.danger) {
-      staminaChange -= state.ropeThreat?.staminaPenalty ?? 0;
-    }
-
-    if (state.conditionState.encounter.rescueBurden?.active) {
-      staminaChange -= state.conditionState.encounter.rescueBurden.staminaPenalty;
-    }
-
-    if (state.conditionState.encounter.laneBlocker?.active) {
-      staminaChange -= state.conditionState.encounter.laneBlocker.staminaPenalty;
-    }
-
-    staminaChange += currentRouteSegment.staminaModifier;
-    staminaChange += getRecoveryStaminaBonus(state);
-    staminaChange += getEffectValue(state, "staminaRecoveryBonus");
-  }
+  const staminaChange = getClimbingStaminaChange(state, attachedLimbs, effectiveWind, currentRouteSegment);
 
   tickActiveEffects(state);
   decayDynoState(state);

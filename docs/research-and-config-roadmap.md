@@ -72,6 +72,8 @@ npm run report:engine
   - Drag rejection feedback, drag constraint snapshot clearing, and per-frame feedback countdown state shared by drag, fall, and game-over flows.
 - `src/logic/engine/uiSnapshotSystem.js`
   - Runtime-to-UI snapshot assembly for stamina, route, recovery, fall, feedback, movement, condition, debug, level analysis, tutorial, and end-message fields.
+- `src/logic/engine/staminaSystem.js`
+  - Stamina clamping, stamina restoration, and per-frame climbing stamina delta from rest pose, hold penalties, bloodied holds, wind, injury, thirst, encounters, recovery, route modifiers, and active item effects.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -147,6 +149,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: hold availability, limb attachment release, attached-limb queries, checkpoint anchors, and detached/suspended limb updates now live in `src/logic/engine/attachmentSystem.js`.
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
   - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, with `gameEngine.js` preserving the public `getUiSnapshot` export.
+  - Current status: stamina clamping, restoration, and per-frame climbing stamina delta now live in `src/logic/engine/staminaSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
