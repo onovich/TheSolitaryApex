@@ -4,6 +4,16 @@ import { getLoadoutConfig } from "../../data/loadoutConfig.js";
 import { getDefaultRunDebugConfig } from "../../dev/runDebugConfig.js";
 import { cloneLevelAnalysisSnapshot, createLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
+import {
+  getAttachedLimbs,
+  getCheckpointAnchorHoldIndex,
+  getCheckpointAnchorPosition,
+  isHoldAvailable,
+  isSingleHandHang,
+  releaseHoldAttachment,
+  updateDetachedLimbs,
+  updateSuspendedLimbs,
+} from "./attachmentSystem.js";
 import { applyBodyVelocity, getRestPoseState, updateInjuryState } from "./bodyStateSystem.js";
 import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
@@ -23,7 +33,6 @@ import {
 } from "./dynoSystem.js";
 import { beginFall, getRecoveryStaminaBonus, getRecoveryWindMultiplier, getRecoveryWindowRatio, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
 import {
-  maybeCollapseDepartedHold,
   tickObstacleDrilling,
   tickResourceCollection,
   tickSurvivalPressure,
@@ -179,47 +188,12 @@ function getLimbReachRuntime() {
   };
 }
 
-function releaseHoldAttachment(state, limb) {
-  const holdIndex = limb.attachedHoldIndex;
-
-  if (holdIndex === -1) {
-    return;
-  }
-
-  limb.attachedHoldIndex = -1;
-  maybeCollapseDepartedHold(state, holdIndex);
-}
-
-function getAttachedLimbs(state) {
-  return state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1 && isHoldAvailable(state.holds[limb.attachedHoldIndex]));
-}
-
-function getAttachedHands(state) {
-  return getAttachedLimbs(state).filter((limb) => limb.isHand);
-}
-
-function isSingleHandHang(state) {
-  return getAttachedHands(state).length === 1 && getAttachedLimbs(state).length >= 2;
-}
-
 function applyStaminaDelta(state, delta) {
   state.stamina = clamp(state.stamina + delta, 0, state.staminaCap);
 }
 
 function restoreStamina(state, amount) {
   state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
-}
-
-function getCheckpointAnchorHoldIndex(state) {
-  const attachedHoldIndices = getAttachedLimbs(state)
-    .map((limb) => limb.attachedHoldIndex)
-    .filter((holdIndex) => holdIndex !== -1);
-
-  if (attachedHoldIndices.length === 0) {
-    return -1;
-  }
-
-  return attachedHoldIndices.sort((leftIndex, rightIndex) => state.holds[leftIndex].y - state.holds[rightIndex].y)[0];
 }
 
 function getItemRuntime() {
@@ -229,29 +203,6 @@ function getItemRuntime() {
     isSingleHandHang,
     restoreStamina,
   };
-}
-
-function getCheckpointAnchorPosition(state, checkpoint = state.itemState.checkpoint) {
-  if (!checkpoint) {
-    return null;
-  }
-
-  if (checkpoint.anchorHoldIndex !== -1) {
-    const anchorHold = state.holds[checkpoint.anchorHoldIndex];
-
-    if (anchorHold) {
-      return getHoldAnchorPosition(state, anchorHold);
-    }
-  }
-
-  if (typeof checkpoint.anchorX === "number" && typeof checkpoint.anchorY === "number") {
-    return {
-      x: checkpoint.anchorX,
-      y: checkpoint.anchorY,
-    };
-  }
-
-  return null;
 }
 
 function setDragRejectFeedback(state, limbIndex, targetX, targetY, holdIndex = -1) {
@@ -283,33 +234,6 @@ function tickFeedbackState(state) {
   if (state.feedbackState.dragRejectFrames === 0) {
     clearDragRejectFeedback(state);
   }
-}
-
-function updateDetachedLimbs(state, stiffness = 0.16) {
-  state.player.limbs.forEach((limb) => {
-    releaseHoldAttachment(state, limb);
-    limb.x += (state.player.com.x - limb.x) * stiffness;
-    limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
-  });
-}
-
-function updateSuspendedLimbs(state, stiffness = 0.16) {
-  state.player.limbs.forEach((limb) => {
-    if (limb.attachedHoldIndex !== -1) {
-      const hold = state.holds[limb.attachedHoldIndex];
-
-      if (hold) {
-        const holdAnchor = getHoldAnchorPosition(state, hold);
-        limb.x = holdAnchor.x;
-        limb.y = holdAnchor.y;
-      }
-
-      return;
-    }
-
-    limb.x += (state.player.com.x - limb.x) * stiffness;
-    limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
-  });
 }
 
 export function setInvincibleDebug(state, enabled) {
@@ -416,17 +340,6 @@ function stabilizeInvincibleState(state, reason, viewportHeight) {
   }
 
   restoreCheckpointPose(state, getFallRecoveryRuntime());
-}
-
-function isHoldAvailable(hold) {
-  return Boolean(
-    hold &&
-      !hold.removed &&
-      hold.hazardType !== "obstacle" &&
-      hold.hazardType !== "resourceFruit" &&
-      hold.hazardType !== "rescueTarget" &&
-      hold.hazardType !== "laneBlocker",
-  );
 }
 
 function getClosestGoldenStanceIndex(state) {
