@@ -64,6 +64,8 @@ npm run report:engine
   - Rest-pose detection, hand-injury progression, bloodied-hold marking, and body velocity damping.
 - `src/logic/engine/initialStateSystem.js`
   - Player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories.
+- `src/logic/engine/limbReachSystem.js`
+  - Limb root projection, dynamic reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -135,6 +137,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: dyno state, charge availability, begin/release/cancel actions, launch cost, reach ratios, cooldown decay, and flight reset helpers now live in `src/logic/engine/dynoSystem.js`.
   - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
   - Current status: player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`.
+  - Current status: limb reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection now live in `src/logic/engine/limbReachSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
