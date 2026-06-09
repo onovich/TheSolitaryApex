@@ -11,7 +11,8 @@ import {
   tickSurvivalPressure,
   tickTimedSoftHolds,
 } from "./holdInteractions.js";
-import { tickActiveEffects, tickChannelItem } from "./itemSystem.js";
+import { tickActiveEffects } from "./itemEffectsSystem.js";
+import { tickChannelItem } from "./itemSystem.js";
 import { syncAttachedLimbAnchors } from "./limbReachSystem.js";
 import { updateParticles } from "./particleSystem.js";
 import { updateHeightAndCamera, updateRouteState } from "./routeProgressSystem.js";
