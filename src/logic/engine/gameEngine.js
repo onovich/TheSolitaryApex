@@ -7,6 +7,21 @@ import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
+  advanceDynoCharge,
+  beginDynoCharge as beginDynoChargeAction,
+  cancelDynoCharge as cancelDynoChargeAction,
+  cancelDynoPreparation,
+  createInitialDynoState,
+  decayDynoState,
+  finishDynoFlight,
+  getDynoAvailabilityReason,
+  getDynoChargeRatio,
+  getDynoReachRatio,
+  getDynoStaminaCost,
+  releaseDynoCharge as releaseDynoChargeAction,
+  resetDynoState,
+} from "./dynoSystem.js";
+import {
   beginFall,
   createInitialFallState,
   createInitialRecoveryState,
@@ -83,28 +98,6 @@ function createPlayer(holds, viewportWidth, viewportHeight) {
   };
 }
 
-function resetDynoState(dynoState) {
-  dynoState.charging = false;
-  dynoState.chargeFrames = 0;
-  dynoState.activeFrames = 0;
-  dynoState.cooldownFrames = 0;
-  dynoState.reachBonusRatio = 0;
-  dynoState.launchVector = {
-    x: 0,
-    y: -1,
-  };
-  dynoState.pointerActive = false;
-  dynoState.holdFrames = 0;
-  dynoState.pullDistance = 0;
-  dynoState.flightActive = false;
-  dynoState.originalLimbPositions = [];
-  dynoState.autoAttachActive = false;
-  dynoState.autoAttachFrame = 0;
-  dynoState.autoAttachFrames = 0;
-  dynoState.autoAttachBodyPosition = { x: 0, y: 0 };
-  dynoState.pendingLandingTargets = [];
-}
-
 function setGameOver(state, reason) {
   state.isPlaying = false;
   state.draggedLimbIndex = -1;
@@ -151,30 +144,7 @@ function createInitialMovementState() {
       x: 0,
       y: 0,
     },
-    dyno: {
-      charging: false,
-      chargeFrames: 0,
-      activeFrames: 0,
-      cooldownFrames: 0,
-      reachBonusRatio: 0,
-      launchVector: {
-        x: 0,
-        y: -1,
-      },
-      pointerActive: false,
-      holdFrames: 0,
-      pullDistance: 0,
-      flightActive: false,
-      originalLimbPositions: [],
-      autoAttachActive: false,
-      autoAttachFrame: 0,
-      autoAttachFrames: 0,
-      autoAttachBodyPosition: {
-        x: 0,
-        y: 0,
-      },
-      pendingLandingTargets: [],
-    },
+    dyno: createInitialDynoState(),
     restPose: {
       active: false,
       mode: "none",
@@ -324,6 +294,14 @@ function getFallRecoveryRuntime() {
   };
 }
 
+function getDynoRuntime() {
+  return {
+    getAttachedLimbs,
+    releaseHoldAttachment,
+    updatePointer,
+  };
+}
+
 function releaseHoldAttachment(state, limb) {
   const holdIndex = limb.attachedHoldIndex;
 
@@ -353,10 +331,6 @@ function applyStaminaDelta(state, delta) {
 
 function restoreStamina(state, amount) {
   state.stamina = clamp(state.stamina + amount, 0, state.staminaCap);
-}
-
-function getDynoStaminaCost(state) {
-  return state.staminaCap * GAME_CONFIG.movement.dyno.staminaCostRatio * state.loadout.modifiers.dynoCostMultiplier;
 }
 
 function getCheckpointAnchorHoldIndex(state) {
@@ -432,39 +406,6 @@ function clearDragRejectFeedback(state) {
   state.feedbackState.dragRejectFrames = 0;
   state.feedbackState.limbIndex = -1;
   state.feedbackState.holdIndex = -1;
-}
-
-function cancelDynoPreparation(state) {
-  const dynoState = state.movementState.dyno;
-
-  dynoState.pointerActive = false;
-  dynoState.holdFrames = 0;
-  dynoState.pullDistance = 0;
-  dynoState.charging = false;
-  dynoState.chargeFrames = 0;
-  dynoState.launchVector = {
-    x: 0,
-    y: -1,
-  };
-}
-
-function finishDynoFlight(state) {
-  const dynoState = state.movementState.dyno;
-
-  dynoState.flightActive = false;
-  dynoState.autoAttachActive = false;
-  dynoState.autoAttachFrame = 0;
-  dynoState.autoAttachFrames = 0;
-  dynoState.reachBonusRatio = 0;
-  dynoState.pullDistance = 0;
-  dynoState.activeFrames = 0;
-  dynoState.originalLimbPositions = [];
-  dynoState.autoAttachBodyPosition = { x: 0, y: 0 };
-  dynoState.pendingLandingTargets = [];
-  dynoState.launchVector = {
-    x: 0,
-    y: -1,
-  };
 }
 
 function tickFeedbackState(state) {
@@ -546,48 +487,6 @@ function updateDragConstraintFeedback(state, targetX, targetY) {
   clearDragRejectFeedback(state);
 }
 
-function getDynoAvailabilityReason(state) {
-  const dynoState = state.movementState.dyno;
-
-  if (!state.isPlaying) {
-    return "disabled";
-  }
-
-  if (dynoState.flightActive || dynoState.autoAttachActive) {
-    return "airborne";
-  }
-
-  if (state.fallState?.active) {
-    return state.fallState.mode === "hanging" ? "hanging" : "falling";
-  }
-
-  if (dynoState.pointerActive) {
-    return dynoState.charging ? "charging" : "priming";
-  }
-
-  if (!state.itemState.checkpoint) {
-    return "checkpoint";
-  }
-
-  if (state.stamina < getDynoStaminaCost(state)) {
-    return "stamina";
-  }
-
-  if (dynoState.cooldownFrames > 0) {
-    return "cooldown";
-  }
-
-  if (getAttachedLimbs(state).length < GAME_CONFIG.movement.dyno.minAttachedLimbs) {
-    return "support";
-  }
-
-  return "ready";
-}
-
-function canStartDyno(state) {
-  return getDynoAvailabilityReason(state) === "ready";
-}
-
 function updateDetachedLimbs(state, stiffness = 0.16) {
   state.player.limbs.forEach((limb) => {
     releaseHoldAttachment(state, limb);
@@ -613,40 +512,6 @@ function updateSuspendedLimbs(state, stiffness = 0.16) {
     limb.x += (state.player.com.x - limb.x) * stiffness;
     limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * stiffness;
   });
-}
-
-function getRawDynoChargeRatio(state) {
-  return clamp(state.movementState.dyno.chargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames, 0, 1);
-}
-
-function getDynoChargeRatioFromRaw(rawChargeRatio) {
-  return Math.pow(clamp(rawChargeRatio, 0, 1), GAME_CONFIG.movement.dyno.chargeEasePower);
-}
-
-function getDynoChargeRatio(state) {
-  return getDynoChargeRatioFromRaw(getRawDynoChargeRatio(state));
-}
-
-function getDynoReachRatio(state) {
-  const dynoState = state.movementState.dyno;
-
-  if (dynoState.charging) {
-    return getDynoChargeRatio(state);
-  }
-
-  if (dynoState.flightActive) {
-    return dynoState.reachBonusRatio;
-  }
-
-  if (dynoState.autoAttachActive) {
-    return dynoState.reachBonusRatio;
-  }
-
-  if (dynoState.activeFrames > 0) {
-    return dynoState.reachBonusRatio;
-  }
-
-  return 0;
 }
 
 function getDynamicReachProfile(state, limb) {
@@ -777,75 +642,6 @@ function applyBodyVelocity(state) {
 
   if (Math.abs(state.movementState.bodyVelocity.y) < 0.01) {
     state.movementState.bodyVelocity.y = 0;
-  }
-}
-
-function getDynoPullVector(state) {
-  const bodyScreenY = state.player.com.y - state.cameraY;
-  const pullX = state.player.com.x - state.pointer.x;
-  const pullY = bodyScreenY - state.pointer.y;
-
-  return {
-    pullX,
-    pullY,
-    pullDistance: Math.hypot(pullX, pullY),
-  };
-}
-
-function advanceDynoCharge(state) {
-  const dynoState = state.movementState.dyno;
-
-  if (!dynoState.pointerActive) {
-    return;
-  }
-
-  dynoState.holdFrames += 1;
-
-  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
-  dynoState.pullDistance = pullDistance;
-
-  if (
-    dynoState.holdFrames < GAME_CONFIG.movement.dyno.holdFramesRequired ||
-    pullDistance < GAME_CONFIG.movement.dyno.pullMinDistance
-  ) {
-    dynoState.charging = false;
-    dynoState.chargeFrames = 0;
-    return;
-  }
-
-  const pullRatio = clamp(
-    (pullDistance - GAME_CONFIG.movement.dyno.pullMinDistance) /
-      Math.max(1, GAME_CONFIG.movement.dyno.pullMaxDistance - GAME_CONFIG.movement.dyno.pullMinDistance),
-    0,
-    1,
-  );
-
-  dynoState.charging = true;
-  dynoState.chargeFrames = Math.round(
-    GAME_CONFIG.movement.dyno.minChargeFrames +
-      (GAME_CONFIG.movement.dyno.chargeMaxFrames - GAME_CONFIG.movement.dyno.minChargeFrames) * pullRatio,
-  );
-
-  const pullLength = Math.max(1, pullDistance);
-  dynoState.launchVector = {
-    x: pullX / pullLength,
-    y: pullY / pullLength,
-  };
-}
-
-function decayDynoState(state) {
-  const dynoState = state.movementState.dyno;
-
-  if (!dynoState.charging && !dynoState.flightActive && dynoState.activeFrames > 0) {
-    dynoState.activeFrames -= 1;
-
-    if (dynoState.activeFrames === 0) {
-      dynoState.reachBonusRatio = 0;
-    }
-  }
-
-  if (!dynoState.charging && dynoState.cooldownFrames > 0) {
-    dynoState.cooldownFrames -= 1;
   }
 }
 
@@ -1197,7 +993,7 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
 }
 
 export function getUiSnapshot(state, frame) {
-  const dynoAvailability = getDynoAvailabilityReason(state);
+  const dynoAvailability = getDynoAvailabilityReason(state, getDynoRuntime());
 
   return {
     frame,
@@ -1386,79 +1182,15 @@ export function cancelBodyAction(state) {
 }
 
 export function beginDynoCharge(state, screenX = state.pointer.x, screenY = state.pointer.y) {
-  if (!state.isPlaying || state.fallState?.active || state.movementState?.dyno?.autoAttachActive || !canStartDyno(state)) {
-    return false;
-  }
-
-  updatePointer(state, screenX, screenY);
-  state.movementState.bodyVelocity = { x: 0, y: 0 };
-  state.movementState.dyno.pointerActive = true;
-  state.movementState.dyno.holdFrames = 0;
-  state.movementState.dyno.pullDistance = 0;
-  state.movementState.dyno.charging = false;
-  state.movementState.dyno.chargeFrames = 0;
-  state.tutorialVisible = false;
-  return true;
+  return beginDynoChargeAction(state, screenX, screenY, getDynoRuntime());
 }
 
 export function releaseDynoCharge(state) {
-  if (!state.isPlaying || state.fallState?.active || state.movementState?.dyno?.autoAttachActive) {
-    return false;
-  }
-
-  const dynoState = state.movementState.dyno;
-
-  if (!dynoState.pointerActive || dynoState.flightActive) {
-    return false;
-  }
-
-  if (!dynoState.charging) {
-    cancelDynoPreparation(state);
-    return false;
-  }
-
-  const minimumRatio = GAME_CONFIG.movement.dyno.minChargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames;
-  const chargeRatio = clamp(Math.max(getRawDynoChargeRatio(state), minimumRatio), 0, 1);
-  const effectiveChargeRatio = getDynoChargeRatioFromRaw(chargeRatio);
-  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
-  const directionLength = Math.max(1, pullDistance);
-  const normalizedDirectionX = pullX / directionLength;
-  const normalizedDirectionY = pullY / directionLength;
-
-  cancelDynoPreparation(state);
-  dynoState.flightActive = true;
-  dynoState.activeFrames = 0;
-  dynoState.cooldownFrames = GAME_CONFIG.movement.dyno.cooldownFrames;
-  dynoState.reachBonusRatio = effectiveChargeRatio;
-  dynoState.originalLimbPositions = state.player.limbs.map((limb) => ({ x: limb.x, y: limb.y }));
-  dynoState.launchVector = {
-    x: normalizedDirectionX,
-    y: normalizedDirectionY,
-  };
-
-  state.player.limbs.forEach((limb) => {
-    releaseHoldAttachment(state, limb);
-  });
-
-  state.movementState.bodyVelocity.x =
-    normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio * state.loadout.modifiers.dynoLaunchMultiplier;
-  state.movementState.bodyVelocity.y =
-    Math.min(normalizedDirectionY, -0.35) *
-    GAME_CONFIG.movement.dyno.launchVelocity.y *
-    effectiveChargeRatio *
-    state.loadout.modifiers.dynoLaunchMultiplier;
-  state.stamina = clamp(state.stamina - getDynoStaminaCost(state), 0, state.staminaCap);
-  pushParticles(state, state.player.com.x, state.player.com.y - state.cameraY, 14, "#f0d58a");
-  return true;
+  return releaseDynoChargeAction(state, getDynoRuntime());
 }
 
 export function cancelDynoCharge(state) {
-  if (!state.isPlaying || !state.movementState?.dyno?.pointerActive) {
-    return false;
-  }
-
-  cancelDynoPreparation(state);
-  return true;
+  return cancelDynoChargeAction(state);
 }
 
 export function releaseDrag(state) {
