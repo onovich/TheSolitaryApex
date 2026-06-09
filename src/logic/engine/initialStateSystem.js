@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { createInitialDynoState } from "./dynoStateSystem.js";
-import { createInitialFallState, createInitialRecoveryState } from "./fallRecoverySystem.js";
+import { createInitialFallState, createInitialRecoveryState } from "./recoveryStateSystem.js";
 import { createInitialWeatherState, createInitialWindLineDebugTuning } from "./weatherSystem.js";
 
 function createLimb(name, isHand, profileKey, hold, holdIndex) {

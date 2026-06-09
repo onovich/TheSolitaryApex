@@ -3,7 +3,7 @@ import { getAttachedLimbs, isHoldAvailable } from "./attachmentSystem.js";
 import { resetDynoState } from "./dynoStateSystem.js";
 import { clearDragConstraintSnapshot, clearDragRejectFeedback } from "./feedbackSystem.js";
 import { beginFall, restoreCheckpointPose } from "./fallRecoverySystem.js";
-import { createInitialFallState } from "./initialStateSystem.js";
+import { createInitialFallState } from "./recoveryStateSystem.js";
 import { findClosestLandingAttachHold, syncAttachedLimbAnchors } from "./limbReachSystem.js";
 
 export function setGameOver(state, reason) {

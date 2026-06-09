@@ -5,7 +5,7 @@ import {
   getDynoReachRatio,
   getDynoStaminaCost,
 } from "./dynoSystem.js";
-import { getRecoveryWindowRatio } from "./fallRecoverySystem.js";
+import { getRecoveryWindowRatio } from "./recoveryStateSystem.js";
 import { getInventoryUiState } from "./itemInventorySystem.js";
 
 export function buildUiSnapshot(state, frame, runtime) {

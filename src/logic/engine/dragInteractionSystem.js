@@ -2,7 +2,7 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { getAttachedLimbs, releaseHoldAttachment } from "./attachmentSystem.js";
 import { clearDragConstraintSnapshot, clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem.js";
-import { createInitialFallState } from "./initialStateSystem.js";
+import { createInitialFallState } from "./recoveryStateSystem.js";
 import {
   canLimbReachTarget,
   findClosestReachableHold,

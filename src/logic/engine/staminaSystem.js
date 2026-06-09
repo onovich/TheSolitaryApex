@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getRecoveryStaminaBonus } from "./fallRecoverySystem.js";
+import { getRecoveryStaminaBonus } from "./recoveryStateSystem.js";
 import { getEffectValue, hasEffectType } from "./itemEffectsSystem.js";
 
 function clamp(value, min, max) {

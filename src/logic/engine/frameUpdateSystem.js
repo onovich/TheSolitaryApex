@@ -3,7 +3,8 @@ import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import { advanceDynoCharge, decayDynoState } from "./dynoSystem.js";
 import { updateDynoAutoAttachState, updateDynoFlightState } from "./dynoFlightSystem.js";
-import { tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
+import { updateFallState } from "./fallRecoverySystem.js";
+import { tickRecoveryState } from "./recoveryStateSystem.js";
 import { tickFeedbackState } from "./feedbackSystem.js";
 import {
   tickObstacleDrilling,
