@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { createInitialDynoState } from "./dynoSystem.js";
+import { createInitialDynoState } from "./dynoStateSystem.js";
 import { createInitialFallState, createInitialRecoveryState } from "./fallRecoverySystem.js";
 import { createInitialWeatherState, createInitialWindLineDebugTuning } from "./weatherSystem.js";
 

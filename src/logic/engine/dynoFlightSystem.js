@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { isHoldAvailable, updateDetachedLimbs } from "./attachmentSystem.js";
-import { finishDynoFlight } from "./dynoSystem.js";
+import { finishDynoFlight } from "./dynoStateSystem.js";
 import { canLimbReachTarget, findClosestLandingAttachHold } from "./limbReachSystem.js";
 import { pushParticles } from "./particleSystem.js";
 import { getScaledWindVector } from "./weatherSystem.js";

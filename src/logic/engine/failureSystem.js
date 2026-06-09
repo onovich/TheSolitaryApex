@@ -1,6 +1,6 @@
 import { getHoldAnchorPosition } from "../spatialProjection.js";
 import { getAttachedLimbs, isHoldAvailable } from "./attachmentSystem.js";
-import { resetDynoState } from "./dynoSystem.js";
+import { resetDynoState } from "./dynoStateSystem.js";
 import { clearDragConstraintSnapshot, clearDragRejectFeedback } from "./feedbackSystem.js";
 import { beginFall, restoreCheckpointPose } from "./fallRecoverySystem.js";
 import { createInitialFallState } from "./initialStateSystem.js";

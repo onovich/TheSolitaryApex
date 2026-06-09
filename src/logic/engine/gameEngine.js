@@ -23,10 +23,9 @@ import { clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem
 import {
   beginDynoCharge as beginDynoChargeAction,
   cancelDynoCharge as cancelDynoChargeAction,
-  cancelDynoPreparation,
   releaseDynoCharge as releaseDynoChargeAction,
-  resetDynoState,
 } from "./dynoSystem.js";
+import { cancelDynoPreparation, resetDynoState } from "./dynoStateSystem.js";
 import { updateFallState } from "./fallRecoverySystem.js";
 import {
   isInvincibleEnabled,
