@@ -52,6 +52,8 @@ npm run report:engine
   - Pursuit pressure, rope-threat checkpoint pressure, rescue burden timers, lane-blocker proximity pressure, and shared encounter-height calculations.
 - `src/logic/engine/particleSystem.js`
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
+- `src/logic/engine/holdInteractions.js`
+  - Fragile hold departure collapse, timed-soft hold loading, drillable obstacles, resource fruit collection, thirst pressure, and related hold-feedback particles.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -164,6 +166,7 @@ These are good near-term implementation candidates because they extend existing 
   - Recommended next small implementation: tune under-covered legacy loadouts only if those loadouts become player-facing again.
 - Resource routing:
   - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
+  - Current status: resource fruit pickup and thirst pressure now live in `src/logic/engine/holdInteractions.js`.
   - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
   - Next step: design route-side acquisition for chalk, energy gel, and protection, such as exposed pickups, rescue rewards, obstacle caches, or post-crux rest ledges.
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
@@ -174,6 +177,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
+  - Current status: fragile, timed-soft, and drillable-obstacle runtime interactions now live in `src/logic/engine/holdInteractions.js`.
   - Current status: earthquake and avalanche runtime activation now lives in `src/logic/engine/environmentEvents.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
