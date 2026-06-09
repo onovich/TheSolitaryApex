@@ -14,7 +14,7 @@ import {
   updateDetachedLimbs,
   updateSuspendedLimbs,
 } from "./attachmentSystem.js";
-import { applyBodyVelocity, getRestPoseState, updateInjuryState } from "./bodyStateSystem.js";
+import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotionSystem.js";
 import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
@@ -33,7 +33,7 @@ import {
   releaseDynoCharge as releaseDynoChargeAction,
   resetDynoState,
 } from "./dynoSystem.js";
-import { beginFall, getRecoveryWindMultiplier, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
+import { beginFall, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
 import {
   tickObstacleDrilling,
   tickResourceCollection,
@@ -787,16 +787,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
 
   syncAttachedLimbAnchors(state, getLimbReachRuntime());
 
-  const attachedLimbs = [];
-  const detachedLimbs = [];
-
-  state.player.limbs.forEach((limb) => {
-    if (limb.attachedHoldIndex !== -1) {
-      attachedLimbs.push(limb);
-    } else {
-      detachedLimbs.push(limb);
-    }
-  });
+  const { attachedLimbs, detachedLimbs } = getClimbingLimbGroups(state);
 
   if (state.stamina <= 0) {
     resolveFailure(state, "exhaustion", viewportHeight);
@@ -808,47 +799,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     return;
   }
 
-  applyBodyVelocity(state);
-  state.movementState.restPose = getRestPoseState(state);
-  updateInjuryState(state, attachedLimbs);
-  const windResistance = state.movementState.restPose.active ? GAME_CONFIG.conditions.weather.restResistance : 1;
-  const effectiveWind = getScaledWindVector(
-    state.conditionState.weather,
-    windResistance * currentRouteSegment.windMultiplier * getRecoveryWindMultiplier(state),
-  );
-
-  let totalX = 0;
-  let totalY = 0;
-
-  attachedLimbs.forEach((limb) => {
-    totalX += limb.x;
-    totalY += limb.y;
-  });
-
-  const targetComX =
-    totalX / attachedLimbs.length +
-    effectiveWind.x * GAME_CONFIG.conditions.weather.swayStrength * (5 - attachedLimbs.length);
-  const targetComY =
-    totalY / attachedLimbs.length +
-    GAME_CONFIG.bodyOffsetY +
-    effectiveWind.y * GAME_CONFIG.conditions.weather.swayStrength * 0.55 * Math.max(1, 5 - attachedLimbs.length);
-  state.player.com.x += (targetComX - state.player.com.x) * 0.2;
-  state.player.com.y += (targetComY - state.player.com.y) * 0.2;
-
-  detachedLimbs.forEach((limb) => {
-    const isDragged = state.draggedLimbIndex !== -1 && state.player.limbs[state.draggedLimbIndex] === limb;
-
-    if (isDragged) {
-      limb.x = state.pointer.x;
-      limb.y = state.pointer.y + state.cameraY;
-      return;
-    }
-
-    limb.x += (state.player.com.x - limb.x) * 0.1 + effectiveWind.x * GAME_CONFIG.conditions.weather.suspendedLimbPush;
-    limb.y +=
-      (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.1 +
-      effectiveWind.y * GAME_CONFIG.conditions.weather.suspendedLimbPush * 0.7;
-  });
+  const effectiveWind = updateClimbingBodyMotion(state, attachedLimbs, detachedLimbs, currentRouteSegment);
 
   const staminaChange = getClimbingStaminaChange(state, attachedLimbs, effectiveWind, currentRouteSegment);
 
