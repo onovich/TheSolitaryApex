@@ -7,5 +7,6 @@ Thumbs.db
 !.env.example
 coverage/
 *.log
+.codex-screenshots/
 .idea/
 .vscode/

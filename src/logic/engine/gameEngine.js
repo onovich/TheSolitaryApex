@@ -1,16 +1,10 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { ITEM_CATALOG, ITEM_ORDER } from "../../data/itemCatalog.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import { getLoadoutConfig } from "../../data/loadoutConfig.js";
 import { getDefaultRunDebugConfig } from "../../dev/runDebugConfig.js";
 import { cloneLevelAnalysisSnapshot, createLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
-import {
-  armRopeThreatState,
-  getCurrentHeight,
-  startRescueBurden,
-  tickEncounterPressureSystems,
-} from "./encounterSystems.js";
+import { getCurrentHeight, tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import {
   maybeCollapseDepartedHold,
@@ -19,6 +13,16 @@ import {
   tickSurvivalPressure,
   tickTimedSoftHolds,
 } from "./holdInteractions.js";
+import {
+  createInitialInventory,
+  getCheckpointActivation,
+  getEffectValue,
+  getInventoryUiState,
+  hasEffectType,
+  tickActiveEffects,
+  tickChannelItem,
+  useItem as useItemAction,
+} from "./itemSystem.js";
 import { pushParticles, updateParticles } from "./particleSystem.js";
 import {
   generateWall,
@@ -366,6 +370,15 @@ function getCheckpointAnchorHoldIndex(state) {
   return attachedHoldIndices.sort((leftIndex, rightIndex) => state.holds[leftIndex].y - state.holds[rightIndex].y)[0];
 }
 
+function getItemRuntime() {
+  return {
+    getAttachedLimbs,
+    getCheckpointAnchorHoldIndex,
+    isSingleHandHang,
+    restoreStamina,
+  };
+}
+
 function getCheckpointAnchorPosition(state, checkpoint = state.itemState.checkpoint) {
   if (!checkpoint) {
     return null;
@@ -607,6 +620,7 @@ function tickRecoveryState(state) {
 function beginFall(state, reason, viewportHeight) {
   const checkpoint = state.itemState.checkpoint;
   const anchorPosition = getCheckpointAnchorPosition(state, checkpoint);
+  const checkpointActivation = checkpoint && anchorPosition ? getCheckpointActivation(checkpoint) : null;
 
   state.draggedLimbIndex = -1;
   state.itemState.channel = null;
@@ -624,9 +638,8 @@ function beginFall(state, reason, viewportHeight) {
   clearDragRejectFeedback(state);
   state.recoveryState.lastFailureReason = reason;
 
-  if (checkpoint && anchorPosition) {
-    const itemDefinition = ITEM_CATALOG[checkpoint.itemId];
-    const activation = itemDefinition.activation;
+  if (checkpoint && anchorPosition && checkpointActivation) {
+    const activation = checkpointActivation;
     const currentDistance = Math.hypot(state.player.com.x - anchorPosition.x, state.player.com.y - anchorPosition.y);
 
     state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
@@ -1061,85 +1074,6 @@ function decayDynoState(state) {
   }
 }
 
-function createInitialInventory(loadout, startingInventoryOverrides = {}) {
-  return Object.values(ITEM_CATALOG).reduce((inventory, itemDefinition) => {
-    const overrideCount = startingInventoryOverrides[itemDefinition.id];
-    inventory[itemDefinition.id] = {
-      count: Number.isFinite(Number(overrideCount))
-        ? Math.max(0, Math.round(Number(overrideCount)))
-        : loadout.itemCounts[itemDefinition.id] ?? itemDefinition.initialCount,
-      acquisition: itemDefinition.acquisition,
-      persistence: itemDefinition.persistence,
-      purpose: itemDefinition.purpose,
-    };
-
-    return inventory;
-  }, {});
-}
-
-function isCheckpointActive(state, itemId) {
-  return state.itemState.checkpoint?.itemId === itemId;
-}
-
-function isChannelActive(state, itemId) {
-  return state.itemState.channel?.itemId === itemId;
-}
-
-function isEffectActiveForItem(state, itemId) {
-  return state.activeEffects.some((effect) => effect.sourceItemId === itemId);
-}
-
-function getInventoryCount(state, itemId) {
-  return state.inventory[itemId]?.count ?? 0;
-}
-
-function getItemActiveState(state, itemDefinition) {
-  const activationType = itemDefinition.activation?.type;
-
-  if (activationType === "checkpoint") {
-    return isCheckpointActive(state, itemDefinition.id);
-  }
-
-  if (activationType === "channel") {
-    return isChannelActive(state, itemDefinition.id);
-  }
-
-  return isEffectActiveForItem(state, itemDefinition.id);
-}
-
-function canUseItem(state, itemDefinition) {
-  if (!state.isPlaying) {
-    return false;
-  }
-
-  if (state.itemState.channel && state.itemState.channel.itemId !== itemDefinition.id) {
-    return false;
-  }
-
-  const itemCount = getInventoryCount(state, itemDefinition.id);
-  const itemActive = getItemActiveState(state, itemDefinition);
-
-  if (itemCount <= 0 || (itemActive && !itemDefinition.canUseWhileActive)) {
-    return false;
-  }
-
-  const activation = itemDefinition.activation;
-
-  if (!activation) {
-    return true;
-  }
-
-  if (activation.type === "checkpoint") {
-    return getAttachedLimbs(state).length >= activation.requiresAttachedLimbsMin;
-  }
-
-  if (activation.type === "channel") {
-    return !state.itemState.channel && (!activation.requiresSingleHandHang || isSingleHandHang(state));
-  }
-
-  return true;
-}
-
 export function setInvincibleDebug(state, enabled) {
   if (!state.debugState) {
     return false;
@@ -1147,169 +1081,6 @@ export function setInvincibleDebug(state, enabled) {
 
   state.debugState.invincible = Boolean(enabled);
   return true;
-}
-
-function getReachableRescueTargetIndex(state) {
-  let closestHoldIndex = -1;
-  let closestDistance = Infinity;
-
-  state.holds.forEach((hold, holdIndex) => {
-    if (hold.hazardType !== "rescueTarget" || hold.hazardState === "rescued") {
-      return;
-    }
-
-    const holdAnchor = getHoldAnchorPosition(state, hold);
-    const distance = Math.hypot(holdAnchor.x - state.player.com.x, holdAnchor.y - state.player.com.y);
-
-    if (distance <= hold.rescueRadius && distance < closestDistance) {
-      closestDistance = distance;
-      closestHoldIndex = holdIndex;
-    }
-  });
-
-  return closestHoldIndex;
-}
-
-function attachProtectionToRescueTarget(state, itemDefinition) {
-  const rescueTargetIndex = getReachableRescueTargetIndex(state);
-
-  if (rescueTargetIndex === -1 || getAttachedLimbs(state).length < itemDefinition.activation.requiresAttachedLimbsMin) {
-    return false;
-  }
-
-  const rescueTarget = state.holds[rescueTargetIndex];
-
-  rescueTarget.hazardState = "rescued";
-  rescueTarget.rescuedFrame = state.frame ?? 0;
-  rescueTarget.rescueItemId = itemDefinition.id;
-  state.conditionState.encounter.rescueCount += 1;
-  startRescueBurden(state, rescueTarget);
-  pushParticles(state, rescueTarget.x, rescueTarget.y - state.cameraY, 26, "rgba(154, 230, 180, 0.9)");
-  return true;
-}
-
-function getItemUiState(state, itemId) {
-  const itemDefinition = ITEM_CATALOG[itemId];
-  const active = getItemActiveState(state, itemDefinition);
-  const count = getInventoryCount(state, itemId);
-  const channelState = itemDefinition.activation?.type === "channel" && active ? state.itemState.channel : null;
-
-  return {
-    id: itemDefinition.id,
-    count,
-    active,
-    channelProgressRatio: channelState ? 1 - channelState.remainingFrames / channelState.totalFrames : null,
-    purpose: itemDefinition.purpose,
-    persistence: itemDefinition.persistence,
-    acquisition: itemDefinition.acquisition,
-    disabled: !canUseItem(state, itemDefinition),
-  };
-}
-
-function getInventoryUiState(state) {
-  return ITEM_ORDER.map((itemId) => getItemUiState(state, itemId)).filter(Boolean);
-}
-
-function getEffectValue(state, effectType) {
-  return state.activeEffects.reduce((total, effect) => {
-    if (effect.type !== effectType) {
-      return total;
-    }
-
-    return total + effect.value;
-  }, 0);
-}
-
-function hasEffectType(state, effectType) {
-  return state.activeEffects.some((effect) => effect.type === effectType);
-}
-
-function tickActiveEffects(state) {
-  state.activeEffects = state.activeEffects
-    .map((effect) => ({
-      ...effect,
-      remainingFrames: effect.remainingFrames - 1,
-    }))
-    .filter((effect) => effect.remainingFrames > 0);
-}
-
-function applyItemEffects(state, itemDefinition) {
-  itemDefinition.effects.forEach((effectDefinition) => {
-    const existingEffectIndex = state.activeEffects.findIndex((effect) => effect.id === effectDefinition.id);
-
-    if (existingEffectIndex !== -1 && effectDefinition.stacking === "refresh") {
-      state.activeEffects[existingEffectIndex] = {
-        ...state.activeEffects[existingEffectIndex],
-        remainingFrames: effectDefinition.durationFrames,
-        value: effectDefinition.value,
-      };
-      return;
-    }
-
-    state.activeEffects.push({
-      ...effectDefinition,
-      sourceItemId: itemDefinition.id,
-      remainingFrames: effectDefinition.durationFrames,
-    });
-  });
-}
-
-function emitItemFeedback(state, itemDefinition) {
-  if (!itemDefinition.feedback) {
-    return;
-  }
-
-  if (itemDefinition.feedback.target === "attachedHands") {
-    state.player.limbs.forEach((limb) => {
-      if (limb.isHand && limb.attachedHoldIndex !== -1) {
-        pushParticles(
-          state,
-          limb.x,
-          limb.y - state.cameraY,
-          itemDefinition.feedback.particleCount,
-          itemDefinition.feedback.particleColor,
-        );
-      }
-    });
-    return;
-  }
-
-  if (itemDefinition.feedback.target === "playerCore") {
-    pushParticles(
-      state,
-      state.player.com.x,
-      state.player.com.y - state.cameraY,
-      itemDefinition.feedback.particleCount,
-      itemDefinition.feedback.particleColor,
-    );
-  }
-}
-
-function captureCheckpoint(state, itemDefinition) {
-  const anchorHoldIndex = getCheckpointAnchorHoldIndex(state);
-  const anchorPosition =
-    anchorHoldIndex !== -1
-      ? {
-          x: state.holds[anchorHoldIndex].x,
-          y: state.holds[anchorHoldIndex].y,
-        }
-      : { ...state.player.com };
-
-  state.itemState.checkpoint = {
-    itemId: itemDefinition.id,
-    anchorHoldIndex,
-    anchorX: anchorPosition.x,
-    anchorY: anchorPosition.y,
-    limbs: state.player.limbs.map((limb) => ({
-      attachedHoldIndex: limb.attachedHoldIndex,
-      x: limb.x,
-      y: limb.y,
-    })),
-    com: { ...state.player.com },
-    cameraY: state.cameraY,
-    maxHeightReached: state.maxHeightReached,
-  };
-  armRopeThreatState(state);
 }
 
 function resolveFailure(state, reason, viewportHeight) {
@@ -1407,31 +1178,6 @@ function stabilizeInvincibleState(state, reason, viewportHeight) {
   }
 
   restoreCheckpointPose(state);
-}
-
-function tickChannelItem(state) {
-  const channelState = state.itemState.channel;
-
-  if (!channelState) {
-    return;
-  }
-
-  const itemDefinition = ITEM_CATALOG[channelState.itemId];
-
-  if (itemDefinition.activation.requiresSingleHandHang && !isSingleHandHang(state)) {
-    state.itemState.channel = null;
-    return;
-  }
-
-  channelState.remainingFrames -= 1;
-
-  if (channelState.remainingFrames > 0) {
-    return;
-  }
-
-  restoreStamina(state, itemDefinition.activation.restoreStamina);
-  emitItemFeedback(state, itemDefinition);
-  state.itemState.channel = null;
 }
 
 function isHoldAvailable(hold) {
@@ -1692,7 +1438,7 @@ export function getUiSnapshot(state, frame) {
     staminaRatio: state.stamina / state.staminaCap,
     staminaCap: state.staminaCap,
     height: state.maxHeightReached,
-    items: getInventoryUiState(state),
+    items: getInventoryUiState(state, getItemRuntime()),
     route: {
       zoneKey: state.routeState.currentZoneKey,
       stanceIndex: state.routeState.currentStanceIndex,
@@ -1975,37 +1721,7 @@ export function releaseDrag(state) {
 }
 
 export function useItem(state, itemId) {
-  const itemDefinition = ITEM_CATALOG[itemId];
-
-  if (!itemDefinition || state.fallState?.active || !canUseItem(state, itemDefinition)) {
-    return false;
-  }
-
-  state.inventory[itemDefinition.id].count -= 1;
-
-  if (itemDefinition.activation?.type === "checkpoint") {
-    if (attachProtectionToRescueTarget(state, itemDefinition)) {
-      emitItemFeedback(state, itemDefinition);
-      return true;
-    }
-
-    captureCheckpoint(state, itemDefinition);
-    emitItemFeedback(state, itemDefinition);
-    return true;
-  }
-
-  if (itemDefinition.activation?.type === "channel") {
-    state.itemState.channel = {
-      itemId: itemDefinition.id,
-      remainingFrames: itemDefinition.activation.channelFrames,
-      totalFrames: itemDefinition.activation.channelFrames,
-    };
-    return true;
-  }
-
-  applyItemEffects(state, itemDefinition);
-  emitItemFeedback(state, itemDefinition);
-  return true;
+  return useItemAction(state, itemId, getItemRuntime());
 }
 
 function attemptDynoAutoAttach(state) {
@@ -2191,7 +1907,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     updateDynoFlightState(state, currentRouteSegment, viewportHeight);
     tickActiveEffects(state);
     decayDynoState(state);
-    tickChannelItem(state);
+    tickChannelItem(state, getItemRuntime());
     tickRecoveryState(state);
     updateHeightAndCamera(state, viewportHeight);
     return;
@@ -2201,7 +1917,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
     updateDynoAutoAttachState(state, viewportHeight);
     tickActiveEffects(state);
     decayDynoState(state);
-    tickChannelItem(state);
+    tickChannelItem(state, getItemRuntime());
     tickRecoveryState(state);
     updateHeightAndCamera(state, viewportHeight);
     return;
@@ -2347,7 +2063,7 @@ export function updateFrame(state, viewportWidth, viewportHeight) {
   decayDynoState(state);
 
   applyStaminaDelta(state, staminaChange);
-  tickChannelItem(state);
+  tickChannelItem(state, getItemRuntime());
   tickRecoveryState(state);
 
   if (state.stamina <= 0) {

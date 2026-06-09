@@ -54,6 +54,8 @@ npm run report:engine
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/logic/engine/holdInteractions.js`
   - Fragile hold departure collapse, timed-soft hold loading, drillable obstacles, resource fruit collection, thirst pressure, and related hold-feedback particles.
+- `src/logic/engine/itemSystem.js`
+  - Starting inventory, item UI state, active item effects, channel items, checkpoint capture, and rescue-target item interactions.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -120,6 +122,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: `npm run validate:logic` runs the high-signal level and gameplay checks used between engine refactor slices.
   - Current status: `npm run report:engine` prints compact engine module size and export/import counts for choosing the next refactor slice.
   - Current status: shared visual-feedback helpers now live in `src/logic/engine/particleSystem.js`, reducing repeated helper code across engine modules.
+  - Current status: inventory, item activation, active effects, channel items, checkpoint capture, and rescue-target item use now live in `src/logic/engine/itemSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
