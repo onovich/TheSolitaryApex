@@ -122,6 +122,12 @@ Then run:
 npm run validate
 ```
 
+For engine-only refactor slices, run the faster high-signal pair first:
+
+```bash
+npm run validate:logic
+```
+
 Commit only after the full gate passes.
 
 ## DEV Panel

@@ -14,6 +14,7 @@ Focused checks:
 
 ```bash
 npm run validate:i18n
+npm run validate:logic
 npm run validate:levels
 npm run validate:gameplay
 npm run build
@@ -41,6 +42,8 @@ npm run report:levels
   - Weather state initialization, wind vector updates, wind debug override, and wind-line tuning entry points used by the runtime engine and game hook.
 - `src/logic/engine/environmentEvents.js`
   - Earthquake and avalanche event activation, noise-hold alteration, active-event timers, and event particle feedback.
+- `src/logic/engine/encounterSystems.js`
+  - Pursuit pressure, rope-threat checkpoint pressure, rescue burden timers, lane-blocker proximity pressure, and shared encounter-height calculations.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -104,6 +107,7 @@ These tasks are the top priority because every new mechanic increases route-conf
 - Developer workflow:
   - Current status: root launchers can start local manual testing with fallback ports and open the online demo.
   - Current status: reusable global skills now exist for web test launchers and 2/3/5-language web i18n.
+  - Current status: `npm run validate:logic` runs the high-signal level and gameplay checks used between engine refactor slices.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
@@ -155,6 +159,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
+  - Current status: pursuit, rope threat, rescue burden, and lane-blocker runtime pressure now live in `src/logic/engine/encounterSystems.js`.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
