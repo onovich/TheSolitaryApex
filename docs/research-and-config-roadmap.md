@@ -26,6 +26,12 @@ Readable level handoff report:
 npm run report:levels
 ```
 
+Engine structure report for choosing the next refactor slice:
+
+```bash
+npm run report:engine
+```
+
 ## Primary Config Files
 
 - `src/data/levelConfig.js`
@@ -44,6 +50,8 @@ npm run report:levels
   - Earthquake and avalanche event activation, noise-hold alteration, active-event timers, and event particle feedback.
 - `src/logic/engine/encounterSystems.js`
   - Pursuit pressure, rope-threat checkpoint pressure, rescue burden timers, lane-blocker proximity pressure, and shared encounter-height calculations.
+- `src/logic/engine/particleSystem.js`
+  - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/data/uiText.js`
   - Five-language UI text bundles, language options, and render-time helpers for items, levels, and game-over text.
 - `src/dev/dynoTuning.js`
@@ -108,6 +116,8 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: root launchers can start local manual testing with fallback ports and open the online demo.
   - Current status: reusable global skills now exist for web test launchers and 2/3/5-language web i18n.
   - Current status: `npm run validate:logic` runs the high-signal level and gameplay checks used between engine refactor slices.
+  - Current status: `npm run report:engine` prints compact engine module size and export/import counts for choosing the next refactor slice.
+  - Current status: shared visual-feedback helpers now live in `src/logic/engine/particleSystem.js`, reducing repeated helper code across engine modules.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:

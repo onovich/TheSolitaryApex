@@ -1,21 +1,9 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getHoldAnchorPosition } from "../spatialProjection.js";
+import { pushParticles } from "./particleSystem.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
-}
-
-function pushParticles(state, x, y, count, color) {
-  for (let index = 0; index < count; index += 1) {
-    state.particles.push({
-      x,
-      y,
-      vx: (Math.random() - 0.5) * 4,
-      vy: (Math.random() - 0.5) * 4 - 2,
-      life: 1,
-      color,
-    });
-  }
 }
 
 export function getCurrentHeight(state, viewportHeight) {
