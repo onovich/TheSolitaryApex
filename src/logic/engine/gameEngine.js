@@ -1,4 +1,3 @@
-import { getHoldAnchorPosition } from "../spatialProjection.js";
 import {
   getAttachedLimbs,
   getCheckpointAnchorHoldIndex,
@@ -24,7 +23,6 @@ import {
   updatePointer as updatePointerAction,
 } from "./dragInteractionSystem.js";
 import {
-  clearDragConstraintSnapshot,
   clearDragRejectFeedback,
   setDragRejectFeedback,
   tickFeedbackState,
@@ -39,7 +37,15 @@ import {
   resetDynoState,
 } from "./dynoSystem.js";
 import { updateDynoAutoAttachState, updateDynoFlightState } from "./dynoFlightSystem.js";
-import { beginFall, restoreCheckpointPose, tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
+import { tickRecoveryState, updateFallState } from "./fallRecoverySystem.js";
+import {
+  isInvincibleEnabled,
+  resetFallAndDynoState,
+  resolveFailure as resolveFailureAction,
+  setGameOver,
+  setInvincibleDebug as setInvincibleDebugAction,
+  stabilizeInvincibleState as stabilizeInvincibleStateAction,
+} from "./failureSystem.js";
 import {
   tickObstacleDrilling,
   tickResourceCollection,
@@ -47,12 +53,9 @@ import {
   tickTimedSoftHolds,
 } from "./holdInteractions.js";
 import {
-  createInitialFallState,
   createInitialMovementState,
 } from "./initialStateSystem.js";
 import {
-  findClosestLandingAttachHold,
-  getLimbRootPosition,
   syncAttachedLimbAnchors,
 } from "./limbReachSystem.js";
 import {
@@ -74,51 +77,6 @@ import { applyStaminaDelta, getClimbingStaminaChange, restoreStamina } from "./s
 export { createInitialGameState } from "./gameStateFactory.js";
 export { generateWall, generateWallFromLevelConfig, validateGoldenPath } from "./routeGeneration.js";
 export { createInitialWindLineDebugTuning, setWindDebugOverride, setWindLineDebugTuning };
-
-function setGameOver(state, reason) {
-  state.isPlaying = false;
-  state.draggedLimbIndex = -1;
-
-  if (state.movementState) {
-    state.movementState.bodyVelocity = { x: 0, y: 0 };
-    resetDynoState(state.movementState.dyno);
-  }
-
-  if (state.itemState) {
-    state.itemState.channel = null;
-  }
-
-  if (state.fallState) {
-    state.fallState = createInitialFallState();
-  }
-
-  if (state.feedbackState) {
-    state.feedbackState.dragRejectFrames = 0;
-    clearDragConstraintSnapshot(state);
-  }
-
-  if (state.recoveryState) {
-    state.recoveryState.rescueWindowFrames = 0;
-    state.recoveryState.rescueWindowTotalFrames = 0;
-    state.recoveryState.lastFailureReason = reason;
-  }
-
-  state.endMessage = {
-    reason,
-    finalHeight: state.maxHeightReached,
-    rescueCount: state.recoveryState?.rescuesUsed ?? 0,
-    staminaCap: state.staminaCap,
-  };
-}
-
-function isInvincibleEnabled(state) {
-  return Boolean(state.debugState?.invincible);
-}
-
-function resetFallAndDynoState(state) {
-  state.fallState = createInitialFallState();
-  resetDynoState(state.movementState.dyno);
-}
 
 function getEncounterRuntime() {
   return {
@@ -186,6 +144,13 @@ function getBodyActionRuntime() {
   };
 }
 
+function getFailureRuntime() {
+  return {
+    getFallRecoveryRuntime,
+    getLimbReachRuntime,
+  };
+}
+
 function getItemRuntime() {
   return {
     getAttachedLimbs,
@@ -196,109 +161,15 @@ function getItemRuntime() {
 }
 
 export function setInvincibleDebug(state, enabled) {
-  if (!state.debugState) {
-    return false;
-  }
-
-  state.debugState.invincible = Boolean(enabled);
-  return true;
+  return setInvincibleDebugAction(state, enabled);
 }
 
 function resolveFailure(state, reason, viewportHeight) {
-  if (isInvincibleEnabled(state)) {
-    stabilizeInvincibleState(state, reason, viewportHeight);
-    return;
-  }
-
-  beginFall(state, reason, viewportHeight, getFallRecoveryRuntime());
+  resolveFailureAction(state, reason, viewportHeight, getFailureRuntime());
 }
 
 function stabilizeInvincibleState(state, reason, viewportHeight) {
-  state.draggedLimbIndex = -1;
-  state.itemState.channel = null;
-  state.endMessage = null;
-  state.fallState = createInitialFallState();
-  state.movementState.bodyVelocity = { x: 0, y: 0 };
-  resetDynoState(state.movementState.dyno);
-  clearDragRejectFeedback(state);
-  clearDragConstraintSnapshot(state);
-  state.recoveryState.lastFailureReason = reason;
-  state.stamina = Math.max(state.stamina, Math.min(state.staminaCap * 0.22, 22));
-  state.player.com.y = Math.min(state.player.com.y, state.cameraY + viewportHeight * 0.72);
-
-  const usedHoldIndices = new Set();
-
-  syncAttachedLimbAnchors(state, getLimbReachRuntime());
-  state.player.limbs.forEach((limb) => {
-    if (limb.attachedHoldIndex !== -1) {
-      usedHoldIndices.add(limb.attachedHoldIndex);
-    }
-  });
-
-  state.player.limbs.forEach((limb) => {
-    if (limb.attachedHoldIndex !== -1) {
-      return;
-    }
-
-    const holdIndex = findClosestLandingAttachHold(state, limb, limb.x, limb.y, usedHoldIndices, getLimbReachRuntime());
-
-    if (holdIndex === -1) {
-      return;
-    }
-
-    usedHoldIndices.add(holdIndex);
-    limb.attachedHoldIndex = holdIndex;
-    const holdAnchor = getHoldAnchorPosition(state, state.holds[holdIndex]);
-    limb.x = holdAnchor.x;
-    limb.y = holdAnchor.y;
-  });
-
-  syncAttachedLimbAnchors(state, getLimbReachRuntime());
-
-  if (getAttachedLimbs(state).length >= 2) {
-    return;
-  }
-
-  state.player.limbs.forEach((limb) => {
-    if (getAttachedLimbs(state).length >= 2 || limb.attachedHoldIndex !== -1) {
-      return;
-    }
-
-    let bestHoldIndex = -1;
-    let bestDistance = Infinity;
-
-    state.holds.forEach((hold, holdIndex) => {
-      if (!isHoldAvailable(hold) || usedHoldIndices.has(holdIndex)) {
-        return;
-      }
-
-      const holdAnchor = getHoldAnchorPosition(state, hold);
-      const distance = Math.hypot(holdAnchor.x - limb.x, holdAnchor.y - limb.y);
-
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestHoldIndex = holdIndex;
-      }
-    });
-
-    if (bestHoldIndex === -1) {
-      return;
-    }
-
-    usedHoldIndices.add(bestHoldIndex);
-    limb.attachedHoldIndex = bestHoldIndex;
-    const holdAnchor = getHoldAnchorPosition(state, state.holds[bestHoldIndex]);
-    limb.x = holdAnchor.x;
-    limb.y = holdAnchor.y;
-  });
-
-  syncAttachedLimbAnchors(state, getLimbReachRuntime());
-
-  if (getAttachedLimbs(state).length >= 2) {
-    return;
-  }
-
-  restoreCheckpointPose(state, getFallRecoveryRuntime());
+  stabilizeInvincibleStateAction(state, reason, viewportHeight, getFailureRuntime());
 }
 
 export function getUiSnapshot(state, frame) {
