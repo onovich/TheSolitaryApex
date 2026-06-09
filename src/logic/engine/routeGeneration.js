@@ -2,8 +2,10 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
 import {
   createLaneBlockerHolds,
-  createNoiseHolds,
   createRescueTargetHolds,
+} from "./routeAuthoredContentGeneration.js";
+import {
+  createNoiseHolds,
 } from "./routeContentGeneration.js";
 import {
   createSeededRandom,
