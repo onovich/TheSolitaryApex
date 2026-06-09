@@ -1,67 +1,19 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
-
-const HOLD_RADIUS_BY_TYPE = [8, 5, 10];
-let randomSource = Math.random;
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function randomBetween(min, max) {
-  return randomSource() * (max - min) + min;
-}
-
-function randomInt(min, max) {
-  return Math.floor(randomBetween(min, max + 1));
-}
-
-function pickHoldType(pool) {
-  return pool[randomInt(0, pool.length - 1)];
-}
-
-function createSeededRandom(seed) {
-  let hash = 2166136261;
-
-  for (let index = 0; index < seed.length; index += 1) {
-    hash ^= seed.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  return () => {
-    hash += 0x6d2b79f5;
-    let value = hash;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function withRandomSource(nextRandomSource, callback) {
-  const previousRandomSource = randomSource;
-
-  randomSource = nextRandomSource;
-
-  try {
-    return callback();
-  } finally {
-    randomSource = previousRandomSource;
-  }
-}
-
-function createHold(x, y, type, meta = {}) {
-  return {
-    x,
-    y,
-    type,
-    radius: HOLD_RADIUS_BY_TYPE[type],
-    ...meta,
-  };
-}
-
-function clampRouteX(viewportWidth, value, routeConfig) {
-  return clamp(value, routeConfig.corridorPadding, viewportWidth - routeConfig.corridorPadding);
-}
+import {
+  createLaneBlockerHolds,
+  createNoiseHolds,
+  createRescueTargetHolds,
+} from "./routeContentGeneration.js";
+import {
+  clampRouteX,
+  createHold,
+  createSeededRandom,
+  pickHoldType,
+  randomBetween,
+  randomInt,
+  withRandomSource,
+} from "./routeGenerationPrimitives.js";
 
 function createSpawnHolds(centerX, viewportHeight) {
   return [
@@ -169,145 +121,6 @@ export function getRouteSegmentForStance(routeSegments, stanceIndex) {
     routeSegments.find((segment) => stanceIndex >= segment.startStanceIndex && stanceIndex <= segment.endStanceIndex) ??
     routeSegments[routeSegments.length - 1]
   );
-}
-
-function getNoiseHoldHazardMeta(zoneProfile, routeConfig) {
-  const fragileChance = zoneProfile?.mechanicBudget?.fragile ?? 0;
-  const timedSoftChance = zoneProfile?.mechanicBudget?.timedSoft ?? 0;
-  const obstacleChance = zoneProfile?.mechanicBudget?.obstacle ?? 0;
-  const resourceChance = zoneProfile?.mechanicBudget?.resource ?? 0;
-
-  if (fragileChance > 0 && randomSource() < fragileChance) {
-    return {
-      hazardType: "fragile",
-      hazardState: "intact",
-    };
-  }
-
-  if (timedSoftChance > 0 && randomSource() < timedSoftChance) {
-    const timedSoftRules = routeConfig.mechanicRules?.timedSoft ?? {
-      collapseFramesMin: 150,
-      collapseFramesMax: 240,
-    };
-
-    return {
-      hazardType: "timedSoft",
-      hazardState: "stable",
-      attachedFrames: 0,
-      collapseFrames: randomInt(timedSoftRules.collapseFramesMin, timedSoftRules.collapseFramesMax),
-    };
-  }
-
-  if (obstacleChance > 0 && randomSource() < obstacleChance) {
-    const obstacleRules = routeConfig.mechanicRules?.obstacle ?? {
-      radiusMin: 14,
-      radiusMax: 24,
-    };
-
-    return {
-      hazardType: "obstacle",
-      hazardState: "solid",
-      drillFrames: 0,
-      radius: randomBetween(obstacleRules.radiusMin, obstacleRules.radiusMax),
-    };
-  }
-
-  if (resourceChance > 0 && randomSource() < resourceChance) {
-    const resourceRules = routeConfig.mechanicRules?.resourceFruit ?? {
-      radius: 6,
-    };
-
-    return {
-      hazardType: "resourceFruit",
-      hazardState: "ripe",
-      radius: resourceRules.radius,
-    };
-  }
-
-  return {};
-}
-
-function createNoiseHolds(stance, viewportWidth, zoneKey, zoneProfile, routeConfig) {
-  const noiseHolds = [];
-  const noiseCount = randomInt(
-    zoneProfile?.noiseCountMin ?? routeConfig.noiseCountMin,
-    zoneProfile?.noiseCountMax ?? routeConfig.noiseCountMax,
-  );
-  const noiseHoldTypes = zoneProfile?.noiseHoldTypes ?? [0, 1, 1, 2, 2];
-  const noiseOffsetX = routeConfig.noiseOffsetX * (zoneProfile?.noiseOffsetXMultiplier ?? 1);
-  const noiseOffsetY = routeConfig.noiseOffsetY * (zoneProfile?.noiseOffsetYMultiplier ?? 1);
-
-  for (let index = 0; index < noiseCount; index += 1) {
-    const offsetX = randomBetween(-noiseOffsetX, noiseOffsetX);
-    const offsetY = randomBetween(-noiseOffsetY, noiseOffsetY);
-    const noiseX = clampRouteX(viewportWidth, stance.centerX + offsetX, routeConfig);
-    const noiseY = stance.baseY + offsetY;
-    noiseHolds.push(
-      createHold(noiseX, noiseY, pickHoldType(noiseHoldTypes), {
-        routeRole: "noise",
-        routeZone: zoneKey,
-        stanceIndex: stance.stanceIndex,
-        zLayer: randomBetween(
-          routeConfig.spatialExperiment?.noiseDepthMin ?? 0,
-          routeConfig.spatialExperiment?.noiseDepthMax ?? 0,
-        ),
-        ...getNoiseHoldHazardMeta(zoneProfile, routeConfig),
-      }),
-    );
-  }
-
-  return noiseHolds;
-}
-
-function createRescueTargetHolds(goldenPath, rescueTargets = []) {
-  return rescueTargets
-    .map((targetConfig) => {
-      const stance = goldenPath[targetConfig.stanceIndex];
-
-      if (!stance) {
-        return null;
-      }
-
-      return createHold(stance.centerX + targetConfig.offsetX, stance.baseY + targetConfig.offsetY, 0, {
-        routeRole: "rescueTarget",
-        routeZone: stance.zoneKey,
-        stanceIndex: targetConfig.stanceIndex,
-        hazardType: "rescueTarget",
-        hazardState: "waiting",
-        rescueTargetId: targetConfig.id,
-        rescueRadius: targetConfig.rescueRadius,
-        burdenFrames: targetConfig.burdenFrames,
-        burdenStaminaPenalty: targetConfig.staminaPenalty,
-        radius: targetConfig.radius,
-        zLayer: 0,
-      });
-    })
-    .filter(Boolean);
-}
-
-function createLaneBlockerHolds(goldenPath, laneBlockers = []) {
-  return laneBlockers
-    .map((blockerConfig) => {
-      const stance = goldenPath[blockerConfig.stanceIndex];
-
-      if (!stance) {
-        return null;
-      }
-
-      return createHold(stance.centerX + blockerConfig.offsetX, stance.baseY + blockerConfig.offsetY, 2, {
-        routeRole: "laneBlocker",
-        routeZone: stance.zoneKey,
-        stanceIndex: blockerConfig.stanceIndex,
-        hazardType: "laneBlocker",
-        hazardState: "watching",
-        laneBlockerId: blockerConfig.id,
-        dangerRadius: blockerConfig.dangerRadius,
-        staminaPenalty: blockerConfig.staminaPenalty,
-        radius: blockerConfig.radius,
-        zLayer: 0,
-      });
-    })
-    .filter(Boolean);
 }
 
 export function validateGoldenPath(path, levelConfig = getLevelConfig()) {

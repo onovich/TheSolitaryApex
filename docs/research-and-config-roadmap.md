@@ -44,7 +44,11 @@ npm run report:engine:top
 - `src/logic/analysis/levelAnalysis.js`
   - Shared generated-route analysis, target checks, Golden Path safety summaries, resource-pressure summaries, and event-density summaries used by runtime snapshots, the level editor, reports, and validators.
 - `src/logic/engine/routeGeneration.js`
-  - Seeded wall blueprint generation, Golden Path validation entry points, route segments, non-Golden Path hazard/resource placement, rescue targets, and lane blockers. `gameEngine.js` re-exports the stable public route API for existing callers.
+  - Seeded wall blueprint generation, Golden Path validation entry points, route segments, and final wall-blueprint assembly. `gameEngine.js` re-exports the stable public route API for existing callers.
+- `src/logic/engine/routeContentGeneration.js`
+  - Non-Golden Path hazard/resource placement plus authored rescue target and lane blocker hold creation.
+- `src/logic/engine/routeGenerationPrimitives.js`
+  - Shared seeded-random helpers, hold creation, hold-type picking, and route corridor clamping used by route generation modules.
 - `src/logic/engine/weatherSystem.js`
   - Weather state initialization, wind vector updates, wind debug override, and wind-line tuning entry points used by the runtime engine and game hook.
 - `src/logic/engine/environmentEvents.js`
@@ -208,7 +212,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.
   - Current status: generated-route analysis and target validation now share `src/logic/analysis/levelAnalysis.js` across runtime snapshots, level-editor previews, reports, and validation scripts.
   - Current status: UI snapshots clone level-analysis data through `cloneLevelAnalysisSnapshot`, keeping new analysis fields out of ad hoc engine copy code.
-  - Current status: seeded wall and route generation now lives in `src/logic/engine/routeGeneration.js`, while `gameEngine.js` keeps the runtime entry points and compatibility exports.
+  - Current status: seeded wall and route assembly now live in `src/logic/engine/routeGeneration.js`, with route content placement split into `src/logic/engine/routeContentGeneration.js` and seeded-random/hold primitives split into `src/logic/engine/routeGenerationPrimitives.js`.
   - Current status: `npm run report:level -- <level-id>` prints a focused single-level tuning report for balancing one route at a time.
   - Next step: keep adding validators whenever a new route-affecting mechanic is added.
   - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
