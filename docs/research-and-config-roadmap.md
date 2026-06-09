@@ -91,6 +91,10 @@ npm run report:engine:top
   - Player, movement, condition, debug, feedback, item, route, spatial-scan, fall, and recovery state factories.
 - `src/logic/engine/gameStateFactory.js`
   - Full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly.
+- `src/logic/engine/gameEngine.js`
+  - Stable public engine facade for hooks and UI callers, preserving action, frame-update, snapshot, route-generation, and debug-tuning exports.
+- `src/logic/engine/gameEngineRuntime.js`
+  - Runtime adapter assembly for cross-system callbacks and shared helper dependencies used by frame updates, interactions, items, dyno, failure, and snapshots.
 - `src/logic/engine/limbReachSystem.js`
   - Limb root projection, dynamic reach profiles, drag reach feedback, closest-hold lookup, attached-limb anchor sync, and landing target selection.
 - `src/logic/engine/dragInteractionSystem.js`
@@ -182,6 +186,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: fall/recovery state initialization, rescue-window queries, rescue stamina/wind bonuses, and per-frame rescue-window decay now live in `src/logic/engine/recoveryStateSystem.js`.
   - Current status: game-over finalization, invincible debug toggling, failure-to-fall routing, fall/dyno reset, and invincible-state landing stabilization now live in `src/logic/engine/failureSystem.js`.
   - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with `gameEngine.js` preserving the public `updateFrame` export.
+  - Current status: cross-system runtime adapter wiring now lives in `src/logic/engine/gameEngineRuntime.js`, keeping `gameEngine.js` focused on stable public facade exports.
   - Current status: dyno begin/release/cancel actions, charge ticking, launch application, stamina spend, and cooldown decay now live in `src/logic/engine/dynoSystem.js`.
   - Current status: dyno availability reasons, stamina-cost query, raw/eased charge ratios, reach ratio, and pull-vector calculation now live in `src/logic/engine/dynoMetricsSystem.js`.
   - Current status: dyno state initialization, reset, preparation cancellation, and flight-finish cleanup now live in `src/logic/engine/dynoStateSystem.js`.
