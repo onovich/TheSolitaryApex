@@ -60,6 +60,8 @@ npm run report:engine
   - Fall and rope recovery state initialization, checkpoint fall entry, hanging recovery ticks, rescue-window bonuses, and checkpoint pose restore.
 - `src/logic/engine/failureSystem.js`
   - Game-over finalization, invincible debug toggling, failure-to-fall routing, fall/dyno reset, and invincible-state landing stabilization.
+- `src/logic/engine/frameUpdateSystem.js`
+  - Per-frame engine orchestration for particles, feedback, weather, hazards, fall recovery, dyno flight, route progress, stamina, item channels, recovery windows, and camera updates.
 - `src/logic/engine/dynoSystem.js`
   - Dyno state initialization, charge availability, charge/reach ratios, begin/release/cancel actions, launch stamina cost, cooldown decay, and flight reset helpers.
 - `src/logic/engine/dynoFlightSystem.js`
@@ -157,6 +159,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: inventory, item activation, active effects, channel items, checkpoint capture, and rescue-target item use now live in `src/logic/engine/itemSystem.js`.
   - Current status: fall entry, rope catch/hanging recovery, checkpoint pose restore, and recovery-window bonuses now live in `src/logic/engine/fallRecoverySystem.js`.
   - Current status: game-over finalization, invincible debug toggling, failure-to-fall routing, fall/dyno reset, and invincible-state landing stabilization now live in `src/logic/engine/failureSystem.js`.
+  - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with `gameEngine.js` preserving the public `updateFrame` export.
   - Current status: dyno state, charge availability, begin/release/cancel actions, launch cost, reach ratios, cooldown decay, and flight reset helpers now live in `src/logic/engine/dynoSystem.js`.
   - Current status: dyno airborne motion, auto-attach transitions, landing target selection, landing hold validation, and failed-landing balance resolution now live in `src/logic/engine/dynoFlightSystem.js`.
   - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
