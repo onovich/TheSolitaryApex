@@ -30,6 +30,13 @@ import {
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
+import {
+  getClimbingLimbGroups,
+  updateClimbingBodyMotion,
+} from "../src/logic/engine/climbingMotionSystem.js";
+import { updateClimbingCenterOfMass } from "../src/logic/engine/climbingBodyCenterSystem.js";
+import { getEffectiveClimbingWind } from "../src/logic/engine/climbingWindSystem.js";
+import { updateDetachedClimbingLimbs } from "../src/logic/engine/detachedLimbFollowSystem.js";
 import { getClosestHoldIndex } from "../src/logic/engine/limbHoldLookupSystem.js";
 import {
   canLimbReachTarget,
@@ -258,6 +265,105 @@ function validateBodyStateSystems() {
   return {
     restMode: perfectRestPose.mode,
     dampedVelocityX: velocityState.movementState.bodyVelocity.x,
+  };
+}
+
+function validateClimbingMotionSystems() {
+  const groupState = createStableState();
+  groupState.player.limbs[0].attachedHoldIndex = -1;
+  const limbGroups = getClimbingLimbGroups(groupState);
+
+  if (limbGroups.attachedLimbs.length !== 3 || limbGroups.detachedLimbs.length !== 1) {
+    throw new Error(
+      `Climbing limb groups should split attached and detached limbs: ${limbGroups.attachedLimbs.length}/${limbGroups.detachedLimbs.length}`,
+    );
+  }
+
+  const windState = createStableState();
+  windState.conditionState.weather.windX = 2;
+  windState.conditionState.weather.windY = -4;
+  windState.conditionState.weather.windForce = Math.hypot(2, -4);
+  windState.movementState.restPose.active = true;
+  windState.recoveryState.rescueWindowFrames = 50;
+  windState.recoveryState.rescueWindowTotalFrames = 100;
+
+  const expectedWindMultiplier =
+    GAME_CONFIG.conditions.weather.restResistance *
+    3 *
+    (1 - (1 - GAME_CONFIG.recoveryLoop.rescueWindMultiplier) * 0.5);
+  const effectiveWind = getEffectiveClimbingWind(windState, { windMultiplier: 3 });
+
+  if (
+    Math.abs(effectiveWind.x - 2 * expectedWindMultiplier) > 0.0001 ||
+    Math.abs(effectiveWind.y + 4 * expectedWindMultiplier) > 0.0001
+  ) {
+    throw new Error(`Effective climbing wind mismatch: ${JSON.stringify(effectiveWind)}`);
+  }
+
+  const centerState = createStableState();
+  centerState.player.com.x = 0;
+  centerState.player.com.y = 0;
+  const centerAttachedLimbs = [
+    { x: 100, y: 200 },
+    { x: 300, y: 400 },
+  ];
+  const centerWind = { x: 10, y: -5 };
+  const centerTargets = updateClimbingCenterOfMass(centerState, centerAttachedLimbs, centerWind);
+  const expectedTargetX = 200 + 10 * GAME_CONFIG.conditions.weather.swayStrength * 3;
+  const expectedTargetY =
+    300 + GAME_CONFIG.bodyOffsetY - 5 * GAME_CONFIG.conditions.weather.swayStrength * 0.55 * 3;
+
+  if (
+    Math.abs(centerTargets.targetComX - expectedTargetX) > 0.0001 ||
+    Math.abs(centerTargets.targetComY - expectedTargetY) > 0.0001 ||
+    Math.abs(centerState.player.com.x - expectedTargetX * 0.2) > 0.0001 ||
+    Math.abs(centerState.player.com.y - expectedTargetY * 0.2) > 0.0001
+  ) {
+    throw new Error(`Climbing center-of-mass update mismatch: ${JSON.stringify(centerTargets)}`);
+  }
+
+  const followState = createStableState();
+  const followLimb = followState.player.limbs[0];
+  followLimb.attachedHoldIndex = -1;
+  followLimb.x = 0;
+  followLimb.y = 0;
+  followState.player.com.x = 100;
+  followState.player.com.y = 200;
+  updateDetachedClimbingLimbs(followState, [followLimb], { x: 2, y: -4 });
+
+  const expectedFollowX = 10 + 2 * GAME_CONFIG.conditions.weather.suspendedLimbPush;
+  const expectedFollowY = 25 - 4 * GAME_CONFIG.conditions.weather.suspendedLimbPush * 0.7;
+
+  if (Math.abs(followLimb.x - expectedFollowX) > 0.0001 || Math.abs(followLimb.y - expectedFollowY) > 0.0001) {
+    throw new Error(`Detached limb follow mismatch: ${followLimb.x},${followLimb.y}`);
+  }
+
+  followState.draggedLimbIndex = 0;
+  followState.pointer.x = 333;
+  followState.pointer.y = 444;
+  followState.cameraY = 55;
+  updateDetachedClimbingLimbs(followState, [followLimb], { x: 99, y: 99 });
+
+  if (followLimb.x !== 333 || followLimb.y !== 499) {
+    throw new Error("Dragged detached limb should follow the pointer exactly");
+  }
+
+  const integratedState = createStableState();
+  integratedState.conditionState.weather.windX = 0;
+  integratedState.conditionState.weather.windY = 0;
+  integratedState.conditionState.weather.windForce = 0;
+  const integratedGroups = getClimbingLimbGroups(integratedState);
+  const integratedWind = updateClimbingBodyMotion(integratedState, integratedGroups.attachedLimbs, integratedGroups.detachedLimbs, {
+    windMultiplier: 1,
+  });
+
+  if (integratedWind.x !== 0 || integratedWind.y !== 0) {
+    throw new Error("Integrated climbing body motion should return the effective wind vector");
+  }
+
+  return {
+    detachedCount: limbGroups.detachedLimbs.length,
+    centerX: centerState.player.com.x,
   };
 }
 
@@ -1799,6 +1905,7 @@ function validateRescueTarget() {
 const playerResult = validateInitialPlayerState();
 const attachmentResult = validateAttachmentSystems();
 const bodyStateResult = validateBodyStateSystems();
+const climbingMotionResult = validateClimbingMotionSystems();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
@@ -1834,6 +1941,7 @@ console.log(
     `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}`,
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
+    `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,

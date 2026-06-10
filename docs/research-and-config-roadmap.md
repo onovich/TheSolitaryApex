@@ -248,7 +248,15 @@ npm run report:engine:top
 - `src/logic/engine/staminaPressureSystem.js`
   - Hold penalties, bloodied-hold pressure, wind, injury, thirst, pursuit, rope-threat, rescue-burden, and lane-blocker stamina pressure deltas.
 - `src/logic/engine/climbingMotionSystem.js`
-  - Attached/detached limb grouping, body velocity application, rest-pose and injury updates, effective climbing wind, center-of-mass sway, and detached-limb follow motion.
+  - Climbing-body motion orchestration facade for body velocity, rest pose, injury, wind, center-of-mass, and detached-limb follow updates.
+- `src/logic/engine/climbingLimbGroupSystem.js`
+  - Attached versus detached climbing limb grouping.
+- `src/logic/engine/climbingWindSystem.js`
+  - Effective climbing wind calculation from rest-pose resistance, route wind multipliers, and recovery-window mitigation.
+- `src/logic/engine/climbingBodyCenterSystem.js`
+  - Center-of-mass sway target calculation and interpolation.
+- `src/logic/engine/detachedLimbFollowSystem.js`
+  - Detached climbing limb follow motion and dragged-limb pointer anchoring.
 - `src/logic/engine/routeProgressSystem.js`
   - Closest Golden Path stance lookup, current route segment/zone state updates, height tracking, and camera follow.
 - `src/data/uiText.js`
@@ -340,7 +348,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
   - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, movement and condition section builders live in `src/logic/engine/uiSnapshotSections.js`, and `gameEngine.js` preserves the public `getUiSnapshot` export.
   - Current status: stamina clamping, restoration, and per-frame climbing stamina aggregation live in `src/logic/engine/staminaSystem.js`, while hold and condition pressure deltas live in `src/logic/engine/staminaPressureSystem.js`.
-  - Current status: attached/detached limb grouping, body motion, rest-pose/injury refresh, climbing wind, and detached-limb follow motion now live in `src/logic/engine/climbingMotionSystem.js`.
+  - Current status: climbing limb grouping now lives in `src/logic/engine/climbingLimbGroupSystem.js`, effective climbing wind lives in `src/logic/engine/climbingWindSystem.js`, center-of-mass sway lives in `src/logic/engine/climbingBodyCenterSystem.js`, detached-limb follow motion lives in `src/logic/engine/detachedLimbFollowSystem.js`, and `src/logic/engine/climbingMotionSystem.js` preserves the stable climbing-motion facade.
   - Current status: closest Golden Path stance lookup, route state updates, height tracking, and camera follow now live in `src/logic/engine/routeProgressSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
