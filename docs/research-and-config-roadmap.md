@@ -68,7 +68,13 @@ npm run report:engine:top
 - `src/logic/engine/windLineDebugSystem.js`
   - Wind-line debug tuning initialization and patch application for the developer tuning panel.
 - `src/logic/engine/environmentEventActivationSystem.js`
-  - Earthquake and avalanche event activation, noise-hold selection, hold mutation, and event particle feedback.
+  - Environment event activation dispatch by configured event type.
+- `src/logic/engine/environmentEventCandidateSystem.js`
+  - Shared alterable noise-hold selection and randomized event candidate picking.
+- `src/logic/engine/earthquakeEventActivationSystem.js`
+  - Earthquake fragile-hold mutation and earthquake feedback particles.
+- `src/logic/engine/avalancheEventActivationSystem.js`
+  - Avalanche noise-hold removal, debris marking, and avalanche feedback particles.
 - `src/logic/engine/environmentEvents.js`
   - Environment event scheduling, active-event timers, triggered-event tracking, and activation dispatch.
 - `src/logic/engine/encounterSystems.js`
@@ -355,7 +361,7 @@ These are good near-term implementation candidates because they extend existing 
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
   - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft runtime interactions live in `src/logic/engine/timedSoftHoldSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, and drillable-obstacle runtime interactions live in `src/logic/engine/obstacleDrillingSystem.js`.
-  - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, while earthquake/avalanche hold mutation and particle feedback live in `src/logic/engine/environmentEventActivationSystem.js`.
+  - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, activation dispatch lives in `src/logic/engine/environmentEventActivationSystem.js`, candidate selection lives in `src/logic/engine/environmentEventCandidateSystem.js`, earthquake mutation lives in `src/logic/engine/earthquakeEventActivationSystem.js`, and avalanche mutation lives in `src/logic/engine/avalancheEventActivationSystem.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
   - Next step: decide whether avalanche should directly affect stability, visibility, or only route topology.
