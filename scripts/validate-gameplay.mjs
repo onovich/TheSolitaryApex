@@ -43,6 +43,10 @@ import {
   getLimbRootPosition,
   setDragConstraintSnapshot,
 } from "../src/logic/engine/limbReachMetricsSystem.js";
+import {
+  syncAttachedLimbAnchors,
+  updateDragConstraintFeedback,
+} from "../src/logic/engine/limbReachSystem.js";
 import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
@@ -1228,6 +1232,88 @@ function validateLimbReachMetrics() {
   };
 }
 
+function validateLimbReachSystems() {
+  const feedbackState = createStableState();
+  const feedbackRuntime = {
+    clearCount: 0,
+    isHoldAvailable,
+    reject: null,
+    clearDragRejectFeedback() {
+      this.clearCount += 1;
+    },
+    setDragRejectFeedback(_state, limbIndex, targetX, targetY, holdIndex) {
+      this.reject = { limbIndex, targetX, targetY, holdIndex };
+    },
+  };
+  const handIndex = 0;
+  const hand = feedbackState.player.limbs[handIndex];
+  const handRoot = getLimbRootPosition(feedbackState.player, hand);
+  const targetHoldIndex = feedbackState.holds.findIndex((hold, index) => index > 3 && !hold.hazardType && !hold.removed);
+
+  if (targetHoldIndex === -1) {
+    throw new Error("Could not find an ordinary target hold for reach-system validation");
+  }
+
+  const targetHold = feedbackState.holds[targetHoldIndex];
+  feedbackState.draggedLimbIndex = handIndex;
+  targetHold.x = handRoot.x + hand.reachProfile.maxReach + 80;
+  targetHold.y = handRoot.y;
+  updateDragConstraintFeedback(feedbackState, targetHold.x, targetHold.y, feedbackRuntime);
+
+  if (feedbackRuntime.reject?.holdIndex !== targetHoldIndex || feedbackRuntime.reject?.limbIndex !== handIndex) {
+    throw new Error(`Drag constraint feedback should reject an out-of-reach hold: ${JSON.stringify(feedbackRuntime.reject)}`);
+  }
+
+  targetHold.x = handRoot.x + hand.reachProfile.maxReach - 12;
+  targetHold.y = handRoot.y;
+  feedbackRuntime.reject = null;
+  updateDragConstraintFeedback(feedbackState, targetHold.x, targetHold.y, feedbackRuntime);
+
+  if (feedbackRuntime.reject || feedbackRuntime.clearCount !== 1) {
+    throw new Error("Drag constraint feedback should clear when the closest hold is reachable");
+  }
+
+  const anchorState = createStableState();
+  const anchorRuntime = { isHoldAvailable, releaseHoldAttachment };
+  const anchoredLimb = anchorState.player.limbs[0];
+  const anchoredHold = anchorState.holds[anchoredLimb.attachedHoldIndex];
+  anchoredHold.x += 7;
+  anchoredHold.y -= 11;
+
+  if (syncAttachedLimbAnchors(anchorState, anchorRuntime)) {
+    throw new Error("Anchor sync should not release limbs while holds remain available and reachable");
+  }
+
+  if (anchoredLimb.x !== anchoredHold.x || anchoredLimb.y !== anchoredHold.y) {
+    throw new Error("Anchor sync should update attached limb positions to hold anchors");
+  }
+
+  const unavailableState = createStableState();
+  const unavailableLimb = unavailableState.player.limbs[0];
+  unavailableState.holds[unavailableLimb.attachedHoldIndex].removed = true;
+
+  if (!syncAttachedLimbAnchors(unavailableState, anchorRuntime) || unavailableLimb.attachedHoldIndex !== -1) {
+    throw new Error("Anchor sync should release limbs attached to unavailable holds");
+  }
+
+  const outOfReachState = createStableState();
+  const outOfReachLimb = outOfReachState.player.limbs[0];
+  const outOfReachHold = outOfReachState.holds[outOfReachLimb.attachedHoldIndex];
+  outOfReachHold.x += outOfReachLimb.reachProfile.maxReach * 4;
+
+  if (
+    !syncAttachedLimbAnchors(outOfReachState, anchorRuntime, { releaseOutOfReach: true }) ||
+    outOfReachLimb.attachedHoldIndex !== -1
+  ) {
+    throw new Error("Anchor sync should release limbs whose projected anchors move out of reach");
+  }
+
+  return {
+    rejectedHold: targetHoldIndex,
+    releasedOutOfReach: outOfReachLimb.attachedHoldIndex === -1,
+  };
+}
+
 function validateLimbHoldLookup() {
   const state = createStableState();
   const runtime = { isHoldAvailable };
@@ -1971,6 +2057,7 @@ const windDebugResult = validateWindDebugOverride();
 const invincibleResult = validateInvincibleFailureRecovery();
 const footResult = validateFootDragFeel();
 const reachResult = validateLimbReachMetrics();
+const limbReachSystemResult = validateLimbReachSystems();
 const holdLookupResult = validateLimbHoldLookup();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -2020,6 +2107,7 @@ console.log(
     `invincibleRecovery=${invincibleResult.attachedCount}/${invincibleResult.stamina.toFixed(1)}`,
     `footHold=${footResult.footHoldIndex}`,
     `reach=${reachResult.maxReach}/${reachResult.dynoBonus}`,
+    `limbReach=${limbReachSystemResult.rejectedHold}/${limbReachSystemResult.releasedOutOfReach}`,
     `holdLookup=${holdLookupResult.holdIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,

@@ -224,7 +224,11 @@ npm run report:engine:top
 - `src/logic/engine/limbHoldSearchSystem.js`
   - Shared available-hold iteration and best-score selection used by limb hold lookup rules.
 - `src/logic/engine/limbReachSystem.js`
-  - Drag reach feedback and attached-limb anchor sync, while preserving reach lookup facade exports for existing callers.
+  - Stable limb-reach facade exports for reach lookup, drag reach feedback, and attached-limb anchor sync.
+- `src/logic/engine/limbReachFeedbackSystem.js`
+  - Drag reach rejection feedback against the closest candidate hold.
+- `src/logic/engine/attachedLimbAnchorSyncSystem.js`
+  - Attached-limb anchor synchronization and optional out-of-reach release.
 - `src/logic/engine/dragInteractionSystem.js`
   - Pointer updates, spatial-scan reach resync, limb drag start, and stable drag interaction facade exports.
 - `src/logic/engine/dragReleaseSystem.js`
@@ -347,7 +351,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: rest-pose detection now lives in `src/logic/engine/restPoseSystem.js`, body velocity damping lives in `src/logic/engine/bodyVelocitySystem.js`, `src/logic/engine/bodyStateSystem.js` preserves stable facade exports, and hand injury plus bloodied-hold marking live in `src/logic/engine/injuryStateSystem.js`.
   - Current status: movement, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`, while player limb creation lives in `src/logic/engine/playerStateSystem.js` and condition-state initialization lives in `src/logic/engine/conditionStateSystem.js`.
   - Current status: full run initialization, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`, while debug-run option resolution and event filtering live in `src/logic/engine/gameRunDebugSystem.js`.
-  - Current status: limb root projection and dyno reach bonus now live in `src/logic/engine/limbReachProfileSystem.js`, drag reach snapshots now live in `src/logic/engine/limbReachConstraintSystem.js`, raw reachability checks remain in the stable `src/logic/engine/limbReachMetricsSystem.js` facade, hold lookup scoring now lives in `src/logic/engine/limbHoldLookupSystem.js`, shared best-hold selection lives in `src/logic/engine/limbHoldSearchSystem.js`, and drag reach feedback plus attached-limb anchor sync now live in `src/logic/engine/limbReachSystem.js`.
+  - Current status: limb root projection and dyno reach bonus now live in `src/logic/engine/limbReachProfileSystem.js`, drag reach snapshots now live in `src/logic/engine/limbReachConstraintSystem.js`, raw reachability checks remain in the stable `src/logic/engine/limbReachMetricsSystem.js` facade, hold lookup scoring now lives in `src/logic/engine/limbHoldLookupSystem.js`, shared best-hold selection lives in `src/logic/engine/limbHoldSearchSystem.js`, drag reach feedback lives in `src/logic/engine/limbReachFeedbackSystem.js`, attached-limb anchor sync lives in `src/logic/engine/attachedLimbAnchorSyncSystem.js`, and `src/logic/engine/limbReachSystem.js` preserves stable facade exports.
   - Current status: pointer updates, spatial-scan reach resync, and limb drag start live in `src/logic/engine/dragInteractionSystem.js`, while drag-release hold snapping, grip feedback, rejection feedback, and hanging recovery completion live in `src/logic/engine/dragReleaseSystem.js`.
   - Current status: body long-press action routing between hanging reeling and dyno charge/release/cancel preparation flows now lives in `src/logic/engine/bodyActionSystem.js`.
   - Current status: hold availability now lives in `src/logic/engine/attachmentAvailabilitySystem.js`, limb attachment release lives in `src/logic/engine/attachmentReleaseSystem.js`, attached-limb queries live in `src/logic/engine/attachedLimbQuerySystem.js`, checkpoint anchors live in `src/logic/engine/checkpointAnchorSystem.js`, `src/logic/engine/attachmentSystem.js` preserves stable facade exports, and detached/suspended limb pose updates live in `src/logic/engine/limbAttachmentMotionSystem.js`.
