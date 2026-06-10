@@ -102,7 +102,11 @@ npm run report:engine:top
 - `src/logic/engine/timedSoftHoldSystem.js`
   - Timed-soft hold loading, collapse, forced detachment, and balance-failure routing.
 - `src/logic/engine/obstacleDrillingSystem.js`
-  - Drillable-obstacle targeting, sustained drilling progress, stamina cost, obstacle destruction, and drilling feedback particles.
+  - Drillable-obstacle runtime tick orchestration and stamina-failure routing.
+- `src/logic/engine/obstacleDrillingTargetSystem.js`
+  - Drillable-obstacle rule lookup, closest-target selection, and inactive obstacle reset.
+- `src/logic/engine/obstacleDrillingProgressSystem.js`
+  - Sustained drilling progress, stamina cost, obstacle destruction, and drilling feedback particles.
 - `src/logic/engine/survivalResourceSystem.js`
   - Thirst pressure ticking, resource fruit pickup detection, stamina/thirst/sensory-flow rewards, and fruit pickup feedback.
 - `src/logic/engine/itemFeedbackSystem.js`
@@ -366,7 +370,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
-  - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft runtime interactions live in `src/logic/engine/timedSoftHoldSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, and drillable-obstacle runtime interactions live in `src/logic/engine/obstacleDrillingSystem.js`.
+  - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft runtime interactions live in `src/logic/engine/timedSoftHoldSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, while drillable-obstacle targeting and progress are split between `src/logic/engine/obstacleDrillingSystem.js`, `src/logic/engine/obstacleDrillingTargetSystem.js`, and `src/logic/engine/obstacleDrillingProgressSystem.js`.
   - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, activation dispatch lives in `src/logic/engine/environmentEventActivationSystem.js`, candidate selection lives in `src/logic/engine/environmentEventCandidateSystem.js`, earthquake mutation lives in `src/logic/engine/earthquakeEventActivationSystem.js`, and avalanche mutation lives in `src/logic/engine/avalancheEventActivationSystem.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.

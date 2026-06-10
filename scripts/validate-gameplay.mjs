@@ -934,6 +934,10 @@ function validateDrillableObstacle() {
     throw new Error("Drillable obstacle did not break after sustained limb drilling");
   }
 
+  if (obstacle.hazardState !== "destroyed" || state.particles.length < 1) {
+    throw new Error("Drillable obstacle destruction should mark state and emit feedback particles");
+  }
+
   if (state.stamina >= GAME_CONFIG.maxStamina) {
     throw new Error("Drilling should consume stamina");
   }
