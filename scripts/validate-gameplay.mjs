@@ -23,6 +23,11 @@ import {
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
 import { getClosestHoldIndex } from "../src/logic/engine/limbHoldLookupSystem.js";
+import {
+  canLimbReachTarget,
+  getLimbRootPosition,
+  setDragConstraintSnapshot,
+} from "../src/logic/engine/limbReachMetricsSystem.js";
 import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
@@ -873,6 +878,47 @@ function validateFootDragFeel() {
   return { footHoldIndex: targetHoldIndex };
 }
 
+function validateLimbReachMetrics() {
+  const state = createStableState();
+  const handIndex = 0;
+  const hand = state.player.limbs[handIndex];
+  const rootPosition = getLimbRootPosition(state.player, hand);
+  const baseMaxReach = hand.reachProfile.maxReach;
+
+  if (!canLimbReachTarget(state, hand, rootPosition.x + baseMaxReach, rootPosition.y)) {
+    throw new Error("Hand reach should include a target exactly at max reach");
+  }
+
+  if (canLimbReachTarget(state, hand, rootPosition.x + baseMaxReach + 0.5, rootPosition.y)) {
+    throw new Error("Hand reach should reject a target beyond base max reach");
+  }
+
+  state.movementState.dyno.flightActive = true;
+  state.movementState.dyno.reachBonusRatio = 1;
+
+  const dynoBonus = GAME_CONFIG.movement.dyno.reachBonusMax * state.loadout.modifiers.dynoReachMultiplier;
+
+  if (!canLimbReachTarget(state, hand, rootPosition.x + baseMaxReach + dynoBonus * 0.75, rootPosition.y)) {
+    throw new Error("Hand reach should include the configured dyno reach bonus while airborne");
+  }
+
+  const snapshotState = createStableState();
+  const snapshotHand = snapshotState.player.limbs[handIndex];
+  const snapshotRootPosition = getLimbRootPosition(snapshotState.player, snapshotHand);
+  snapshotState.draggedLimbIndex = handIndex;
+  setDragConstraintSnapshot(snapshotState, handIndex, snapshotHand);
+  snapshotState.player.com.x += baseMaxReach * 2;
+
+  if (!canLimbReachTarget(snapshotState, snapshotHand, snapshotRootPosition.x + baseMaxReach, snapshotRootPosition.y)) {
+    throw new Error("Drag reach constraints should use the captured root while dragging");
+  }
+
+  return {
+    maxReach: baseMaxReach,
+    dynoBonus,
+  };
+}
+
 function validateLimbHoldLookup() {
   const state = createStableState();
   const runtime = { isHoldAvailable };
@@ -1611,6 +1657,7 @@ const debugRunResult = validateDebugRunOptions();
 const windDebugResult = validateWindDebugOverride();
 const invincibleResult = validateInvincibleFailureRecovery();
 const footResult = validateFootDragFeel();
+const reachResult = validateLimbReachMetrics();
 const holdLookupResult = validateLimbHoldLookup();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -1655,6 +1702,7 @@ console.log(
     `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}/${windDebugResult.targetX.toFixed(2)}`,
     `invincibleRecovery=${invincibleResult.attachedCount}/${invincibleResult.stamina.toFixed(1)}`,
     `footHold=${footResult.footHoldIndex}`,
+    `reach=${reachResult.maxReach}/${reachResult.dynoBonus}`,
     `holdLookup=${holdLookupResult.holdIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
