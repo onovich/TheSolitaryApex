@@ -1,32 +1,11 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { releaseHoldAttachment } from "./attachmentSystem.js";
-import {
-  setDragConstraintSnapshot,
-  syncAttachedLimbAnchors,
-  updateDragConstraintFeedback,
-} from "./limbReachSystem.js";
+import { updatePointer } from "./dragPointerSystem.js";
+import { setDragConstraintSnapshot, updateDragConstraintFeedback } from "./limbReachSystem.js";
 
 export { releaseDrag } from "./dragReleaseSystem.js";
-
-export function updatePointer(state, screenX, screenY, runtime) {
-  state.pointer.x = screenX;
-  state.pointer.y = screenY;
-
-  if (state.draggedLimbIndex !== -1) {
-    updateDragConstraintFeedback(state, screenX, screenY + state.cameraY, runtime.getLimbReachRuntime());
-  }
-}
-
-export function setSpatialScan(state, enabled, angle = state.spatialScan.angle, runtime) {
-  if (!state.spatialScan.available) {
-    return false;
-  }
-
-  state.spatialScan.enabled = Boolean(enabled);
-  state.spatialScan.angle = Number.isFinite(Number(angle)) ? Number(angle) : 0;
-  syncAttachedLimbAnchors(state, runtime.getLimbReachRuntime(), { releaseOutOfReach: true });
-  return true;
-}
+export { updatePointer } from "./dragPointerSystem.js";
+export { setSpatialScan } from "./spatialScanInteractionSystem.js";
 
 export function beginDrag(state, screenX, screenY, runtime) {
   if (

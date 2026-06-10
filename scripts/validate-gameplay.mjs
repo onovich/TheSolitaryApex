@@ -17,6 +17,8 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { updatePointer as updatePointerAction } from "../src/logic/engine/dragPointerSystem.js";
+import { setSpatialScan as setSpatialScanAction } from "../src/logic/engine/spatialScanInteractionSystem.js";
 import {
   buildDebugSnapshot,
   buildFallSnapshot,
@@ -486,6 +488,60 @@ function validateRuntimeInteractionAdapters() {
   return {
     adapterCount: Object.keys(adapters).length,
     bodyForwarded: bodyActionRuntime.beginDynoCharge(),
+  };
+}
+
+function validateDragInteractionSystems() {
+  const adapters = createGameRuntimeInteractionAdapters({});
+  const runtime = adapters.getDragInteractionRuntime();
+  const pointerState = createStableState();
+
+  updatePointerAction(pointerState, 123, 456, runtime);
+
+  if (pointerState.pointer.x !== 123 || pointerState.pointer.y !== 456) {
+    throw new Error(`Direct pointer update should preserve screen coordinates: ${JSON.stringify(pointerState.pointer)}`);
+  }
+
+  const feedbackState = createStableState();
+  feedbackState.draggedLimbIndex = 0;
+  feedbackState.player.limbs[0].attachedHoldIndex = -1;
+  updatePointerAction(feedbackState, feedbackState.player.com.x + 600, feedbackState.player.com.y - feedbackState.cameraY - 260, runtime);
+
+  if (feedbackState.pointer.x !== feedbackState.player.com.x + 600) {
+    throw new Error("Direct pointer update should still update coordinates while dragging");
+  }
+
+  const unavailableState = createStableState();
+  unavailableState.spatialScan.available = false;
+
+  if (setSpatialScanAction(unavailableState, true, 2, runtime) || unavailableState.spatialScan.enabled) {
+    throw new Error("Direct spatial scan interaction should stay disabled when unavailable");
+  }
+
+  const invalidAngleState = createStableState();
+  invalidAngleState.spatialScan.available = true;
+
+  if (!setSpatialScanAction(invalidAngleState, true, "not-a-number", runtime) || invalidAngleState.spatialScan.angle !== 0) {
+    throw new Error(`Direct spatial scan interaction should coerce invalid angles to zero: ${invalidAngleState.spatialScan.angle}`);
+  }
+
+  const attachedState = createStableState();
+  const attachedLimb = attachedState.player.limbs[0];
+  const attachedHold = attachedState.holds[attachedLimb.attachedHoldIndex];
+  attachedHold.zLayer = 0.25;
+  attachedState.spatialScan.available = true;
+  attachedState.spatialScan.projectionScale = 40;
+  setSpatialScanAction(attachedState, true, Math.PI / 2, runtime);
+
+  const attachedAnchor = getHoldAnchorPosition(attachedState, attachedHold);
+
+  if (Math.abs(attachedLimb.x - attachedAnchor.x) > 0.001 || Math.abs(attachedLimb.y - attachedAnchor.y) > 0.001) {
+    throw new Error("Direct spatial scan interaction should sync attached limb anchors");
+  }
+
+  return {
+    pointerX: pointerState.pointer.x,
+    spatialAngle: invalidAngleState.spatialScan.angle,
   };
 }
 
@@ -2925,6 +2981,7 @@ const attachmentResult = validateAttachmentSystems();
 const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
+const dragInteractionResult = validateDragInteractionSystems();
 const routeResult = validateRouteContent();
 const routePrimitiveResult = validateRoutePrimitiveSystems();
 const routeMetaResult = validateRouteContentMetadata();
@@ -2973,6 +3030,7 @@ console.log(
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
     `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
+    `dragCore=${dragInteractionResult.pointerX}/${dragInteractionResult.spatialAngle}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
