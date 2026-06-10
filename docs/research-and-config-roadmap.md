@@ -164,7 +164,9 @@ npm run report:engine:top
 - `src/logic/engine/bodyActionSystem.js`
   - Body long-press action routing between hanging reeling and dyno charge/release/cancel preparation flows.
 - `src/logic/engine/attachmentSystem.js`
-  - Hold availability, limb attachment release, attached-limb queries, checkpoint anchor lookup, and detached/suspended limb anchor updates shared across runtime systems.
+  - Hold availability, limb attachment release, attached-limb queries, and checkpoint anchor lookup shared across runtime systems.
+- `src/logic/engine/limbAttachmentMotionSystem.js`
+  - Detached and suspended limb pose updates for dyno flight, fall recovery, and hanging recovery.
 - `src/logic/engine/feedbackSystem.js`
   - Drag rejection feedback, drag constraint snapshot clearing, and per-frame feedback countdown state shared by drag, fall, and game-over flows.
 - `src/logic/engine/uiSnapshotSystem.js`
@@ -260,7 +262,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: limb reach profiles, dyno reach bonus, drag reach snapshots, and raw reachability checks now live in `src/logic/engine/limbReachMetricsSystem.js`, hold lookup now lives in `src/logic/engine/limbHoldLookupSystem.js`, and drag reach feedback plus attached-limb anchor sync now live in `src/logic/engine/limbReachSystem.js`.
   - Current status: pointer updates, spatial-scan reach resync, limb drag start, drag-release hold snapping, grip particles, drag rejection feedback, and hanging recovery completion through reattachment now live in `src/logic/engine/dragInteractionSystem.js`.
   - Current status: body long-press action routing between hanging reeling and dyno charge/release/cancel preparation flows now lives in `src/logic/engine/bodyActionSystem.js`.
-  - Current status: hold availability, limb attachment release, attached-limb queries, checkpoint anchors, and detached/suspended limb updates now live in `src/logic/engine/attachmentSystem.js`.
+  - Current status: hold availability, limb attachment release, attached-limb queries, and checkpoint anchors now live in `src/logic/engine/attachmentSystem.js`, while detached/suspended limb pose updates live in `src/logic/engine/limbAttachmentMotionSystem.js`.
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
   - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, with `gameEngine.js` preserving the public `getUiSnapshot` export.
   - Current status: stamina clamping, restoration, and per-frame climbing stamina delta now live in `src/logic/engine/staminaSystem.js`.

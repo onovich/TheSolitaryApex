@@ -180,6 +180,18 @@ function validateDragDynoAndFalls() {
     throw new Error(`Dyno stamina cost mismatch: ${state.stamina}`);
   }
 
+  const airborneLimbPositions = state.player.limbs.map((limb) => ({ x: limb.x, y: limb.y }));
+  updateFrame(state, 1280, 720);
+
+  const airborneLimbMoved = state.player.limbs.some((limb, index) => {
+    const previousLimb = airborneLimbPositions[index];
+    return Math.abs(limb.x - previousLimb.x) > 0.001 || Math.abs(limb.y - previousLimb.y) > 0.001;
+  });
+
+  if (!airborneLimbMoved) {
+    throw new Error("Dyno flight should move detached limbs toward the airborne body pose");
+  }
+
   for (
     let index = 0;
     index < 120 && !state.movementState.dyno.autoAttachActive && state.movementState.dyno.flightActive;
@@ -293,6 +305,7 @@ function validateDragDynoAndFalls() {
   }
 
   return {
+    airborneLimbMoved,
     dynoChargeFrames,
     dynoVelocityY,
     rescueCount: state.recoveryState.rescuesUsed,
@@ -1211,6 +1224,7 @@ console.log(
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
+    `airborneLimbs=${fallResult.airborneLimbMoved}`,
     `rescues=${fallResult.rescueCount}`,
     `chalkParticles=${itemResult.chalkParticles}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,

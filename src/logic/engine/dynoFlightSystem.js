@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { updateDetachedLimbs } from "./attachmentSystem.js";
 import { beginDynoAutoAttach } from "./dynoAutoAttachSystem.js";
+import { updateDetachedLimbs } from "./limbAttachmentMotionSystem.js";
 import { getScaledWindVector } from "./weatherSystem.js";
 
 export { updateDynoAutoAttachState } from "./dynoAutoAttachSystem.js";
