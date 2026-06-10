@@ -17,6 +17,7 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { createGameEngineActions } from "../src/logic/engine/gameEngineActionFacade.js";
 import { createInitialRunContent } from "../src/logic/engine/gameInitialRunContent.js";
 import { updatePointer as updatePointerAction } from "../src/logic/engine/dragPointerSystem.js";
 import { setSpatialScan as setSpatialScanAction } from "../src/logic/engine/spatialScanInteractionSystem.js";
@@ -628,6 +629,51 @@ function validateRuntimeFallAdapters() {
   return {
     adapterCount: Object.keys(adapters).length,
     attachedCount: fallRecoveryRuntime.getAttachedLimbs(stableState).length,
+  };
+}
+
+function validateGameEngineActionFacade() {
+  const actions = createGameEngineActions();
+  const expectedActionKeys = [
+    "beginBodyAction",
+    "beginDrag",
+    "beginDynoCharge",
+    "cancelBodyAction",
+    "cancelDynoCharge",
+    "endBodyAction",
+    "getUiSnapshot",
+    "releaseDrag",
+    "releaseDynoCharge",
+    "resolveFailure",
+    "setInvincibleDebug",
+    "setSpatialScan",
+    "stabilizeInvincibleState",
+    "updateFrame",
+    "updatePointer",
+    "useItem",
+  ];
+  const actionKeys = Object.keys(actions).sort();
+
+  if (actionKeys.join(",") !== expectedActionKeys.join(",")) {
+    throw new Error(`Game engine action facade keys changed: ${actionKeys.join(",")}`);
+  }
+
+  const state = createStableState();
+  actions.updatePointer(state, 321, 432);
+
+  if (state.pointer.x !== 321 || state.pointer.y !== 432) {
+    throw new Error(`Game engine action facade should route pointer updates: ${JSON.stringify(state.pointer)}`);
+  }
+
+  const snapshot = actions.getUiSnapshot(state, 7);
+
+  if (!snapshot || snapshot.frame !== 7 || !Array.isArray(snapshot.items)) {
+    throw new Error("Game engine action facade should route UI snapshot assembly");
+  }
+
+  return {
+    actionCount: actionKeys.length,
+    pointerX: state.pointer.x,
   };
 }
 
@@ -3295,6 +3341,7 @@ const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const runtimeFallResult = validateRuntimeFallAdapters();
+const actionFacadeResult = validateGameEngineActionFacade();
 const frameAirborneResult = validateFrameAirborneUpdateSystem();
 const frameClimbingResult = validateFrameClimbingUpdateSystem();
 const dragInteractionResult = validateDragInteractionSystems();
@@ -3348,6 +3395,7 @@ console.log(
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
     `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
     `fallRuntimeAdapters=${runtimeFallResult.adapterCount}/${runtimeFallResult.attachedCount}`,
+    `actionFacade=${actionFacadeResult.actionCount}/${actionFacadeResult.pointerX}`,
     `frameAirborne=${frameAirborneResult.handled}/${frameAirborneResult.bodyDelta.toFixed(2)}`,
     `frameClimbing=${frameClimbingResult.completed}/${frameClimbingResult.failureReason}`,
     `dragCore=${dragInteractionResult.pointerX}/${dragInteractionResult.spatialAngle}`,
