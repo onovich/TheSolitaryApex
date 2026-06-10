@@ -87,6 +87,12 @@ import {
 import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import {
+  createFragileHazardMeta,
+  createObstacleHazardMeta,
+  createResourceFruitHazardMeta,
+  createTimedSoftHazardMeta,
+} from "../src/logic/engine/routeContentHazardMetadata.js";
+import {
   createSeededRandom,
   pickHoldType,
   randomBetween,
@@ -612,21 +618,47 @@ function validateRouteContentMetadata() {
   const obstacle = createMeta({ obstacle: 1 }, [0.5, 0.25]);
   const resourceFruit = createMeta({ resource: 1 }, [0.5]);
   const empty = createMeta({}, [0.5]);
+  const fallbackTimedSoft = withRandomSource(
+    createSequenceRandom([0.25]),
+    () => createTimedSoftHazardMeta(),
+  );
+  const fallbackObstacle = withRandomSource(
+    createSequenceRandom([0.25]),
+    () => createObstacleHazardMeta(),
+  );
+  const fallbackResourceFruit = createResourceFruitHazardMeta();
+  const directFragile = createFragileHazardMeta();
 
   if (fragile.hazardType !== "fragile" || fragile.hazardState !== "intact") {
     throw new Error("Noise metadata should create fragile hazard metadata");
+  }
+
+  if (directFragile.hazardType !== "fragile" || directFragile.hazardState !== fragile.hazardState) {
+    throw new Error("Direct fragile metadata factory should match noise metadata");
   }
 
   if (timedSoft.hazardType !== "timedSoft" || timedSoft.collapseFrames !== 172) {
     throw new Error(`Noise metadata should create timed-soft collapse frames, got ${timedSoft.collapseFrames}`);
   }
 
+  if (fallbackTimedSoft.hazardType !== "timedSoft" || fallbackTimedSoft.collapseFrames !== 172) {
+    throw new Error(`Timed-soft metadata fallback should use default collapse range, got ${fallbackTimedSoft.collapseFrames}`);
+  }
+
   if (obstacle.hazardType !== "obstacle" || obstacle.radius !== 16.5 || obstacle.drillFrames !== 0) {
     throw new Error(`Noise metadata should create drillable obstacle metadata, got ${JSON.stringify(obstacle)}`);
   }
 
+  if (fallbackObstacle.hazardType !== "obstacle" || fallbackObstacle.radius !== 16.5 || fallbackObstacle.drillFrames !== 0) {
+    throw new Error(`Obstacle metadata fallback should use default radius range, got ${JSON.stringify(fallbackObstacle)}`);
+  }
+
   if (resourceFruit.hazardType !== "resourceFruit" || resourceFruit.radius !== 7) {
     throw new Error("Noise metadata should create resource fruit metadata");
+  }
+
+  if (fallbackResourceFruit.hazardType !== "resourceFruit" || fallbackResourceFruit.radius !== 6) {
+    throw new Error(`Resource fruit metadata fallback should use default radius, got ${JSON.stringify(fallbackResourceFruit)}`);
   }
 
   if (Object.keys(empty).length !== 0) {

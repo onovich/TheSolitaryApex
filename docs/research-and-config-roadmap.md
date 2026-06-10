@@ -55,6 +55,8 @@ npm run report:engine:top
   - Non-Golden Path noise hold placement for route content.
 - `src/logic/engine/routeContentMetadata.js`
   - Randomized hazard/resource metadata selection for route content noise holds.
+- `src/logic/engine/routeContentHazardMetadata.js`
+  - Hazard/resource metadata factory functions for fragile holds, timed-soft holds, obstacles, and resource fruit.
 - `src/logic/engine/routeAuthoredContentGeneration.js`
   - Authored rescue target and lane blocker hold creation from level-config stance placements.
 - `src/logic/engine/routeGenerationPrimitives.js`
@@ -406,7 +408,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: each level has authoring metadata, authored controls, randomized controls, content targets, pressure targets, resource-pressure targets, Golden Path rules, pressure rules, required validators, and a stable seed.
   - Current status: generated-route analysis and target validation now share `src/logic/analysis/levelAnalysis.js` across runtime snapshots, level-editor previews, reports, and validation scripts.
   - Current status: UI snapshots clone level-analysis data through `cloneLevelAnalysisSnapshot`, keeping new analysis fields out of ad hoc engine copy code.
-  - Current status: seeded wall generation wrapper now lives in `src/logic/engine/routeGeneration.js`, final wall-blueprint assembly lives in `src/logic/engine/routeBlueprintGeneration.js`, route path scaffolding split into `src/logic/engine/routePathGeneration.js`, route segment lookup split into `src/logic/engine/routeSegmentGeneration.js`, randomized route content split into `src/logic/engine/routeContentGeneration.js`, route content metadata split into `src/logic/engine/routeContentMetadata.js`, authored route content split into `src/logic/engine/routeAuthoredContentGeneration.js`, random helpers live in `src/logic/engine/routeRandomSystem.js`, hold creation and corridor clamping live in `src/logic/engine/routeHoldFactorySystem.js`, and `src/logic/engine/routeGenerationPrimitives.js` preserves stable primitive facade exports.
+  - Current status: seeded wall generation wrapper now lives in `src/logic/engine/routeGeneration.js`, final wall-blueprint assembly lives in `src/logic/engine/routeBlueprintGeneration.js`, route path scaffolding split into `src/logic/engine/routePathGeneration.js`, route segment lookup split into `src/logic/engine/routeSegmentGeneration.js`, randomized route content split into `src/logic/engine/routeContentGeneration.js`, route content metadata selection lives in `src/logic/engine/routeContentMetadata.js`, hazard/resource metadata factories live in `src/logic/engine/routeContentHazardMetadata.js`, authored route content split into `src/logic/engine/routeAuthoredContentGeneration.js`, random helpers live in `src/logic/engine/routeRandomSystem.js`, hold creation and corridor clamping live in `src/logic/engine/routeHoldFactorySystem.js`, and `src/logic/engine/routeGenerationPrimitives.js` preserves stable primitive facade exports.
   - Current status: `npm run report:level -- <level-id>` prints a focused single-level tuning report for balancing one route at a time.
   - Next step: keep adding validators whenever a new route-affecting mechanic is added.
   - Boundary: Golden Path reachability remains authored and validated, not left to unconstrained randomness.
