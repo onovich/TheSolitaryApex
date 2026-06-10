@@ -65,6 +65,7 @@ import {
   startRescueBurden,
   tickRescueBurdenState,
 } from "../src/logic/engine/rescueBurdenSystem.js";
+import { advancePursuitPhase } from "../src/logic/engine/pursuitPhaseSystem.js";
 import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
@@ -1841,6 +1842,65 @@ function validateAvalancheEvent() {
   return { alteredCount: alteredHolds.length };
 }
 
+function validatePursuitPhaseSystem() {
+  const state = createStableState();
+  state.pursuit = {
+    startFrame: 5,
+    speed: 3,
+    durationFrames: 1,
+    retreatSpeed: 3,
+    dangerGap: 10,
+    staminaPenalty: 0.5,
+  };
+
+  state.frame = 4;
+
+  if (advancePursuitPhase(state)) {
+    throw new Error("Pursuit phase should not advance before its configured start frame");
+  }
+
+  const pursuitState = state.conditionState.encounter;
+
+  if (pursuitState.pursuitTriggered || pursuitState.pursuitActive || pursuitState.pursuitPhase !== "idle") {
+    throw new Error(`Pursuit phase should stay idle before start: ${JSON.stringify(pursuitState)}`);
+  }
+
+  state.frame = 5;
+
+  if (!advancePursuitPhase(state)) {
+    throw new Error("Pursuit phase should advance on its configured start frame");
+  }
+
+  if (
+    !pursuitState.pursuitTriggered ||
+    !pursuitState.pursuitActive ||
+    pursuitState.pursuitPhase !== "retreating" ||
+    pursuitState.pursuitFrames !== 1 ||
+    pursuitState.threatHeight !== 3
+  ) {
+    throw new Error(`Pursuit phase should trigger, rise, and enter retreating after duration: ${JSON.stringify(pursuitState)}`);
+  }
+
+  if (advancePursuitPhase(state)) {
+    throw new Error("Pursuit phase should report no active pressure after retreat completes");
+  }
+
+  if (
+    pursuitState.pursuitPhase !== "complete" ||
+    !pursuitState.pursuitCompleted ||
+    pursuitState.pursuitActive ||
+    pursuitState.threatHeight !== 0 ||
+    pursuitState.gap !== Infinity
+  ) {
+    throw new Error(`Pursuit phase should complete after retreat reaches the floor: ${JSON.stringify(pursuitState)}`);
+  }
+
+  return {
+    phase: pursuitState.pursuitPhase,
+    triggered: pursuitState.pursuitTriggered,
+  };
+}
+
 function validatePursuitPressure() {
   const pursuitState = createStableState();
   const controlState = createStableState();
@@ -2270,6 +2330,7 @@ const fruitResult = validateResourceFruit();
 const bloodiedResult = validateBloodiedHoldPressure();
 const earthquakeResult = validateEarthquakeEvent();
 const avalancheResult = validateAvalancheEvent();
+const pursuitPhaseResult = validatePursuitPhaseSystem();
 const pursuitResult = validatePursuitPressure();
 const encounterSubsystemResult = validateEncounterSubsystemTicks();
 const laneBlockerResult = validateLaneBlockerPressure();
@@ -2325,6 +2386,7 @@ console.log(
     `quakeAltered=${earthquakeResult.alteredCount}`,
     `quakeEnded=${earthquakeResult.ended}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
+    `pursuitPhase=${pursuitPhaseResult.phase}/${pursuitPhaseResult.triggered}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
     `pursuitInvincibleGap=${pursuitResult.invincibleGap.toFixed(2)}`,
     `encounterTicks=${encounterSubsystemResult.rescueEnded}/${encounterSubsystemResult.laneDistance}`,

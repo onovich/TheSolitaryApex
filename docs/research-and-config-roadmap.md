@@ -84,7 +84,13 @@ npm run report:engine:top
 - `src/logic/engine/laneBlockerPressureSystem.js`
   - Lane-blocker proximity scanning and active stamina-pressure state updates.
 - `src/logic/engine/pursuitSystem.js`
-  - Pursuit pressure ticking and phase progression.
+  - Stable pursuit ticking facade for phase progression, danger updates, and catch resolution.
+- `src/logic/engine/pursuitPhaseSystem.js`
+  - Stable pursuit-phase facade for trigger gating and rising/retreating phase dispatch.
+- `src/logic/engine/pursuitPhaseMotionSystem.js`
+  - Rising and retreating pursuit threat-height progression.
+- `src/logic/engine/pursuitPhaseStateSystem.js`
+  - Pursuit trigger and completion state transitions.
 - `src/logic/engine/pursuitCatchSystem.js`
   - Pursuit catch failure routing, invincible pursuit stabilization, and pursuit danger gap updates.
 - `src/logic/engine/pursuitHeightSystem.js`
@@ -420,7 +426,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
-  - Current status: encounter orchestration lives in `src/logic/engine/encounterSystems.js`, rescue-burden runtime pressure lives in `src/logic/engine/rescueBurdenSystem.js`, lane-blocker runtime pressure lives in `src/logic/engine/laneBlockerPressureSystem.js`, pursuit phase ticking lives in `src/logic/engine/pursuitSystem.js`, pursuit catch resolution lives in `src/logic/engine/pursuitCatchSystem.js`, and shared current-height calculation lives in `src/logic/engine/pursuitHeightSystem.js`.
+  - Current status: encounter orchestration lives in `src/logic/engine/encounterSystems.js`, rescue-burden runtime pressure lives in `src/logic/engine/rescueBurdenSystem.js`, lane-blocker runtime pressure lives in `src/logic/engine/laneBlockerPressureSystem.js`, pursuit trigger gating and phase dispatch live in `src/logic/engine/pursuitPhaseSystem.js`, pursuit threat-height motion lives in `src/logic/engine/pursuitPhaseMotionSystem.js`, pursuit trigger/completion state transitions live in `src/logic/engine/pursuitPhaseStateSystem.js`, `src/logic/engine/pursuitSystem.js` preserves stable pursuit ticking facade exports, pursuit catch resolution lives in `src/logic/engine/pursuitCatchSystem.js`, and shared current-height calculation lives in `src/logic/engine/pursuitHeightSystem.js`.
   - Current status: rope-threat delayed checkpoint pressure ticking and progress/danger threshold dispatch now live in `src/logic/engine/ropeThreatSystem.js`, while reset, arming, and checkpoint break cleanup live in `src/logic/engine/ropeThreatStateSystem.js`.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
