@@ -10,6 +10,7 @@ import {
   releaseDynoCharge,
   releaseDrag,
   setSpatialScan,
+  setInvincibleDebug,
   setWindDebugOverride,
   updateFrame,
   updatePointer,
@@ -447,6 +448,54 @@ function validateWindDebugOverride() {
   return {
     force: weatherState.windForce,
     angle: weatherState.windAngle,
+  };
+}
+
+function validateInvincibleFailureRecovery() {
+  const state = createStableState();
+
+  if (!setInvincibleDebug(state, true)) {
+    throw new Error("Invincible debug toggle did not accept a valid debug state");
+  }
+
+  if (setInvincibleDebug({}, true)) {
+    throw new Error("Invincible debug toggle should reject a missing debug state");
+  }
+
+  state.stamina = 0;
+  state.draggedLimbIndex = 0;
+  state.itemState.channel = {
+    itemId: "energyGel",
+    remainingFrames: 8,
+    totalFrames: 10,
+  };
+  state.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+  });
+
+  updateFrame(state, 1280, 720);
+
+  const attachedCount = state.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1).length;
+
+  if (!state.isPlaying || state.endMessage) {
+    throw new Error("Invincible failure recovery should keep the run alive");
+  }
+
+  if (state.recoveryState.lastFailureReason !== "exhaustion") {
+    throw new Error(`Invincible failure recovery recorded the wrong failure reason: ${state.recoveryState.lastFailureReason}`);
+  }
+
+  if (state.fallState.active || state.itemState.channel !== null || state.draggedLimbIndex !== -1) {
+    throw new Error("Invincible failure recovery should reset fall, channel item, and drag state");
+  }
+
+  if (state.stamina <= 0 || attachedCount < 2) {
+    throw new Error(`Invincible failure recovery should restore stamina and at least two attachments: stamina=${state.stamina} attached=${attachedCount}`);
+  }
+
+  return {
+    attachedCount,
+    stamina: state.stamina,
   };
 }
 
@@ -1047,6 +1096,7 @@ const loadoutResult = validateLoadouts();
 const levelTemplateResult = validateLevelTemplates();
 const debugRunResult = validateDebugRunOptions();
 const windDebugResult = validateWindDebugOverride();
+const invincibleResult = validateInvincibleFailureRecovery();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -1078,6 +1128,7 @@ console.log(
     `debugChalk=${debugRunResult.chalk}`,
     `debugEvents=${debugRunResult.environmentEvents}`,
     `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}`,
+    `invincibleRecovery=${invincibleResult.attachedCount}/${invincibleResult.stamina.toFixed(1)}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
