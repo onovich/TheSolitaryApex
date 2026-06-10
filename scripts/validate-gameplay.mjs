@@ -64,6 +64,11 @@ import {
   restoreCheckpointPose as restoreCheckpointPoseAction,
 } from "../src/logic/engine/fallEntrySystem.js";
 import {
+  applyCheckpointFallPenalty as applyCheckpointFallPenaltyAction,
+  createDeathFallState as createDeathFallStateAction,
+  createRopeFallState as createRopeFallStateAction,
+} from "../src/logic/engine/fallBeginStateSystem.js";
+import {
   getRecoveryStaminaBonus,
   getRecoveryWindowRatio,
   getRecoveryWindMultiplier,
@@ -1606,6 +1611,57 @@ function validateFallEntrySystems() {
 
   if (deathState.player.limbs.some((limb) => limb.attachedHoldIndex !== -1)) {
     throw new Error("Direct death-fall entry should release all attached limbs");
+  }
+
+  const factoryState = createStableState();
+  factoryState.cameraY = 140;
+  factoryState.player.com = { x: 12, y: 18 };
+  factoryState.movementState.bodyVelocity = { x: 20, y: -4 };
+
+  const deathFall = createDeathFallStateAction(factoryState, "factory-death", 500);
+  if (
+    deathFall.mode !== "death-fall" ||
+    deathFall.velocityX !== 7 ||
+    deathFall.velocityY !== 6 ||
+    deathFall.deathThresholdY !== 640 + GAME_CONFIG.recoveryLoop.deathScreenPadding
+  ) {
+    throw new Error(`Death-fall state factory mismatch: ${JSON.stringify(deathFall)}`);
+  }
+
+  factoryState.staminaCap = 80;
+  factoryState.stamina = 95;
+  applyCheckpointFallPenaltyAction(factoryState, {
+    minimumStaminaCap: 60,
+    staminaCapPenalty: 25,
+  });
+  if (factoryState.staminaCap !== 60 || factoryState.stamina !== 60) {
+    throw new Error(
+      `Checkpoint fall penalty mismatch: stamina=${factoryState.stamina} cap=${factoryState.staminaCap}`,
+    );
+  }
+
+  const ropeFall = createRopeFallStateAction(
+    factoryState,
+    "factory-rope",
+    500,
+    { anchorHoldIndex: 3 },
+    { x: 15, y: 22 },
+  );
+  const expectedCatchLength =
+    Math.hypot(factoryState.player.com.x - 15, factoryState.player.com.y - 22) +
+    GAME_CONFIG.recoveryLoop.ropeCatchSlack;
+
+  if (
+    ropeFall.mode !== "rope-fall" ||
+    ropeFall.anchorHoldIndex !== 3 ||
+    ropeFall.anchorX !== 15 ||
+    ropeFall.anchorY !== 22 ||
+    Math.abs(ropeFall.catchLength - expectedCatchLength) > 0.0001 ||
+    ropeFall.ropeLength !== ropeFall.catchLength ||
+    ropeFall.velocityX !== 10 ||
+    ropeFall.velocityY !== 6
+  ) {
+    throw new Error(`Rope-fall state factory mismatch: ${JSON.stringify(ropeFall)}`);
   }
 
   const ropeState = createStableState();

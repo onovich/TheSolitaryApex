@@ -1,5 +1,9 @@
-import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getCheckpointActivation } from "./itemInventorySystem.js";
+import {
+  applyCheckpointFallPenalty,
+  createDeathFallState,
+  createRopeFallState,
+} from "./fallBeginStateSystem.js";
 
 export function beginFall(state, reason, viewportHeight, runtime) {
   const checkpoint = state.itemState.checkpoint;
@@ -23,41 +27,11 @@ export function beginFall(state, reason, viewportHeight, runtime) {
   state.recoveryState.lastFailureReason = reason;
 
   if (checkpoint && anchorPosition && checkpointActivation) {
-    const activation = checkpointActivation;
-    const currentDistance = Math.hypot(state.player.com.x - anchorPosition.x, state.player.com.y - anchorPosition.y);
-
-    state.staminaCap = Math.max(activation.minimumStaminaCap, state.staminaCap - activation.staminaCapPenalty);
-    state.stamina = Math.min(state.stamina, state.staminaCap);
+    applyCheckpointFallPenalty(state, checkpointActivation);
     state.recoveryState.rescuesUsed += 1;
-    state.fallState = {
-      active: true,
-      mode: "rope-fall",
-      reason,
-      anchorHoldIndex: checkpoint.anchorHoldIndex,
-      anchorX: anchorPosition.x,
-      anchorY: anchorPosition.y,
-      ropeLength: currentDistance + GAME_CONFIG.recoveryLoop.ropeCatchSlack,
-      catchLength: currentDistance + GAME_CONFIG.recoveryLoop.ropeCatchSlack,
-      velocityX: state.movementState.bodyVelocity.x * 0.5,
-      velocityY: Math.max(6, state.movementState.bodyVelocity.y + 6),
-      reeling: false,
-      deathThresholdY: state.cameraY + viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding,
-    };
+    state.fallState = createRopeFallState(state, reason, viewportHeight, checkpoint, anchorPosition);
     return;
   }
 
-  state.fallState = {
-    active: true,
-    mode: "death-fall",
-    reason,
-    anchorHoldIndex: -1,
-    anchorX: 0,
-    anchorY: 0,
-    ropeLength: 0,
-    catchLength: 0,
-    velocityX: state.movementState.bodyVelocity.x * 0.35,
-    velocityY: Math.max(6, state.movementState.bodyVelocity.y + 6),
-    reeling: false,
-    deathThresholdY: state.cameraY + viewportHeight + GAME_CONFIG.recoveryLoop.deathScreenPadding,
-  };
+  state.fallState = createDeathFallState(state, reason, viewportHeight);
 }
