@@ -1,10 +1,7 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
+import { advanceDynoAutoAttachMotion } from "./dynoAutoAttachMotionSystem.js";
 import { attachDynoLandingTargets, createDynoLandingTargets } from "./dynoLandingTargetSystem.js";
 import { finishDynoFlight } from "./dynoStateSystem.js";
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
 
 export function beginDynoAutoAttach(state, runtime) {
   const dynoState = state.movementState.dyno;
@@ -32,30 +29,7 @@ export function updateDynoAutoAttachState(state, viewportHeight, runtime) {
     return false;
   }
 
-  state.player.com.x = dynoState.autoAttachBodyPosition.x;
-  state.player.com.y = dynoState.autoAttachBodyPosition.y;
-  state.movementState.bodyVelocity = { x: 0, y: 0 };
-  dynoState.autoAttachFrame += 1;
-
-  const progress = clamp(dynoState.autoAttachFrame / Math.max(1, dynoState.autoAttachFrames), 0, 1);
-  const easedProgress = 1 - (1 - progress) ** 3;
-
-  dynoState.pendingLandingTargets.forEach((target) => {
-    const limb = state.player.limbs[target.limbIndex];
-
-    if (!limb) {
-      return;
-    }
-
-    if (target.targetHoldIndex === -1) {
-      limb.x += (state.player.com.x - limb.x) * 0.08;
-      limb.y += (state.player.com.y + GAME_CONFIG.hangingOffsetY - limb.y) * 0.08;
-      return;
-    }
-
-    limb.x = target.startX + (target.targetX - target.startX) * easedProgress;
-    limb.y = target.startY + (target.targetY - target.startY) * easedProgress;
-  });
+  const progress = advanceDynoAutoAttachMotion(state);
 
   if (progress < 1) {
     return true;
