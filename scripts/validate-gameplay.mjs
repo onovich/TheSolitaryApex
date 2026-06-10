@@ -788,7 +788,22 @@ function validateEarthquakeEvent() {
     throw new Error("Earthquake altered a non-noise hold or failed to mark altered holds as fragile");
   }
 
-  return { alteredCount: alteredHolds.length };
+  for (let index = 0; index < 4; index += 1) {
+    updateFrame(state, 1280, 720);
+  }
+
+  if (
+    state.conditionState.environment.activeEventId !== null ||
+    state.conditionState.environment.type !== "none" ||
+    state.conditionState.environment.totalFrames !== 0
+  ) {
+    throw new Error(`Environment event duration did not clear active state: ${JSON.stringify(state.conditionState.environment)}`);
+  }
+
+  return {
+    alteredCount: alteredHolds.length,
+    ended: state.conditionState.environment.remainingFrames === 0,
+  };
 }
 
 function validateAvalancheEvent() {
@@ -1163,6 +1178,7 @@ console.log(
     `bloodiedPenalty=${bloodiedResult.staminaDelta.toFixed(3)}`,
     `bloodiedChalk=${bloodiedResult.chalkMitigation.toFixed(3)}`,
     `quakeAltered=${earthquakeResult.alteredCount}`,
+    `quakeEnded=${earthquakeResult.ended}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
     `laneBlockerDistance=${laneBlockerResult.distance.toFixed(2)}`,

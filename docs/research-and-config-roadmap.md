@@ -63,8 +63,10 @@ npm run report:engine:top
   - Wind angle normalization, polar vector conversion, derived wind state synchronization, and scaled wind-vector snapshots shared by weather and movement systems.
 - `src/logic/engine/windLineDebugSystem.js`
   - Wind-line debug tuning initialization and patch application for the developer tuning panel.
+- `src/logic/engine/environmentEventActivationSystem.js`
+  - Earthquake and avalanche event activation, noise-hold selection, hold mutation, and event particle feedback.
 - `src/logic/engine/environmentEvents.js`
-  - Earthquake and avalanche event activation, noise-hold alteration, active-event timers, and event particle feedback.
+  - Environment event scheduling, active-event timers, triggered-event tracking, and activation dispatch.
 - `src/logic/engine/encounterSystems.js`
   - Encounter pressure orchestration, rescue burden timers, and lane-blocker proximity pressure.
 - `src/logic/engine/pursuitSystem.js`
@@ -317,7 +319,7 @@ These are good near-term implementation candidates because they extend existing 
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
   - Current status: fragile and timed-soft runtime interactions now live in `src/logic/engine/holdInteractions.js`, while drillable-obstacle runtime interactions now live in `src/logic/engine/obstacleDrillingSystem.js`.
-  - Current status: earthquake and avalanche runtime activation now lives in `src/logic/engine/environmentEvents.js`.
+  - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, while earthquake/avalanche hold mutation and particle feedback live in `src/logic/engine/environmentEventActivationSystem.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
   - Next step: decide whether avalanche should directly affect stability, visibility, or only route topology.
