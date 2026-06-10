@@ -814,6 +814,19 @@ function validateInvincibleFailureRecovery() {
     throw new Error(`Invincible failure recovery should restore stamina and at least two attachments: stamina=${state.stamina} attached=${attachedCount}`);
   }
 
+  const unanchoredLimb = state.player.limbs.find((limb) => {
+    if (limb.attachedHoldIndex === -1) {
+      return false;
+    }
+
+    const holdAnchor = getHoldAnchorPosition(state, state.holds[limb.attachedHoldIndex]);
+    return limb.x !== holdAnchor.x || limb.y !== holdAnchor.y;
+  });
+
+  if (unanchoredLimb) {
+    throw new Error("Invincible failure recovery should anchor recovered limbs to their holds");
+  }
+
   return {
     attachedCount,
     stamina: state.stamina,
