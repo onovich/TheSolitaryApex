@@ -72,7 +72,11 @@ npm run report:engine:top
 - `src/logic/engine/environmentEvents.js`
   - Environment event scheduling, active-event timers, triggered-event tracking, and activation dispatch.
 - `src/logic/engine/encounterSystems.js`
-  - Encounter pressure orchestration, rescue burden timers, and lane-blocker proximity pressure.
+  - Encounter pressure orchestration for pursuit, rope threat, rescue burden, and lane-blocker pressure ticks.
+- `src/logic/engine/rescueBurdenSystem.js`
+  - Rescue burden activation and countdown clearing after protected rescue targets.
+- `src/logic/engine/laneBlockerPressureSystem.js`
+  - Lane-blocker proximity scanning and active stamina-pressure state updates.
 - `src/logic/engine/pursuitSystem.js`
   - Pursuit pressure ticking, pursuit catch failure routing, invincible pursuit stabilization, and shared height calculation.
 - `src/logic/engine/ropeThreatSystem.js`
@@ -332,7 +336,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
-  - Current status: encounter orchestration, rescue burden, and lane-blocker runtime pressure now live in `src/logic/engine/encounterSystems.js`, while pursuit ticking and shared height calculation now live in `src/logic/engine/pursuitSystem.js`.
+  - Current status: encounter orchestration lives in `src/logic/engine/encounterSystems.js`, rescue-burden runtime pressure lives in `src/logic/engine/rescueBurdenSystem.js`, lane-blocker runtime pressure lives in `src/logic/engine/laneBlockerPressureSystem.js`, while pursuit ticking and shared height calculation now live in `src/logic/engine/pursuitSystem.js`.
   - Current status: rope-threat delayed checkpoint pressure ticking and progress/danger threshold dispatch now live in `src/logic/engine/ropeThreatSystem.js`, while reset, arming, and checkpoint break cleanup live in `src/logic/engine/ropeThreatStateSystem.js`.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.

@@ -21,8 +21,13 @@ import {
   getDynoPullVector,
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
+import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
+import {
+  startRescueBurden,
+  tickRescueBurdenState,
+} from "../src/logic/engine/rescueBurdenSystem.js";
 import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
@@ -1184,6 +1189,71 @@ function validatePursuitPressure() {
   return { gap: pursuitState.conditionState.encounter.gap };
 }
 
+function validateEncounterSubsystemTicks() {
+  const rescueState = createStableState();
+  startRescueBurden(rescueState, {
+    rescueTargetId: "direct-rescue",
+    burdenFrames: 2,
+    burdenStaminaPenalty: 0.4,
+  });
+
+  const rescueBurden = rescueState.conditionState.encounter.rescueBurden;
+
+  if (
+    !rescueBurden.active ||
+    rescueBurden.remainingFrames !== 2 ||
+    rescueBurden.totalFrames !== 2 ||
+    rescueBurden.staminaPenalty !== 0.4 ||
+    rescueBurden.targetId !== "direct-rescue"
+  ) {
+    throw new Error(`Rescue burden did not start with expected state: ${JSON.stringify(rescueBurden)}`);
+  }
+
+  tickRescueBurdenState(rescueState);
+  tickRescueBurdenState(rescueState);
+
+  if (rescueBurden.active || rescueBurden.remainingFrames !== 0 || rescueBurden.staminaPenalty !== 0 || rescueBurden.targetId !== null) {
+    throw new Error(`Rescue burden did not clear after its countdown: ${JSON.stringify(rescueBurden)}`);
+  }
+
+  const blockerState = createStableState();
+  const blocker = blockerState.holds.find((hold) => hold.hazardType === "laneBlocker");
+
+  if (!blocker) {
+    throw new Error("Expected generated route to include a lane blocker for direct subsystem validation");
+  }
+
+  blocker.x = blockerState.player.com.x + 30;
+  blocker.y = blockerState.player.com.y;
+  blocker.dangerRadius = 80;
+  blocker.staminaPenalty = 0.6;
+  blocker.laneBlockerId = "direct-blocker";
+  tickLaneBlockerState(blockerState);
+
+  const laneBlocker = blockerState.conditionState.encounter.laneBlocker;
+
+  if (
+    !laneBlocker.active ||
+    laneBlocker.blockerId !== "direct-blocker" ||
+    Math.abs(laneBlocker.distance - 30) > 0.001 ||
+    laneBlocker.staminaPenalty !== 0.6
+  ) {
+    throw new Error(`Lane blocker did not activate with expected state: ${JSON.stringify(laneBlocker)}`);
+  }
+
+  blocker.removed = true;
+  tickLaneBlockerState(blockerState);
+
+  if (laneBlocker.active || laneBlocker.blockerId !== null || laneBlocker.distance !== Infinity || laneBlocker.staminaPenalty !== 0) {
+    throw new Error(`Lane blocker did not clear after removal: ${JSON.stringify(laneBlocker)}`);
+  }
+
+  return {
+    rescueEnded: !rescueBurden.active,
+    laneDistance: 30,
+  };
+}
+
 function validateLaneBlockerPressure() {
   const blockerState = createStableState();
   const controlState = createStableState();
@@ -1468,6 +1538,7 @@ const bloodiedResult = validateBloodiedHoldPressure();
 const earthquakeResult = validateEarthquakeEvent();
 const avalancheResult = validateAvalancheEvent();
 const pursuitResult = validatePursuitPressure();
+const encounterSubsystemResult = validateEncounterSubsystemTicks();
 const laneBlockerResult = validateLaneBlockerPressure();
 const ropeThreatResult = validateRopeThreat();
 const spatialResult = validateSpatialScan();
@@ -1513,6 +1584,7 @@ console.log(
     `quakeEnded=${earthquakeResult.ended}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
+    `encounterTicks=${encounterSubsystemResult.rescueEnded}/${encounterSubsystemResult.laneDistance}`,
     `laneBlockerDistance=${laneBlockerResult.distance.toFixed(2)}`,
     `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
     `ropeReset=${ropeThreatResult.resetCleared}`,
