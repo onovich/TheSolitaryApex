@@ -54,6 +54,7 @@ import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
 } from "../src/logic/engine/staminaPressureSystem.js";
+import { createGameRuntimeInteractionAdapters } from "../src/logic/engine/gameRuntimeInteractionAdapters.js";
 import { applyWindDebugOverrideTarget } from "../src/logic/engine/weatherDebugOverrideSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
 
@@ -364,6 +365,55 @@ function validateClimbingMotionSystems() {
   return {
     detachedCount: limbGroups.detachedLimbs.length,
     centerX: centerState.player.com.x,
+  };
+}
+
+function validateRuntimeInteractionAdapters() {
+  const actions = {
+    beginDynoCharge: () => "begin",
+    releaseDynoCharge: () => "release",
+    resolveFailure: () => "failure",
+    updatePointer: () => "pointer",
+  };
+  const adapters = createGameRuntimeInteractionAdapters(actions);
+  const bodyActionRuntime = adapters.getBodyActionRuntime();
+  const dragInteractionRuntime = adapters.getDragInteractionRuntime();
+  const dynoRuntime = adapters.getDynoRuntime();
+  const holdRuntime = adapters.getHoldInteractionRuntime();
+  const itemRuntime = adapters.getItemRuntime();
+  const limbReachRuntime = adapters.getLimbReachRuntime();
+  const stableState = createStableState();
+
+  if (bodyActionRuntime.beginDynoCharge() !== "begin" || bodyActionRuntime.releaseDynoCharge() !== "release") {
+    throw new Error("Body action runtime should forward dyno actions");
+  }
+
+  if (dynoRuntime.updatePointer() !== "pointer" || dynoRuntime.getAttachedLimbs(stableState).length !== 4) {
+    throw new Error("Dyno runtime should expose pointer action and attached-limb query");
+  }
+
+  if (holdRuntime.resolveFailure() !== "failure" || !holdRuntime.isHoldAvailable({ removed: false })) {
+    throw new Error("Hold interaction runtime should expose failure routing and hold availability");
+  }
+
+  if (
+    itemRuntime.getCheckpointAnchorHoldIndex(stableState) !== getCheckpointAnchorHoldIndex(stableState) ||
+    !itemRuntime.getAttachedLimbs(stableState).length
+  ) {
+    throw new Error("Item runtime should expose checkpoint anchor and attached-limb helpers");
+  }
+
+  if (!limbReachRuntime.isHoldAvailable({ removed: false }) || typeof limbReachRuntime.setDragRejectFeedback !== "function") {
+    throw new Error("Limb reach runtime should expose hold availability and drag feedback helpers");
+  }
+
+  if (dragInteractionRuntime.getLimbReachRuntime().setDragRejectFeedback !== limbReachRuntime.setDragRejectFeedback) {
+    throw new Error("Drag interaction runtime should reuse the limb-reach runtime getter");
+  }
+
+  return {
+    adapterCount: Object.keys(adapters).length,
+    bodyForwarded: bodyActionRuntime.beginDynoCharge(),
   };
 }
 
@@ -1906,6 +1956,7 @@ const playerResult = validateInitialPlayerState();
 const attachmentResult = validateAttachmentSystems();
 const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
+const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
@@ -1942,6 +1993,7 @@ console.log(
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
+    `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,

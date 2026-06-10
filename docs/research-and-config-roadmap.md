@@ -204,7 +204,13 @@ npm run report:engine:top
 - `src/logic/engine/gameRuntimeAdapters.js`
   - Runtime adapter composition for frame, interaction, item, dyno, failure, fall-recovery, and encounter dependency bundles.
 - `src/logic/engine/gameRuntimeInteractionAdapters.js`
-  - Interaction-side runtime getter implementations for drag, body action, dyno, item, limb reach, and hold-interaction dependencies.
+  - Stable interaction-side runtime adapter composition for drag, body action, dyno, item, limb reach, and hold-interaction dependencies.
+- `src/logic/engine/gameRuntimeHoldInteractionAdapter.js`
+  - Hold-interaction runtime dependency bundle creation for stamina, hold availability, and failure routing.
+- `src/logic/engine/gameRuntimeMovementAdapters.js`
+  - Dyno, limb-reach, drag-interaction, and body-action runtime dependency bundle creation.
+- `src/logic/engine/gameRuntimeItemAdapter.js`
+  - Item runtime dependency bundle creation for attached-limb, checkpoint-anchor, single-hand-hang, and stamina helpers.
 - `src/logic/engine/gameRuntimeFallAdapters.js`
   - Failure and fall-side runtime getter implementations for encounter, fall recovery, and failure-routing dependencies.
 - `src/logic/engine/limbReachMetricsSystem.js`
@@ -333,7 +339,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: fall/recovery state initialization, rescue-window queries, rescue stamina/wind bonuses, and per-frame rescue-window decay now live in `src/logic/engine/recoveryStateSystem.js`.
   - Current status: game-over finalization, failure-to-fall routing, and fall/dyno reset now live in `src/logic/engine/failureSystem.js`, while invincible debug toggling lives in `src/logic/engine/invincibleFailureSystem.js`, invincible recovery orchestration lives in `src/logic/engine/invincibleRecoverySystem.js`, reachable attachment orchestration lives in `src/logic/engine/invincibleAttachmentRecoverySystem.js`, fallback hold search lives in `src/logic/engine/invincibleAttachmentSearchSystem.js`, and recovered-limb attachment application lives in `src/logic/engine/invincibleAttachmentApplySystem.js`.
   - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with shared tail ticks in `src/logic/engine/framePostUpdateSystem.js` and `gameEngine.js` preserving the public `updateFrame` export.
-  - Current status: cross-system runtime adapter wiring now lives in `src/logic/engine/gameEngineRuntime.js`, with concrete runtime dependency bundles split between `src/logic/engine/gameRuntimeAdapters.js`, `src/logic/engine/gameRuntimeInteractionAdapters.js`, and `src/logic/engine/gameRuntimeFallAdapters.js`, keeping `gameEngine.js` focused on stable public facade exports.
+  - Current status: cross-system runtime adapter wiring now lives in `src/logic/engine/gameEngineRuntime.js`, with frame/fall composition in `src/logic/engine/gameRuntimeAdapters.js` and `src/logic/engine/gameRuntimeFallAdapters.js`, while interaction dependency bundles are split into `src/logic/engine/gameRuntimeInteractionAdapters.js`, `src/logic/engine/gameRuntimeHoldInteractionAdapter.js`, `src/logic/engine/gameRuntimeMovementAdapters.js`, and `src/logic/engine/gameRuntimeItemAdapter.js`, keeping `gameEngine.js` focused on stable public facade exports.
   - Current status: dyno public facade exports and cooldown decay now live in `src/logic/engine/dynoSystem.js`, charge begin/cancel actions and charge ticking now live in `src/logic/engine/dynoChargeSystem.js`, and dyno release/launch application now lives in `src/logic/engine/dynoLaunchSystem.js`.
   - Current status: dyno availability reasons and stamina-cost query live in `src/logic/engine/dynoMetricsSystem.js`, while raw/eased charge ratios, reach ratio, and pull-vector calculation live in `src/logic/engine/dynoChargeMetricsSystem.js`.
   - Current status: dyno state initialization, reset, preparation cancellation, and flight-finish cleanup now live in `src/logic/engine/dynoStateSystem.js`.

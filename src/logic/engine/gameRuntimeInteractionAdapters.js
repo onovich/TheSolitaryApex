@@ -1,62 +1,35 @@
+import { createHoldInteractionRuntime } from "./gameRuntimeHoldInteractionAdapter.js";
+import { createItemRuntime } from "./gameRuntimeItemAdapter.js";
 import {
-  getAttachedLimbs,
-  getCheckpointAnchorHoldIndex,
-  isHoldAvailable,
-  isSingleHandHang,
-  releaseHoldAttachment,
-} from "./attachmentSystem.js";
-import { cancelDynoPreparation } from "./dynoStateSystem.js";
-import { clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem.js";
-import { applyStaminaDelta, restoreStamina } from "./staminaSystem.js";
+  createBodyActionRuntime,
+  createDragInteractionRuntime,
+  createDynoRuntime,
+  createLimbReachRuntime,
+} from "./gameRuntimeMovementAdapters.js";
 
 export function createGameRuntimeInteractionAdapters(actions) {
   function getHoldInteractionRuntime() {
-    return {
-      applyStaminaDelta,
-      isHoldAvailable,
-      resolveFailure: actions.resolveFailure,
-      restoreStamina,
-    };
+    return createHoldInteractionRuntime(actions);
   }
 
   function getDynoRuntime() {
-    return {
-      getAttachedLimbs,
-      releaseHoldAttachment,
-      updatePointer: actions.updatePointer,
-    };
+    return createDynoRuntime(actions);
   }
 
   function getLimbReachRuntime() {
-    return {
-      clearDragRejectFeedback,
-      isHoldAvailable,
-      releaseHoldAttachment,
-      setDragRejectFeedback,
-    };
+    return createLimbReachRuntime();
   }
 
   function getDragInteractionRuntime() {
-    return {
-      getLimbReachRuntime,
-    };
+    return createDragInteractionRuntime(getLimbReachRuntime);
   }
 
   function getBodyActionRuntime() {
-    return {
-      beginDynoCharge: actions.beginDynoCharge,
-      cancelDynoPreparation,
-      releaseDynoCharge: actions.releaseDynoCharge,
-    };
+    return createBodyActionRuntime(actions);
   }
 
   function getItemRuntime() {
-    return {
-      getAttachedLimbs,
-      getCheckpointAnchorHoldIndex,
-      isSingleHandHang,
-      restoreStamina,
-    };
+    return createItemRuntime();
   }
 
   return {
