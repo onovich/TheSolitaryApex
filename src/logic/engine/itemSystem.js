@@ -1,7 +1,7 @@
 import { ITEM_CATALOG } from "../../data/itemCatalog.js";
+import { canUseItem } from "./itemAvailabilitySystem.js";
 import { captureCheckpoint } from "./checkpointItemSystem.js";
 import { applyItemEffects } from "./itemEffectsSystem.js";
-import { canUseItem } from "./itemInventorySystem.js";
 import { pushParticles } from "./particleSystem.js";
 import { attachProtectionToRescueTarget } from "./rescueItemSystem.js";
 

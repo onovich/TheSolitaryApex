@@ -266,9 +266,24 @@ function validateDragDynoAndFalls() {
 function validateItems() {
   const checkpointState = createStableState();
   const initialItems = getUiSnapshot(checkpointState, 0).items;
+  const getItemSnapshot = (state, itemId) => getUiSnapshot(state, 0).items.find((item) => item.id === itemId);
 
   if (initialItems.length !== 3) {
     throw new Error(`Expected 3 inventory items, got ${initialItems.length}`);
+  }
+
+  const availableProtection = initialItems.find((item) => item.id === "protectionCam");
+
+  if (!availableProtection || availableProtection.disabled) {
+    throw new Error("Protection cam should be available from the initial four-limb stance");
+  }
+
+  const emptyProtectionState = createStableState();
+  emptyProtectionState.inventory.protectionCam.count = 0;
+  const emptyProtection = getItemSnapshot(emptyProtectionState, "protectionCam");
+
+  if (!emptyProtection?.disabled) {
+    throw new Error("Inventory UI should disable a checkpoint item with zero count");
   }
 
   const gelState = createStableState();
@@ -281,6 +296,12 @@ function validateItems() {
 
   if (!useItem(gelState, "energyGel")) {
     throw new Error("Failed to start energy gel channel");
+  }
+
+  const channelGel = getItemSnapshot(gelState, "energyGel");
+
+  if (!channelGel?.active || channelGel.channelProgressRatio !== 0) {
+    throw new Error(`Inventory UI should expose active energy gel channel progress: ${JSON.stringify(channelGel)}`);
   }
 
   for (let index = 0; index < 80; index += 1) {
@@ -298,7 +319,10 @@ function validateItems() {
     throw new Error(`Energy gel net gain too small: ${gelDelta}`);
   }
 
-  return { gelDelta };
+  return {
+    gelDelta,
+    zeroProtectionDisabled: emptyProtection.disabled,
+  };
 }
 
 function validateLoadouts() {
@@ -1120,6 +1144,7 @@ console.log(
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `rescues=${fallResult.rescueCount}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
+    `zeroProtectionDisabled=${itemResult.zeroProtectionDisabled}`,
     `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,
     `rescueDynoCost=${loadoutResult.rescueSupportDynoCost.toFixed(2)}`,
     `levels=${levelTemplateResult.levelCount}`,
