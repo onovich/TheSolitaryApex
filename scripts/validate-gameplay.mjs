@@ -19,6 +19,7 @@ import {
 } from "../src/logic/engine/gameEngine.js";
 import { createGameEngineActions } from "../src/logic/engine/gameEngineActionFacade.js";
 import { createInitialRunContent } from "../src/logic/engine/gameInitialRunContent.js";
+import { createGameStateRuntimeFields } from "../src/logic/engine/gameStateRuntimeFields.js";
 import { updatePointer as updatePointerAction } from "../src/logic/engine/dragPointerSystem.js";
 import { setSpatialScan as setSpatialScanAction } from "../src/logic/engine/spatialScanInteractionSystem.js";
 import {
@@ -243,6 +244,7 @@ function validateInitialPlayerState() {
 
 function validateInitialStateFactories() {
   const levelConfig = LEVEL_CONFIGS[0];
+  const runContent = createInitialRunContent(1280, 720, levelConfig.id);
   const movementState = createInitialMovementState();
   const debugState = createInitialDebugState();
   const feedbackState = createInitialFeedbackState();
@@ -250,6 +252,7 @@ function validateInitialStateFactories() {
   const itemState = createInitialItemState();
   const routeState = createInitialRouteState([{ id: "segment-1", zoneKey: "reading" }]);
   const fallbackRouteState = createInitialRouteState([]);
+  const runtimeFields = createGameStateRuntimeFields(1280, 720, runContent);
 
   if (
     movementState.bodyVelocity.x !== 0 ||
@@ -288,10 +291,25 @@ function validateInitialStateFactories() {
     throw new Error(`Initial route state should follow the first segment and recover without route data: ${JSON.stringify({ routeState, fallbackRouteState })}`);
   }
 
+  if (
+    runtimeFields.stamina !== GAME_CONFIG.maxStamina ||
+    runtimeFields.pointer.x !== 640 ||
+    runtimeFields.pointer.y !== 360 ||
+    runtimeFields.player.limbs.length !== 4 ||
+    runtimeFields.inventory.protectionCam.count !== 3 ||
+    runtimeFields.routeState.currentSegmentId !== runContent.routeSegments[0].id ||
+    runtimeFields.spatialScan.pivotX !== 640 ||
+    runtimeFields.tutorialVisible !== true ||
+    runtimeFields.endMessage !== null
+  ) {
+    throw new Error("Game state runtime fields should assemble player, inventory, route, pointer, and UI defaults");
+  }
+
   return {
     restMode: movementState.restPose.mode,
     routeZone: routeState.currentZoneKey,
     spatialAvailable: spatialScan.available,
+    runtimeLimbs: runtimeFields.player.limbs.length,
   };
 }
 
@@ -3389,7 +3407,7 @@ console.log(
   [
     "validate-gameplay:ok",
     `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}/${playerResult.filteredHolds}`,
-    `initialState=${initialStateResult.restMode}/${initialStateResult.routeZone}/${initialStateResult.spatialAvailable}`,
+    `initialState=${initialStateResult.restMode}/${initialStateResult.routeZone}/${initialStateResult.spatialAvailable}/${initialStateResult.runtimeLimbs}`,
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
