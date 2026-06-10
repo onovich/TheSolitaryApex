@@ -1,16 +1,12 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getHoldAnchorPosition } from "../spatialProjection.js";
-import { getAttachedLimbs, releaseHoldAttachment } from "./attachmentSystem.js";
-import { clearDragConstraintSnapshot, clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem.js";
-import { createInitialFallState } from "./recoveryStateSystem.js";
-import { findClosestReachableHold, getClosestHoldIndex } from "./limbHoldLookupSystem.js";
+import { releaseHoldAttachment } from "./attachmentSystem.js";
 import {
-  canLimbReachTarget,
   setDragConstraintSnapshot,
   syncAttachedLimbAnchors,
   updateDragConstraintFeedback,
 } from "./limbReachSystem.js";
-import { pushParticles } from "./particleSystem.js";
+
+export { releaseDrag } from "./dragReleaseSystem.js";
 
 export function updatePointer(state, screenX, screenY, runtime) {
   state.pointer.x = screenX;
@@ -60,38 +56,4 @@ export function beginDrag(state, screenX, screenY, runtime) {
   }
 
   return false;
-}
-
-export function releaseDrag(state, runtime) {
-  if (!state.isPlaying || (state.fallState?.active && state.fallState.mode !== "hanging") || state.draggedLimbIndex === -1) {
-    return;
-  }
-
-  const draggedLimb = state.player.limbs[state.draggedLimbIndex];
-  const targetX = state.pointer.x;
-  const targetY = state.pointer.y + state.cameraY;
-  const nearestHoldIndex = getClosestHoldIndex(state, targetX, targetY, runtime.getLimbReachRuntime());
-  const closestReachableHoldIndex = findClosestReachableHold(state, draggedLimb, targetX, targetY, runtime.getLimbReachRuntime());
-
-  if (closestReachableHoldIndex !== -1) {
-    const hold = state.holds[closestReachableHoldIndex];
-    const holdAnchor = getHoldAnchorPosition(state, hold);
-    draggedLimb.attachedHoldIndex = closestReachableHoldIndex;
-    draggedLimb.x = holdAnchor.x;
-    draggedLimb.y = holdAnchor.y;
-    pushParticles(state, draggedLimb.x, draggedLimb.y - state.cameraY, GAME_CONFIG.gripParticleCount, "#ffffff");
-    clearDragRejectFeedback(state);
-
-    if (state.fallState?.active && state.fallState.mode === "hanging" && getAttachedLimbs(state).length >= 2) {
-      state.fallState = createInitialFallState();
-      state.movementState.bodyVelocity = { x: 0, y: 0 };
-      state.recoveryState.rescueWindowFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-      state.recoveryState.rescueWindowTotalFrames = GAME_CONFIG.recoveryLoop.rescueWindowFrames;
-    }
-  } else if (!canLimbReachTarget(state, draggedLimb, targetX, targetY) || nearestHoldIndex !== -1) {
-    setDragRejectFeedback(state, state.draggedLimbIndex, targetX, targetY, nearestHoldIndex);
-  }
-
-  clearDragConstraintSnapshot(state);
-  state.draggedLimbIndex = -1;
 }
