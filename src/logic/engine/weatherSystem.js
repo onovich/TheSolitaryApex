@@ -1,5 +1,4 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getDefaultWindLineDebugTuning, sanitizeWindLineDebugPatch } from "../../dev/windDebugTuning.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -47,10 +46,6 @@ export function createInitialWeatherState() {
     debugOverrideForce: 0,
     debugOverrideAngle: 0,
   };
-}
-
-export function createInitialWindLineDebugTuning() {
-  return getDefaultWindLineDebugTuning();
 }
 
 export function getScaledWindVector(weatherState, multiplier = 1) {
@@ -111,14 +106,5 @@ export function setWindDebugOverride(state, enabled, force = 0, angle = state.co
     updateWeatherDerivedState(weatherState);
   }
 
-  return true;
-}
-
-export function setWindLineDebugTuning(state, patch) {
-  if (!state.debugState) {
-    return false;
-  }
-
-  state.debugState.windLine = sanitizeWindLineDebugPatch(patch, state.debugState.windLine);
   return true;
 }

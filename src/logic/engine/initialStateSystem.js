@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { createInitialDynoState } from "./dynoStateSystem.js";
 import { createInitialFallState, createInitialRecoveryState } from "./recoveryStateSystem.js";
-import { createInitialWindLineDebugTuning } from "./weatherSystem.js";
+import { createInitialWindLineDebugTuning } from "./windLineDebugSystem.js";
 
 export { createInitialConditionState } from "./conditionStateSystem.js";
 

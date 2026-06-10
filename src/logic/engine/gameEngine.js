@@ -24,10 +24,12 @@ import { updateFrame as updateFrameAction } from "./frameUpdateSystem.js";
 import { createGameRuntime } from "./gameEngineRuntime.js";
 import { useItem as useItemAction } from "./itemSystem.js";
 import {
-  createInitialWindLineDebugTuning,
   setWindDebugOverride,
-  setWindLineDebugTuning,
 } from "./weatherSystem.js";
+import {
+  createInitialWindLineDebugTuning,
+  setWindLineDebugTuning,
+} from "./windLineDebugSystem.js";
 import { buildUiSnapshot } from "./uiSnapshotSystem.js";
 
 export { createInitialGameState } from "./gameStateFactory.js";
