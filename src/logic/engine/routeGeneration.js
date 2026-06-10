@@ -14,12 +14,14 @@ import {
 import {
   createGoldenPath,
   createGoldenStance,
-  createRouteSegments,
   createSpawnHolds,
-  getRouteSegmentForStance,
 } from "./routePathGeneration.js";
+import {
+  createRouteSegments,
+  getRouteSegmentForStance,
+} from "./routeSegmentGeneration.js";
 
-export { getRouteSegmentForStance } from "./routePathGeneration.js";
+export { getRouteSegmentForStance } from "./routeSegmentGeneration.js";
 
 export function validateGoldenPath(path, levelConfig = getLevelConfig()) {
   const safeReach =
