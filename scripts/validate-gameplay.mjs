@@ -119,6 +119,7 @@ import {
   createSpawnHolds,
 } from "../src/logic/engine/routePathGeneration.js";
 import { buildRouteBlueprintPathContent } from "../src/logic/engine/routeBlueprintPathAssembly.js";
+import { tickAirborneFrameState } from "../src/logic/engine/frameAirborneUpdateSystem.js";
 import {
   startRescueBurden,
   tickRescueBurdenState,
@@ -626,6 +627,48 @@ function validateRuntimeFallAdapters() {
   return {
     adapterCount: Object.keys(adapters).length,
     attachedCount: fallRecoveryRuntime.getAttachedLimbs(stableState).length,
+  };
+}
+
+function validateFrameAirborneUpdateSystem() {
+  const groundState = createStableState();
+  const runtime = {
+    getItemRuntime: () => ({}),
+    getLimbReachRuntime: () => ({
+      canLimbReachTarget: () => true,
+    }),
+    resolveFailure: () => {
+      throw new Error("Frame airborne helper should not fail this contract state");
+    },
+  };
+
+  if (tickAirborneFrameState(groundState, { windMultiplier: 1 }, 720, runtime)) {
+    throw new Error("Frame airborne helper should ignore non-airborne dyno state");
+  }
+
+  const flightState = createStableState();
+  const previousBodyY = flightState.player.com.y;
+  const previousLimbY = flightState.player.limbs[0].y;
+
+  flightState.movementState.dyno.flightActive = true;
+  flightState.movementState.bodyVelocity = { x: 0, y: -8 };
+
+  if (!tickAirborneFrameState(flightState, { windMultiplier: 1 }, 720, runtime)) {
+    throw new Error("Frame airborne helper should handle active dyno flight");
+  }
+
+  if (
+    !flightState.movementState.dyno.flightActive ||
+    flightState.player.com.y >= previousBodyY ||
+    flightState.player.limbs[0].attachedHoldIndex !== -1 ||
+    flightState.player.limbs[0].y === previousLimbY
+  ) {
+    throw new Error("Frame airborne helper should advance dyno flight and detached limb motion");
+  }
+
+  return {
+    handled: flightState.movementState.dyno.flightActive,
+    bodyDelta: previousBodyY - flightState.player.com.y,
   };
 }
 
@@ -3206,6 +3249,7 @@ const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const runtimeFallResult = validateRuntimeFallAdapters();
+const frameAirborneResult = validateFrameAirborneUpdateSystem();
 const dragInteractionResult = validateDragInteractionSystems();
 const routeResult = validateRouteContent();
 const routePrimitiveResult = validateRoutePrimitiveSystems();
@@ -3257,6 +3301,7 @@ console.log(
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
     `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
     `fallRuntimeAdapters=${runtimeFallResult.adapterCount}/${runtimeFallResult.attachedCount}`,
+    `frameAirborne=${frameAirborneResult.handled}/${frameAirborneResult.bodyDelta.toFixed(2)}`,
     `dragCore=${dragInteractionResult.pointerX}/${dragInteractionResult.spatialAngle}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,

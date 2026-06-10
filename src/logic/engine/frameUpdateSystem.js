@@ -2,11 +2,10 @@ import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotio
 import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
 import { advanceDynoCharge } from "./dynoSystem.js";
-import { updateDynoAutoAttachState } from "./dynoAutoAttachSystem.js";
-import { updateDynoFlightState } from "./dynoFlightSystem.js";
+import { tickAirborneFrameState } from "./frameAirborneUpdateSystem.js";
 import { updateFallState } from "./fallRecoverySystem.js";
 import { tickFeedbackState } from "./feedbackSystem.js";
-import { tickAirborneFrameTail, tickClimbingFrameTail } from "./framePostUpdateSystem.js";
+import { tickClimbingFrameTail } from "./framePostUpdateSystem.js";
 import {
   tickObstacleDrilling,
   tickTimedSoftHolds,
@@ -53,21 +52,7 @@ export function updateFrame(state, viewportWidth, viewportHeight, runtime) {
 
   const currentRouteSegment = updateRouteState(state);
 
-  if (state.movementState.dyno.flightActive) {
-    updateDynoFlightState(state, currentRouteSegment, {
-      getLimbReachRuntime: runtime.getLimbReachRuntime,
-      resolveFailure: runtime.resolveFailure,
-    });
-    tickAirborneFrameTail(state, viewportHeight, runtime);
-    return;
-  }
-
-  if (state.movementState.dyno.autoAttachActive) {
-    updateDynoAutoAttachState(state, viewportHeight, {
-      getLimbReachRuntime: runtime.getLimbReachRuntime,
-      resolveFailure: runtime.resolveFailure,
-    });
-    tickAirborneFrameTail(state, viewportHeight, runtime);
+  if (tickAirborneFrameState(state, currentRouteSegment, viewportHeight, runtime)) {
     return;
   }
 
