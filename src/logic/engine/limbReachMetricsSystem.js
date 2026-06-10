@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getDynoReachRatio } from "./dynoMetricsSystem.js";
+import { getDynoReachRatio } from "./dynoChargeMetricsSystem.js";
 
 export function getLimbRootPosition(player, limb) {
   return {

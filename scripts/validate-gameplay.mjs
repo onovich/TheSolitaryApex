@@ -16,6 +16,11 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import {
+  getDynoChargeRatioFromRaw,
+  getDynoPullVector,
+  getDynoReachRatio,
+} from "../src/logic/engine/dynoChargeMetricsSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
@@ -182,6 +187,45 @@ function validateRouteContentMetadata() {
     timedSoft: timedSoft.collapseFrames,
     obstacle: obstacle.radius,
     resourceFruit: resourceFruit.radius,
+  };
+}
+
+function validateDynoChargeMetrics() {
+  const state = createStableState();
+  const expectedHalfChargeRatio = Math.pow(0.5, GAME_CONFIG.movement.dyno.chargeEasePower);
+
+  state.movementState.dyno.chargeFrames = GAME_CONFIG.movement.dyno.chargeMaxFrames / 2;
+  state.movementState.dyno.charging = true;
+
+  if (Math.abs(getDynoChargeRatioFromRaw(0.5) - expectedHalfChargeRatio) > 0.0001) {
+    throw new Error("Dyno charge ratio easing should match configured ease power");
+  }
+
+  if (Math.abs(getDynoReachRatio(state) - expectedHalfChargeRatio) > 0.0001) {
+    throw new Error("Charging dyno reach ratio should follow eased charge ratio");
+  }
+
+  state.movementState.dyno.charging = false;
+  state.movementState.dyno.flightActive = true;
+  state.movementState.dyno.reachBonusRatio = 0.73;
+
+  if (getDynoReachRatio(state) !== 0.73) {
+    throw new Error("Airborne dyno reach ratio should use stored reach bonus");
+  }
+
+  state.pointer.x = state.player.com.x - 30;
+  state.pointer.y = state.player.com.y - state.cameraY + 40;
+
+  const pullVector = getDynoPullVector(state);
+
+  if (pullVector.pullX !== 30 || pullVector.pullY !== -40 || pullVector.pullDistance !== 50) {
+    throw new Error(`Dyno pull vector mismatch: ${JSON.stringify(pullVector)}`);
+  }
+
+  return {
+    easedHalf: expectedHalfChargeRatio,
+    reachBonus: getDynoReachRatio(state),
+    pullDistance: pullVector.pullDistance,
   };
 }
 
@@ -1322,6 +1366,7 @@ function validateRescueTarget() {
 const playerResult = validateInitialPlayerState();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
+const dynoMetricsResult = validateDynoChargeMetrics();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
@@ -1352,6 +1397,7 @@ console.log(
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
+    `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,

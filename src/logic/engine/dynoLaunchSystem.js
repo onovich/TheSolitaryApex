@@ -2,9 +2,9 @@ import { GAME_CONFIG } from "../../data/gameConfig.js";
 import {
   getDynoChargeRatioFromRaw,
   getDynoPullVector,
-  getDynoStaminaCost,
   getRawDynoChargeRatio,
-} from "./dynoMetricsSystem.js";
+} from "./dynoChargeMetricsSystem.js";
+import { getDynoStaminaCost } from "./dynoMetricsSystem.js";
 import { cancelDynoPreparation } from "./dynoStateSystem.js";
 import { pushParticles } from "./particleSystem.js";
 

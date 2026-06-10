@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { canStartDyno, getDynoPullVector } from "./dynoMetricsSystem.js";
+import { getDynoPullVector } from "./dynoChargeMetricsSystem.js";
+import { canStartDyno } from "./dynoMetricsSystem.js";
 import { cancelDynoPreparation } from "./dynoStateSystem.js";
 
 function clamp(value, min, max) {
