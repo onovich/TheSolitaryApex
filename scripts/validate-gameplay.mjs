@@ -118,6 +118,7 @@ import {
   createGoldenStance,
   createSpawnHolds,
 } from "../src/logic/engine/routePathGeneration.js";
+import { buildRouteBlueprintPathContent } from "../src/logic/engine/routeBlueprintPathAssembly.js";
 import {
   startRescueBurden,
   tickRescueBurdenState,
@@ -837,11 +838,35 @@ function validateRoutePrimitiveSystems() {
     throw new Error(`Golden path should preserve deterministic recovery scaffold generation: ${JSON.stringify(goldenPath)}`);
   }
 
+  const blueprintPath = buildRouteBlueprintPathContent(1280, 720, LEVEL_CONFIGS[0]);
+  const spawnCount = blueprintPath.spawnHolds.length;
+  const generatedHoldCount = spawnCount + blueprintPath.holds.length;
+  const segmentIds = new Set(blueprintPath.routeSegments.map((segment) => segment.id));
+
+  if (
+    spawnCount !== 4 ||
+    blueprintPath.routeSegments.length === 0 ||
+    blueprintPath.goldenPath.length === 0 ||
+    blueprintPath.goldenPath.some((stance) => !segmentIds.has(stance.segmentId)) ||
+    blueprintPath.goldenPath.some((stance) =>
+      stance.holdIndices.length !== 4 ||
+      stance.holdIndices.some((holdIndex) => holdIndex < spawnCount || holdIndex >= generatedHoldCount),
+    )
+  ) {
+    throw new Error(`Route blueprint path assembly should preserve spawn offset and segment-backed golden indices: ${JSON.stringify({
+      spawnCount,
+      generatedHoldCount,
+      routeSegments: blueprintPath.routeSegments.length,
+      goldenPath: blueprintPath.goldenPath.length,
+    })}`);
+  }
+
   return {
     deterministic: sequenceA.join(",") === sequenceB.join(","),
     nestedAfter: nested.after,
     holdRadius: hold.radius,
     pathLength: goldenPath.length,
+    blueprintStances: blueprintPath.goldenPath.length,
   };
 }
 
@@ -3236,7 +3261,7 @@ console.log(
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
-    `routePrims=${routePrimitiveResult.deterministic}/${routePrimitiveResult.nestedAfter}/${routePrimitiveResult.holdRadius}/${routePrimitiveResult.pathLength}`,
+    `routePrims=${routePrimitiveResult.deterministic}/${routePrimitiveResult.nestedAfter}/${routePrimitiveResult.holdRadius}/${routePrimitiveResult.pathLength}/${routePrimitiveResult.blueprintStances}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
