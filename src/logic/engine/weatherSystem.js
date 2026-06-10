@@ -1,35 +1,16 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
+import {
+  clampWindDebugForce,
+  getScaledWindVector,
+  getWindVectorFromPolar,
+  normalizeDegrees,
+  syncWeatherDerivedState,
+} from "./windVectorSystem.js";
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
+export { getScaledWindVector };
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
-}
-
-function normalizeDegrees(angle) {
-  const normalized = Number(angle) % 360;
-
-  if (!Number.isFinite(normalized)) {
-    return 0;
-  }
-
-  return normalized < 0 ? normalized + 360 : normalized;
-}
-
-function getWindVectorFromPolar(force, angleDegrees) {
-  const angle = (normalizeDegrees(angleDegrees) * Math.PI) / 180;
-
-  return {
-    x: Math.cos(angle) * force,
-    y: Math.sin(angle) * force,
-  };
-}
-
-function updateWeatherDerivedState(weatherState) {
-  weatherState.windForce = Math.hypot(weatherState.windX, weatherState.windY);
-  weatherState.windAngle = weatherState.windForce > 0.0001 ? normalizeDegrees((Math.atan2(weatherState.windY, weatherState.windX) * 180) / Math.PI) : 0;
 }
 
 export function createInitialWeatherState() {
@@ -45,14 +26,6 @@ export function createInitialWeatherState() {
     debugOverrideActive: false,
     debugOverrideForce: 0,
     debugOverrideAngle: 0,
-  };
-}
-
-export function getScaledWindVector(weatherState, multiplier = 1) {
-  return {
-    x: weatherState.windX * multiplier,
-    y: weatherState.windY * multiplier,
-    magnitude: weatherState.windForce * Math.abs(multiplier),
   };
 }
 
@@ -82,7 +55,7 @@ export function updateWeatherState(state) {
     weatherState.windY = 0;
   }
 
-  updateWeatherDerivedState(weatherState);
+  syncWeatherDerivedState(weatherState);
 }
 
 export function setWindDebugOverride(state, enabled, force = 0, angle = state.conditionState?.weather?.debugOverrideAngle ?? 0) {
@@ -92,7 +65,7 @@ export function setWindDebugOverride(state, enabled, force = 0, angle = state.co
     return false;
   }
 
-  const normalizedForce = clamp(Math.abs(Number(force) || 0), 0, 0.24);
+  const normalizedForce = clampWindDebugForce(force);
   weatherState.debugOverrideActive = Boolean(enabled);
   weatherState.debugOverrideForce = normalizedForce;
   weatherState.debugOverrideAngle = normalizeDegrees(angle);
@@ -103,7 +76,7 @@ export function setWindDebugOverride(state, enabled, force = 0, angle = state.co
     weatherState.targetWindY = debugVector.y;
     weatherState.windX = debugVector.x;
     weatherState.windY = debugVector.y;
-    updateWeatherDerivedState(weatherState);
+    syncWeatherDerivedState(weatherState);
   }
 
   return true;

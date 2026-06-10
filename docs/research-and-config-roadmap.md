@@ -58,7 +58,9 @@ npm run report:engine:top
 - `src/logic/engine/routeGenerationPrimitives.js`
   - Shared seeded-random helpers, hold creation, hold-type picking, and route corridor clamping used by route generation modules.
 - `src/logic/engine/weatherSystem.js`
-  - Weather state initialization, wind vector updates, and wind debug override used by the runtime engine and game hook.
+  - Weather state initialization, wind target updates, smoothing, and wind debug override used by the runtime engine and game hook.
+- `src/logic/engine/windVectorSystem.js`
+  - Wind angle normalization, polar vector conversion, derived wind state synchronization, and scaled wind-vector snapshots shared by weather and movement systems.
 - `src/logic/engine/windLineDebugSystem.js`
   - Wind-line debug tuning initialization and patch application for the developer tuning panel.
 - `src/logic/engine/environmentEvents.js`
@@ -256,7 +258,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: the smoke checklist notes that Pages refreshes after the `main` push workflow finishes.
 - Developer tuning panel:
   - Current status: the in-game `DEV` panel supports runtime Dyno tuning, local save, active-level authoring summary, route preset selection, starting inventory overrides, event toggles, run-config JSON import/export, `Copy config`, and `Copy level config`.
-  - Current status: wind debug override routes through `src/logic/engine/weatherSystem.js`, while wind-line tuning routes through `src/logic/engine/windLineDebugSystem.js`.
+  - Current status: wind debug override routes through `src/logic/engine/weatherSystem.js`, wind-vector math now lives in `src/logic/engine/windVectorSystem.js`, and wind-line tuning routes through `src/logic/engine/windLineDebugSystem.js`.
   - Current status: generated analysis values are shown next to target ranges for content counts, Golden Path safety, pressure, resource pressure, and event density.
   - Current status: `Copy level summary` exports a focused Markdown tuning handoff for the currently applied level.
   - Current status: a first-pass separate level-config screen now exists, opened from the `DEV` panel, with `Start / Route / Events / Validation` tabs and local draft JSON editing.

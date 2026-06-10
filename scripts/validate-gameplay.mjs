@@ -10,6 +10,7 @@ import {
   releaseDynoCharge,
   releaseDrag,
   setSpatialScan,
+  setWindDebugOverride,
   updateFrame,
   updatePointer,
   useItem,
@@ -413,6 +414,39 @@ function validateDebugRunOptions() {
     chalk: state.inventory.chalk.count,
     holds: state.holds.length,
     environmentEvents: state.environmentEvents.length,
+  };
+}
+
+function validateWindDebugOverride() {
+  const state = createStableState();
+
+  if (!setWindDebugOverride(state, true, 0.5, -90)) {
+    throw new Error("Wind debug override did not accept a valid weather state");
+  }
+
+  const weatherState = state.conditionState.weather;
+  const expectedForce = 0.24;
+
+  if (!weatherState.debugOverrideActive || weatherState.debugOverrideForce !== expectedForce || weatherState.debugOverrideAngle !== 270) {
+    throw new Error(`Wind debug override did not clamp force and normalize angle: ${JSON.stringify(weatherState)}`);
+  }
+
+  if (
+    Math.abs(weatherState.windX) > 0.001 ||
+    Math.abs(weatherState.windY + expectedForce) > 0.001 ||
+    Math.abs(weatherState.windForce - expectedForce) > 0.001 ||
+    weatherState.windAngle !== 270
+  ) {
+    throw new Error(`Wind debug override did not sync the derived vector fields: ${JSON.stringify(weatherState)}`);
+  }
+
+  if (setWindDebugOverride({}, true)) {
+    throw new Error("Wind debug override should reject a missing weather state");
+  }
+
+  return {
+    force: weatherState.windForce,
+    angle: weatherState.windAngle,
   };
 }
 
@@ -1012,6 +1046,7 @@ const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
 const levelTemplateResult = validateLevelTemplates();
 const debugRunResult = validateDebugRunOptions();
+const windDebugResult = validateWindDebugOverride();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -1042,6 +1077,7 @@ console.log(
     `rescueTargets=${levelTemplateResult.rescueTargets}`,
     `debugChalk=${debugRunResult.chalk}`,
     `debugEvents=${debugRunResult.environmentEvents}`,
+    `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
