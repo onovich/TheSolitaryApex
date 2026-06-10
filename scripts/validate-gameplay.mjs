@@ -68,7 +68,14 @@ import {
   tickRecoveryState as tickRecoveryStateAction,
 } from "../src/logic/engine/recoveryWindowSystem.js";
 import { createInitialDynoState, resetDynoState } from "../src/logic/engine/dynoStateSystem.js";
+import { createInitialDebugState } from "../src/logic/engine/initialDebugStateSystem.js";
+import { createInitialFeedbackState } from "../src/logic/engine/initialFeedbackStateSystem.js";
+import {
+  createInitialItemState,
+  createInitialRouteState,
+} from "../src/logic/engine/initialItemRouteStateSystem.js";
 import { createInitialMovementState } from "../src/logic/engine/initialStateSystem.js";
+import { createInitialSpatialScanState } from "../src/logic/engine/initialSpatialScanStateSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
 import {
   getClimbingLimbGroups,
@@ -227,6 +234,60 @@ function validateInitialPlayerState() {
     limbCount: state.player.limbs.length,
     attachedCount: attachedHoldIndices.filter((holdIndex) => holdIndex !== -1).length,
     filteredHolds: filteredRunContent.holds.length,
+  };
+}
+
+function validateInitialStateFactories() {
+  const levelConfig = LEVEL_CONFIGS[0];
+  const movementState = createInitialMovementState();
+  const debugState = createInitialDebugState();
+  const feedbackState = createInitialFeedbackState();
+  const spatialScan = createInitialSpatialScanState(levelConfig, 1280);
+  const itemState = createInitialItemState();
+  const routeState = createInitialRouteState([{ id: "segment-1", zoneKey: "reading" }]);
+  const fallbackRouteState = createInitialRouteState([]);
+
+  if (
+    movementState.bodyVelocity.x !== 0 ||
+    movementState.dyno.flightActive ||
+    movementState.restPose.mode !== "none"
+  ) {
+    throw new Error(`Initial movement state should include body velocity, dyno, and rest pose defaults: ${JSON.stringify(movementState)}`);
+  }
+
+  if (debugState.invincible || typeof debugState.windLine.length !== "number" || typeof debugState.windLine.curvature !== "number") {
+    throw new Error(`Initial debug state should include invincible and wind-line defaults: ${JSON.stringify(debugState)}`);
+  }
+
+  if (feedbackState.dragRejectFrames !== 0 || feedbackState.dragSnapshotLimbIndex !== -1) {
+    throw new Error(`Initial feedback state should reset drag rejection and reach snapshots: ${JSON.stringify(feedbackState)}`);
+  }
+
+  if (
+    spatialScan.enabled ||
+    !spatialScan.available ||
+    spatialScan.pivotX !== 640 ||
+    spatialScan.maxAngle < Math.PI * 2
+  ) {
+    throw new Error(`Initial spatial scan state should preserve availability and viewport pivot defaults: ${JSON.stringify(spatialScan)}`);
+  }
+
+  if (itemState.checkpoint !== null || itemState.channel !== null) {
+    throw new Error(`Initial item state should start without checkpoint or channel activity: ${JSON.stringify(itemState)}`);
+  }
+
+  if (
+    routeState.currentSegmentId !== "segment-1" ||
+    routeState.currentZoneKey !== "reading" ||
+    fallbackRouteState.currentZoneKey !== "recovery"
+  ) {
+    throw new Error(`Initial route state should follow the first segment and recover without route data: ${JSON.stringify({ routeState, fallbackRouteState })}`);
+  }
+
+  return {
+    restMode: movementState.restPose.mode,
+    routeZone: routeState.currentZoneKey,
+    spatialAvailable: spatialScan.available,
   };
 }
 
@@ -3114,6 +3175,7 @@ function validateRescueTarget() {
 }
 
 const playerResult = validateInitialPlayerState();
+const initialStateResult = validateInitialStateFactories();
 const attachmentResult = validateAttachmentSystems();
 const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
@@ -3164,6 +3226,7 @@ console.log(
   [
     "validate-gameplay:ok",
     `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}/${playerResult.filteredHolds}`,
+    `initialState=${initialStateResult.restMode}/${initialStateResult.routeZone}/${initialStateResult.spatialAvailable}`,
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
