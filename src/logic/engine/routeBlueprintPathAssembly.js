@@ -1,11 +1,8 @@
 import {
-  createNoiseHolds,
-} from "./routeContentGeneration.js";
-import {
   createGoldenPath,
-  createGoldenStance,
   createSpawnHolds,
 } from "./routePathGeneration.js";
+import { appendRouteBlueprintStanceContent } from "./routeBlueprintStanceAssembly.js";
 import {
   createRouteSegments,
   getRouteSegmentForStance,
@@ -21,32 +18,15 @@ export function buildRouteBlueprintPathContent(viewportWidth, viewportHeight, le
   const goldenPath = goldenPathBase.map((baseStance) => {
     const segment = getRouteSegmentForStance(routeSegments, baseStance.stanceIndex);
     const zoneProfile = routeConfig.zones[segment.zoneKey];
-    const stance = createGoldenStance(
-      baseStance.centerX,
-      baseStance.baseY,
-      baseStance.stanceIndex,
-      segment.zoneKey,
+    return appendRouteBlueprintStanceContent(
+      holds,
+      spawnHolds.length,
+      baseStance,
+      segment,
       zoneProfile,
+      viewportWidth,
       routeConfig,
     );
-    const holdIndices = [];
-
-    stance.holds.forEach((hold) => {
-      holdIndices.push(holds.length + spawnHolds.length);
-      holds.push(hold);
-    });
-
-    createNoiseHolds(stance, viewportWidth, segment.zoneKey, zoneProfile, routeConfig).forEach((hold) => {
-      holds.push(hold);
-    });
-
-    return {
-      centerX: stance.centerX,
-      baseY: stance.baseY,
-      zoneKey: segment.zoneKey,
-      segmentId: segment.id,
-      holdIndices,
-    };
   });
 
   return {

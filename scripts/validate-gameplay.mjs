@@ -126,6 +126,7 @@ import {
   createSpawnHolds,
 } from "../src/logic/engine/routePathGeneration.js";
 import { buildRouteBlueprintPathContent } from "../src/logic/engine/routeBlueprintPathAssembly.js";
+import { appendRouteBlueprintStanceContent } from "../src/logic/engine/routeBlueprintStanceAssembly.js";
 import { tickAirborneFrameState } from "../src/logic/engine/frameAirborneUpdateSystem.js";
 import { tickClimbingFrameState } from "../src/logic/engine/frameClimbingUpdateSystem.js";
 import {
@@ -996,6 +997,51 @@ function validateRoutePrimitiveSystems() {
     goldenPath.some((stance, index) => stance.stanceIndex !== index || stance.centerX !== 400 || stance.zoneKey !== "recovery")
   ) {
     throw new Error(`Golden path should preserve deterministic recovery scaffold generation: ${JSON.stringify(goldenPath)}`);
+  }
+
+  const assembledHolds = [];
+  const assembledStance = withRandomSource(createSequenceRandom([0.5]), () =>
+    appendRouteBlueprintStanceContent(
+      assembledHolds,
+      4,
+      { centerX: 500, baseY: 300, stanceIndex: 7 },
+      { id: "crux-0", zoneKey: "crux" },
+      {
+        noiseCountMin: 1,
+        noiseCountMax: 1,
+        noiseHoldTypes: [1],
+        routeHoldTypes: [2],
+      },
+      800,
+      {
+        ...pathRouteConfig,
+        noiseCountMin: 1,
+        noiseCountMax: 1,
+        noiseOffsetX: 0,
+        noiseOffsetY: 0,
+        spatialExperiment: {
+          ...pathRouteConfig.spatialExperiment,
+          noiseDepthMin: 0,
+          noiseDepthMax: 0,
+        },
+      },
+    ),
+  );
+
+  if (
+    assembledStance.segmentId !== "crux-0" ||
+    assembledStance.zoneKey !== "crux" ||
+    assembledStance.holdIndices.join(",") !== "4,5,6,7" ||
+    assembledHolds.length !== 5 ||
+    assembledHolds.slice(0, 4).some((hold) => hold.routeRole !== "golden" || hold.stanceIndex !== 7) ||
+    assembledHolds[4].routeRole !== "noise" ||
+    assembledHolds[4].routeZone !== "crux" ||
+    assembledHolds[4].stanceIndex !== 7
+  ) {
+    throw new Error(`Route blueprint stance assembly should preserve golden indices and append noise holds: ${JSON.stringify({
+      assembledStance,
+      assembledHolds,
+    })}`);
   }
 
   const blueprintPath = buildRouteBlueprintPathContent(1280, 720, LEVEL_CONFIGS[0]);
