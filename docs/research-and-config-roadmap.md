@@ -86,7 +86,11 @@ npm run report:engine:top
 - `src/logic/engine/particleSystem.js`
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/logic/engine/holdInteractions.js`
-  - Fragile hold departure collapse, timed-soft hold loading, and related hold-feedback particles.
+  - Compatibility facade for hold interaction ticks used by frame updates and attachment release.
+- `src/logic/engine/fragileHoldSystem.js`
+  - Fragile hold departure collapse and departure feedback particles.
+- `src/logic/engine/timedSoftHoldSystem.js`
+  - Timed-soft hold loading, collapse, forced detachment, and balance-failure routing.
 - `src/logic/engine/obstacleDrillingSystem.js`
   - Drillable-obstacle targeting, sustained drilling progress, stamina cost, obstacle destruction, and drilling feedback particles.
 - `src/logic/engine/survivalResourceSystem.js`
@@ -348,7 +352,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
-  - Current status: fragile and timed-soft runtime interactions now live in `src/logic/engine/holdInteractions.js`, while drillable-obstacle runtime interactions now live in `src/logic/engine/obstacleDrillingSystem.js`.
+  - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft runtime interactions live in `src/logic/engine/timedSoftHoldSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, and drillable-obstacle runtime interactions live in `src/logic/engine/obstacleDrillingSystem.js`.
   - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, while earthquake/avalanche hold mutation and particle feedback live in `src/logic/engine/environmentEventActivationSystem.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
