@@ -29,6 +29,7 @@ import {
   getDynoPullVector,
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
+import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
 import { getClosestHoldIndex } from "../src/logic/engine/limbHoldLookupSystem.js";
 import {
   canLimbReachTarget,
@@ -186,6 +187,77 @@ function validateAttachmentSystems() {
   return {
     attachedCount: getAttachedLimbs(hangState).length,
     anchorHoldIndex,
+  };
+}
+
+function validateBodyStateSystems() {
+  const restState = createStableState();
+  const leftFoot = restState.player.limbs.find((limb) => limb.profileKey === "leftFoot");
+  const rightFoot = restState.player.limbs.find((limb) => limb.profileKey === "rightFoot");
+
+  if (!leftFoot || !rightFoot) {
+    throw new Error("Expected both foot limbs for rest-pose validation");
+  }
+
+  leftFoot.x = 560;
+  rightFoot.x = 720;
+  leftFoot.y = 660;
+  rightFoot.y = 660;
+  restState.player.com.y = 560;
+  restState.movementState.restPose.stabilityFrames = GAME_CONFIG.movement.restPose.stabilityFramesRequired - 1;
+
+  const supportedRestPose = getRestPoseState(restState);
+
+  if (!supportedRestPose.active || supportedRestPose.mode !== "supported" || supportedRestPose.footSpan !== 160) {
+    throw new Error(`Supported rest pose mismatch: ${JSON.stringify(supportedRestPose)}`);
+  }
+
+  restState.player.limbs.filter((limb) => limb.isHand).forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+  });
+  restState.movementState.restPose.stabilityFrames = GAME_CONFIG.movement.restPose.stabilityFramesRequired - 1;
+
+  const perfectRestPose = getRestPoseState(restState);
+
+  if (!perfectRestPose.active || perfectRestPose.mode !== "perfect" || !perfectRestPose.handsDetached) {
+    throw new Error(`Perfect rest pose mismatch: ${JSON.stringify(perfectRestPose)}`);
+  }
+
+  rightFoot.attachedHoldIndex = -1;
+  restState.movementState.restPose.stabilityFrames = 5;
+
+  const decayedRestPose = getRestPoseState(restState);
+  const expectedDecayedFrames = 5 - GAME_CONFIG.movement.restPose.stabilityFramesDecay;
+
+  if (decayedRestPose.active || decayedRestPose.stabilityFrames !== expectedDecayedFrames) {
+    throw new Error(`Invalid rest pose should decay stability frames: ${JSON.stringify(decayedRestPose)}`);
+  }
+
+  const velocityState = createStableState();
+  velocityState.player.com.x = 10;
+  velocityState.player.com.y = 20;
+  velocityState.movementState.bodyVelocity = { x: 4, y: -2 };
+  applyBodyVelocity(velocityState);
+
+  if (
+    velocityState.player.com.x !== 14 ||
+    velocityState.player.com.y !== 18 ||
+    Math.abs(velocityState.movementState.bodyVelocity.x - 3.36) > 0.0001 ||
+    Math.abs(velocityState.movementState.bodyVelocity.y + 1.68) > 0.0001
+  ) {
+    throw new Error(`Body velocity damping mismatch: ${JSON.stringify(velocityState.movementState.bodyVelocity)}`);
+  }
+
+  velocityState.movementState.bodyVelocity = { x: 0.005, y: -0.005 };
+  applyBodyVelocity(velocityState);
+
+  if (velocityState.movementState.bodyVelocity.x !== 0 || velocityState.movementState.bodyVelocity.y !== 0) {
+    throw new Error("Tiny body velocity should snap to zero after damping");
+  }
+
+  return {
+    restMode: perfectRestPose.mode,
+    dampedVelocityX: velocityState.movementState.bodyVelocity.x,
   };
 }
 
@@ -1726,6 +1798,7 @@ function validateRescueTarget() {
 
 const playerResult = validateInitialPlayerState();
 const attachmentResult = validateAttachmentSystems();
+const bodyStateResult = validateBodyStateSystems();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
@@ -1760,6 +1833,7 @@ console.log(
     "validate-gameplay:ok",
     `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}`,
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
+    `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
