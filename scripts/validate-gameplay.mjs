@@ -137,7 +137,9 @@ import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
 } from "../src/logic/engine/staminaPressureSystem.js";
+import { getClimbingStaminaChange as getClimbingStaminaChangeAction } from "../src/logic/engine/climbingStaminaSystem.js";
 import { restoreStamina } from "../src/logic/engine/staminaSystem.js";
+import { collapseTimedSoftHold as collapseTimedSoftHoldAction } from "../src/logic/engine/timedSoftHoldCollapseSystem.js";
 import {
   startChannelItem,
   tickChannelItem as tickChannelItemAction,
@@ -1558,6 +1560,46 @@ function validateStaminaPressureMetrics() {
     throw new Error(`Climbing pressure stamina delta mismatch: ${pressureDelta} vs ${expectedPressureDelta}`);
   }
 
+  const dynoStaminaState = createStableState();
+  const dynoAttachedLimbs = dynoStaminaState.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1);
+  dynoStaminaState.movementState.dyno.pointerActive = true;
+
+  if (
+    getClimbingStaminaChangeAction(dynoStaminaState, dynoAttachedLimbs, { magnitude: 4 }, {
+      staminaModifier: 3,
+    }) !== 0
+  ) {
+    throw new Error("Climbing stamina helper should pause stamina changes during dyno preparation");
+  }
+
+  const climbStaminaState = createStableState();
+  const climbAttachedLimbs = climbStaminaState.player.limbs.filter((limb) => limb.attachedHoldIndex !== -1);
+  climbStaminaState.movementState.restPose.mode = "supported";
+  climbAttachedLimbs.forEach((limb) => {
+    climbStaminaState.holds[limb.attachedHoldIndex].type = 0;
+    climbStaminaState.holds[limb.attachedHoldIndex].bloodied = false;
+  });
+
+  const routeStaminaModifier = 0.25;
+  const expectedClimbDelta =
+    0.1 +
+    GAME_CONFIG.movement.restPose.supportedRecoveryBonus +
+    routeStaminaModifier -
+    climbAttachedLimbs.reduce((total, limb) => {
+      const hold = climbStaminaState.holds[limb.attachedHoldIndex];
+      return total + getHoldStaminaPenalty(climbStaminaState, limb, hold);
+    }, 0);
+  const climbDelta = getClimbingStaminaChangeAction(
+    climbStaminaState,
+    climbAttachedLimbs,
+    { magnitude: 0 },
+    { staminaModifier: routeStaminaModifier },
+  );
+
+  if (Math.abs(climbDelta - expectedClimbDelta) > 0.0001) {
+    throw new Error(`Climbing stamina helper mismatch: ${climbDelta} vs ${expectedClimbDelta}`);
+  }
+
   return {
     bloodiedPenalty: expectedBloodiedPenalty,
     chalkedPenalty: expectedChalkedPenalty,
@@ -2695,6 +2737,37 @@ function validateTimedSoftHoldCollapse() {
 
   if (!state.isPlaying) {
     throw new Error("Timed soft hold collapse from four points of contact should not immediately end the run");
+  }
+
+  const collapseState = createStableState();
+  const targetLimb = collapseState.player.limbs[0];
+  const stableLimb = collapseState.player.limbs[1];
+  const collapseHoldIndex = targetLimb.attachedHoldIndex;
+  const stableHoldIndex = collapseState.holds.findIndex(
+    (candidate, candidateIndex) => candidateIndex !== collapseHoldIndex && !candidate.removed,
+  );
+  const collapseHold = collapseState.holds[collapseHoldIndex];
+  const collapseParticlesBefore = collapseState.particles.length;
+  collapseState.frame = 42;
+  collapseHold.hazardType = "timedSoft";
+  stableLimb.attachedHoldIndex = stableHoldIndex;
+
+  collapseTimedSoftHoldAction(collapseState, collapseHoldIndex);
+
+  if (
+    !collapseHold.removed ||
+    collapseHold.hazardState !== "collapsed" ||
+    collapseHold.collapseFrame !== 42
+  ) {
+    throw new Error(`Timed soft collapse helper marked the wrong hold state: ${JSON.stringify(collapseHold)}`);
+  }
+
+  if (targetLimb.attachedHoldIndex !== -1 || stableLimb.attachedHoldIndex !== stableHoldIndex) {
+    throw new Error("Timed soft collapse helper should detach only limbs on the collapsed hold");
+  }
+
+  if (collapseState.particles.length - collapseParticlesBefore !== 22) {
+    throw new Error("Timed soft collapse helper should emit collapse feedback particles");
   }
 
   return { holdIndex };

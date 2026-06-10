@@ -116,7 +116,9 @@ npm run report:engine:top
 - `src/logic/engine/fragileHoldSystem.js`
   - Fragile hold departure collapse and departure feedback particles.
 - `src/logic/engine/timedSoftHoldSystem.js`
-  - Timed-soft hold loading, collapse, forced detachment, and balance-failure routing.
+  - Timed-soft hold loading and balance-failure routing.
+- `src/logic/engine/timedSoftHoldCollapseSystem.js`
+  - Timed-soft hold collapse state, forced detachment, and collapse feedback particles.
 - `src/logic/engine/obstacleDrillingSystem.js`
   - Drillable-obstacle runtime tick orchestration and stamina-failure routing.
 - `src/logic/engine/obstacleDrillingTargetSystem.js`
@@ -320,7 +322,9 @@ npm run report:engine:top
 - `src/logic/engine/uiSnapshotSections.js`
   - Runtime-to-UI movement and condition snapshot section builders with nested encounter-state cloning.
 - `src/logic/engine/staminaSystem.js`
-  - Stamina clamping, stamina restoration, and per-frame climbing stamina delta aggregation from rest pose, pressure deltas, recovery, route modifiers, and active item effects.
+  - Stamina clamping, stamina restoration, and stable climbing-stamina facade export.
+- `src/logic/engine/climbingStaminaSystem.js`
+  - Per-frame climbing stamina delta aggregation from rest pose, pressure deltas, recovery, route modifiers, holds, and active item effects.
 - `src/logic/engine/staminaPressureSystem.js`
   - Hold penalties, bloodied-hold pressure, wind, injury, thirst, pursuit, rope-threat, rescue-burden, and lane-blocker stamina pressure deltas.
 - `src/logic/engine/climbingMotionSystem.js`
@@ -423,7 +427,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: hold availability now lives in `src/logic/engine/attachmentAvailabilitySystem.js`, limb attachment release lives in `src/logic/engine/attachmentReleaseSystem.js`, attached-limb queries live in `src/logic/engine/attachedLimbQuerySystem.js`, checkpoint anchors live in `src/logic/engine/checkpointAnchorSystem.js`, `src/logic/engine/attachmentSystem.js` preserves stable facade exports, and detached/suspended limb pose updates live in `src/logic/engine/limbAttachmentMotionSystem.js`.
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
   - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, core snapshot section builders live in `src/logic/engine/uiSnapshotCoreSections.js`, movement and condition section builders live in `src/logic/engine/uiSnapshotSections.js`, and `gameEngine.js` preserves the public `getUiSnapshot` export.
-  - Current status: stamina clamping, restoration, and per-frame climbing stamina aggregation live in `src/logic/engine/staminaSystem.js`, while hold and condition pressure deltas live in `src/logic/engine/staminaPressureSystem.js`.
+  - Current status: stamina clamping and restoration live in `src/logic/engine/staminaSystem.js`, per-frame climbing stamina aggregation lives in `src/logic/engine/climbingStaminaSystem.js`, and hold/condition pressure deltas live in `src/logic/engine/staminaPressureSystem.js`.
   - Current status: climbing limb grouping now lives in `src/logic/engine/climbingLimbGroupSystem.js`, effective climbing wind lives in `src/logic/engine/climbingWindSystem.js`, center-of-mass sway lives in `src/logic/engine/climbingBodyCenterSystem.js`, detached-limb follow motion lives in `src/logic/engine/detachedLimbFollowSystem.js`, and `src/logic/engine/climbingMotionSystem.js` preserves the stable climbing-motion facade.
   - Current status: closest Golden Path stance lookup, route state updates, height tracking, and camera follow now live in `src/logic/engine/routeProgressSystem.js`.
   - Current status: `docs/manual-smoke-checklist.md` now documents the local and online smoke pass.
@@ -484,7 +488,7 @@ These are good near-term implementation candidates because they extend existing 
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:
   - Current status: fragile holds, timed soft holds, drillable obstacles, earthquake, and avalanche are implemented and kept off Golden Path by validation.
-  - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft runtime interactions live in `src/logic/engine/timedSoftHoldSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, while drillable-obstacle targeting and progress are split between `src/logic/engine/obstacleDrillingSystem.js`, `src/logic/engine/obstacleDrillingTargetSystem.js`, and `src/logic/engine/obstacleDrillingProgressSystem.js`.
+  - Current status: fragile runtime interactions live in `src/logic/engine/fragileHoldSystem.js`, timed-soft loading/failure routing lives in `src/logic/engine/timedSoftHoldSystem.js`, timed-soft collapse side effects live in `src/logic/engine/timedSoftHoldCollapseSystem.js`, `src/logic/engine/holdInteractions.js` preserves the compatibility facade, while drillable-obstacle targeting and progress are split between `src/logic/engine/obstacleDrillingSystem.js`, `src/logic/engine/obstacleDrillingTargetSystem.js`, and `src/logic/engine/obstacleDrillingProgressSystem.js`.
   - Current status: environment event scheduling and timers live in `src/logic/engine/environmentEvents.js`, activation dispatch lives in `src/logic/engine/environmentEventActivationSystem.js`, candidate selection lives in `src/logic/engine/environmentEventCandidateSystem.js`, earthquake mutation lives in `src/logic/engine/earthquakeEventActivationSystem.js`, and avalanche mutation lives in `src/logic/engine/avalancheEventActivationSystem.js`.
   - Current status: wind now has route-wide directional flow-line visualization.
   - Next step: balance how often they appear together in the same local window.
