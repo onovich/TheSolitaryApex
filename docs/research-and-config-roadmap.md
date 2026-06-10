@@ -202,7 +202,9 @@ npm run report:engine:top
 - `src/logic/engine/dynoAutoAttachMotionSystem.js`
   - Dyno auto-attach body freeze, per-frame progress, easing, and limb interpolation.
 - `src/logic/engine/dynoLandingTargetSystem.js`
-  - Dyno landing target selection, landing hold validation, and landing particles.
+  - Dyno landing target selection and stable landing-target facade exports.
+- `src/logic/engine/dynoLandingAttachSystem.js`
+  - Dyno landing hold validation, limb attachment, and landing feedback particles.
 - `src/logic/engine/bodyStateSystem.js`
   - Stable body-state facade exports for climbing motion.
 - `src/logic/engine/restPoseSystem.js`
@@ -371,7 +373,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: dyno public facade exports and cooldown decay now live in `src/logic/engine/dynoSystem.js`, charge begin/cancel input actions now live in `src/logic/engine/dynoChargeInputSystem.js`, per-frame charge ticking now lives in `src/logic/engine/dynoChargeTickSystem.js`, `src/logic/engine/dynoChargeSystem.js` preserves stable facade exports, dyno release gating and launch-parameter calculation live in `src/logic/engine/dynoLaunchSystem.js`, and launch state application lives in `src/logic/engine/dynoLaunchApplySystem.js`.
   - Current status: dyno availability reasons and stamina-cost query live in `src/logic/engine/dynoMetricsSystem.js`, while raw/eased charge ratios, reach ratio, and pull-vector calculation live in `src/logic/engine/dynoChargeMetricsSystem.js`.
   - Current status: dyno state initialization, reset, preparation cancellation, and flight-finish cleanup now live in `src/logic/engine/dynoStateSystem.js`.
-  - Current status: dyno airborne motion and apex-to-auto-attach transition now live in `src/logic/engine/dynoFlightSystem.js`, auto-attach startup/completion now lives in `src/logic/engine/dynoAutoAttachSystem.js`, auto-attach motion interpolation lives in `src/logic/engine/dynoAutoAttachMotionSystem.js`, and landing target selection/validation now lives in `src/logic/engine/dynoLandingTargetSystem.js`.
+  - Current status: dyno airborne motion and apex-to-auto-attach transition now live in `src/logic/engine/dynoFlightSystem.js`, auto-attach startup/completion now lives in `src/logic/engine/dynoAutoAttachSystem.js`, auto-attach motion interpolation lives in `src/logic/engine/dynoAutoAttachMotionSystem.js`, landing target selection lives in `src/logic/engine/dynoLandingTargetSystem.js`, and landing validation/attachment application lives in `src/logic/engine/dynoLandingAttachSystem.js`.
   - Current status: rest-pose detection now lives in `src/logic/engine/restPoseSystem.js`, body velocity damping lives in `src/logic/engine/bodyVelocitySystem.js`, `src/logic/engine/bodyStateSystem.js` preserves stable facade exports, and hand injury plus bloodied-hold marking live in `src/logic/engine/injuryStateSystem.js`.
   - Current status: movement, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`, while player limb creation lives in `src/logic/engine/playerStateSystem.js` and condition-state initialization lives in `src/logic/engine/conditionStateSystem.js`.
   - Current status: full run initialization, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`, while debug-run option resolution and event filtering live in `src/logic/engine/gameRunDebugSystem.js`.

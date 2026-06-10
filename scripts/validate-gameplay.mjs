@@ -39,6 +39,8 @@ import {
   getDynoLaunchParameters,
   releaseDynoCharge as releaseDynoChargeAction,
 } from "../src/logic/engine/dynoLaunchSystem.js";
+import { createDynoLandingTargets } from "../src/logic/engine/dynoLandingTargetSystem.js";
+import { attachDynoLandingTargets as attachDynoLandingTargetsAction } from "../src/logic/engine/dynoLandingAttachSystem.js";
 import {
   beginFall as beginFallAction,
   restoreCheckpointPose as restoreCheckpointPoseAction,
@@ -776,6 +778,78 @@ function validateDynoLaunchSystems() {
   return {
     cooldown: dynoState.cooldownFrames,
     particles: launchState.particles.length - particlesBefore,
+  };
+}
+
+function validateDynoLandingSystems() {
+  const adapters = createGameRuntimeInteractionAdapters({});
+  const runtime = {
+    getLimbReachRuntime: adapters.getLimbReachRuntime,
+  };
+  const targetState = createStableState();
+  const landingTargets = createDynoLandingTargets(targetState, runtime);
+  const attachableTargetCount = landingTargets.filter((target) => target.targetHoldIndex !== -1).length;
+
+  if (landingTargets.length !== targetState.player.limbs.length) {
+    throw new Error(`Dyno landing target count should match limb count: ${landingTargets.length}`);
+  }
+
+  if (attachableTargetCount < GAME_CONFIG.movement.dyno.minAttachedLimbs) {
+    throw new Error(`Dyno landing should find enough reachable targets: ${attachableTargetCount}`);
+  }
+
+  const attachState = createStableState();
+  const attachTargets = createDynoLandingTargets(attachState, runtime);
+  const particlesBefore = attachState.particles.length;
+
+  attachState.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+  });
+
+  const attachedCount = attachDynoLandingTargetsAction(attachState, attachTargets);
+
+  if (attachedCount < GAME_CONFIG.movement.dyno.minAttachedLimbs) {
+    throw new Error(`Dyno landing attach should connect enough limbs: ${attachedCount}`);
+  }
+
+  if (attachState.particles.length <= particlesBefore) {
+    throw new Error("Dyno landing attach should emit landing feedback particles");
+  }
+
+  const allAttachedLimbsReachAnchors = attachTargets
+    .filter((target) => target.targetHoldIndex !== -1)
+    .every((target) => {
+      const limb = attachState.player.limbs[target.limbIndex];
+      const holdAnchor = getHoldAnchorPosition(attachState, attachState.holds[target.targetHoldIndex]);
+
+      return (
+        limb.attachedHoldIndex === target.targetHoldIndex &&
+        Math.abs(limb.x - holdAnchor.x) < 0.001 &&
+        Math.abs(limb.y - holdAnchor.y) < 0.001
+      );
+    });
+
+  if (!allAttachedLimbsReachAnchors) {
+    throw new Error("Dyno landing attach should snap attached limbs to their target hold anchors");
+  }
+
+  const removedState = createStableState();
+  const removedTargets = createDynoLandingTargets(removedState, runtime);
+  const removedTarget = removedTargets.find((target) => target.targetHoldIndex !== -1);
+
+  removedState.player.limbs[removedTarget.limbIndex].attachedHoldIndex = -1;
+  removedState.holds[removedTarget.targetHoldIndex].removed = true;
+
+  const removedAttachedCount = attachDynoLandingTargetsAction(removedState, [removedTarget]);
+
+  if (removedAttachedCount !== 0 || removedState.player.limbs[removedTarget.limbIndex].attachedHoldIndex !== -1) {
+    throw new Error("Dyno landing attach should skip unavailable target holds");
+  }
+
+  return {
+    targets: attachableTargetCount,
+    attachedCount,
+    skippedRemoved: removedAttachedCount === 0,
   };
 }
 
@@ -2594,6 +2668,7 @@ const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
 const dynoLaunchSystemResult = validateDynoLaunchSystems();
+const dynoLandingSystemResult = validateDynoLandingSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
@@ -2641,6 +2716,7 @@ console.log(
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
     `dynoLaunchCore=${dynoLaunchSystemResult.cooldown}/${dynoLaunchSystemResult.particles}`,
+    `dynoLandingCore=${dynoLandingSystemResult.targets}/${dynoLandingSystemResult.attachedCount}/${dynoLandingSystemResult.skippedRemoved}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
