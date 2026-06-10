@@ -121,6 +121,12 @@ function validateDragDynoAndFalls() {
     updatePointer(state, state.player.com.x, state.player.com.y - state.cameraY + 210);
   }
 
+  const dynoChargeFrames = state.movementState.dyno.chargeFrames;
+
+  if (!state.movementState.dyno.charging || dynoChargeFrames <= 0) {
+    throw new Error(`Dyno charge did not reach active charging state: ${dynoChargeFrames}`);
+  }
+
   releaseDynoCharge(state);
   const dynoVelocityY = state.movementState.bodyVelocity.y;
 
@@ -257,6 +263,7 @@ function validateDragDynoAndFalls() {
   }
 
   return {
+    dynoChargeFrames,
     dynoVelocityY,
     rescueCount: state.recoveryState.rescuesUsed,
     deathReason: deathState.endMessage.reason,
@@ -1170,6 +1177,7 @@ console.log(
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
+    `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `rescues=${fallResult.rescueCount}`,
     `chalkParticles=${itemResult.chalkParticles}`,
