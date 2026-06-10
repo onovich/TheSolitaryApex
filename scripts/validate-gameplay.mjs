@@ -373,6 +373,49 @@ function validateLevelTemplates() {
   };
 }
 
+function validateDebugRunOptions() {
+  const state = createStableState({
+    levelId: "rescue-encounter-ascent",
+    debugRunConfig: {
+      startingInventory: {
+        chalk: 7,
+        protectionCam: 0,
+        energyGel: 2,
+      },
+      enabledEvents: {
+        earthquake: false,
+        avalanche: false,
+        pursuit: false,
+        ropeThreat: false,
+        rescueTargets: false,
+        laneBlockers: false,
+      },
+    },
+  });
+
+  if (state.holds.some((hold) => hold.hazardType === "rescueTarget" || hold.hazardType === "laneBlocker")) {
+    throw new Error("Debug run event toggles should filter rescue targets and lane blockers from generated holds");
+  }
+
+  if (state.environmentEvents.length > 0) {
+    throw new Error("Debug run event toggles should filter disabled environment events");
+  }
+
+  if (state.pursuit || state.ropeThreat) {
+    throw new Error("Debug run event toggles should disable pursuit and rope threat configs");
+  }
+
+  if (state.inventory.chalk.count !== 7 || state.inventory.protectionCam.count !== 0 || state.inventory.energyGel.count !== 2) {
+    throw new Error("Debug run starting inventory overrides did not survive initial state creation");
+  }
+
+  return {
+    chalk: state.inventory.chalk.count,
+    holds: state.holds.length,
+    environmentEvents: state.environmentEvents.length,
+  };
+}
+
 function validateFootDragFeel() {
   const state = createStableState();
   const footIndex = 2;
@@ -968,6 +1011,7 @@ const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
 const levelTemplateResult = validateLevelTemplates();
+const debugRunResult = validateDebugRunOptions();
 const footResult = validateFootDragFeel();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
@@ -996,6 +1040,8 @@ console.log(
     `levels=${levelTemplateResult.levelCount}`,
     `pursuitCruxSegments=${levelTemplateResult.pursuitCruxSegments}`,
     `rescueTargets=${levelTemplateResult.rescueTargets}`,
+    `debugChalk=${debugRunResult.chalk}`,
+    `debugEvents=${debugRunResult.environmentEvents}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,

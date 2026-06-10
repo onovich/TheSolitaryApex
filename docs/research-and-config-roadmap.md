@@ -126,7 +126,9 @@ npm run report:engine:top
 - `src/logic/engine/conditionStateSystem.js`
   - Condition-state initialization for weather, injury, survival, environment events, and encounter pressure defaults.
 - `src/logic/engine/gameStateFactory.js`
-  - Full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly.
+  - Full run initialization, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly.
+- `src/logic/engine/gameRunDebugSystem.js`
+  - Run-start option resolution and developer debug-run event filtering for generated content.
 - `src/logic/engine/gameEngine.js`
   - Stable public engine facade for hooks and UI callers, preserving action, frame-update, snapshot, route-generation, and debug-tuning exports.
 - `src/logic/engine/gameEngineRuntime.js`
@@ -240,7 +242,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: dyno airborne motion and apex-to-auto-attach transition now live in `src/logic/engine/dynoFlightSystem.js`, auto-attach state interpolation and completion now live in `src/logic/engine/dynoAutoAttachSystem.js`, and landing target selection/validation now lives in `src/logic/engine/dynoLandingTargetSystem.js`.
   - Current status: rest pose and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`, while hand injury and bloodied-hold marking now live in `src/logic/engine/injuryStateSystem.js`.
   - Current status: player, movement, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`, while condition-state initialization now lives in `src/logic/engine/conditionStateSystem.js`.
-  - Current status: full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`.
+  - Current status: full run initialization, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`, while debug-run option resolution and event filtering live in `src/logic/engine/gameRunDebugSystem.js`.
   - Current status: limb reach profiles, dyno reach bonus, drag reach snapshots, and raw reachability checks now live in `src/logic/engine/limbReachMetricsSystem.js`, hold lookup now lives in `src/logic/engine/limbHoldLookupSystem.js`, and drag reach feedback plus attached-limb anchor sync now live in `src/logic/engine/limbReachSystem.js`.
   - Current status: pointer updates, spatial-scan reach resync, limb drag start, drag-release hold snapping, grip particles, drag rejection feedback, and hanging recovery completion through reattachment now live in `src/logic/engine/dragInteractionSystem.js`.
   - Current status: body long-press action routing between hanging reeling and dyno charge/release/cancel preparation flows now lives in `src/logic/engine/bodyActionSystem.js`.

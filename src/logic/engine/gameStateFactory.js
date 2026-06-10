@@ -1,8 +1,10 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
-import { getLoadoutConfig } from "../../data/loadoutConfig.js";
-import { getDefaultRunDebugConfig } from "../../dev/runDebugConfig.js";
 import { createLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
+import {
+  filterGeneratedRunContent,
+  resolveGameStartOptions,
+} from "./gameRunDebugSystem.js";
 import {
   createInitialConditionState,
   createInitialDebugState,
@@ -19,22 +21,7 @@ import { createInitialInventory } from "./itemInventorySystem.js";
 import { generateWall } from "./routeGeneration.js";
 
 export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
-  const defaultRunDebugConfig = getDefaultRunDebugConfig();
-  const loadout = getLoadoutConfig(typeof levelId === "object" ? levelId.loadoutId : undefined);
-  const activeLevelId = typeof levelId === "object" ? levelId.levelId : levelId;
-  const hasDebugRunConfig = typeof levelId === "object" && Boolean(levelId.debugRunConfig);
-  const runDebugConfig = hasDebugRunConfig
-    ? {
-        levelId: typeof levelId.debugRunConfig.levelId === "string" ? levelId.debugRunConfig.levelId : activeLevelId ?? defaultRunDebugConfig.levelId,
-        startingInventory: {
-          ...(levelId.debugRunConfig.startingInventory ?? {}),
-        },
-        enabledEvents: {
-          ...defaultRunDebugConfig.enabledEvents,
-          ...(levelId.debugRunConfig.enabledEvents ?? {}),
-        },
-      }
-    : null;
+  const { activeLevelId, loadout, runDebugConfig } = resolveGameStartOptions(levelId);
   const {
     holds,
     goldenPath,
@@ -46,22 +33,12 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     pursuit,
     ropeThreat,
   } = generateWall(viewportWidth, viewportHeight, activeLevelId);
-  const filteredHolds = holds.filter((hold) => {
-    if (hold.hazardType === "rescueTarget" && runDebugConfig?.enabledEvents.rescueTargets === false) {
-      return false;
-    }
-
-    if (hold.hazardType === "laneBlocker" && runDebugConfig?.enabledEvents.laneBlockers === false) {
-      return false;
-    }
-
-    return true;
-  });
-  const filteredEnvironmentEvents = environmentEvents.filter(
-    (eventConfig) => runDebugConfig?.enabledEvents[eventConfig.type] !== false,
-  );
-  const filteredPursuit = runDebugConfig?.enabledEvents.pursuit === false ? null : pursuit;
-  const filteredRopeThreat = runDebugConfig?.enabledEvents.ropeThreat === false ? null : ropeThreat;
+  const {
+    filteredHolds,
+    filteredEnvironmentEvents,
+    filteredPursuit,
+    filteredRopeThreat,
+  } = filterGeneratedRunContent({ holds, environmentEvents, pursuit, ropeThreat }, runDebugConfig);
   const levelConfig = getLevelConfig(resolvedLevelId);
   const levelAnalysis = createLevelAnalysisSnapshot({
     levelConfig,
