@@ -42,6 +42,7 @@ git -c safe.directory=D:/WebProjects/TheSolitaryApex status --short --branch
 Run these before commit or push, in order:
 
 ```
+cmd /c npm.cmd run check:architecture
 cmd /c npm.cmd run validate
 ```
 ## Staging Policy
@@ -63,7 +64,9 @@ git -c safe.directory=D:/WebProjects/TheSolitaryApex push -u origin HEAD
 
 ## Docs And TODO
 
-None configured.
+Before committing code changes, complete `docs/architecture-refactor-checklist.md`.
+
+When module ownership, facade boundaries, validation gates, or refactor status changes, update `docs/research-and-config-roadmap.md` in the same commit.
 
 ## Safety And Branch Policy
 

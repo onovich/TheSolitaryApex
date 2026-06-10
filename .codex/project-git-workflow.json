@@ -7,11 +7,12 @@
     "safeDirectory":  "D:/WebProjects/TheSolitaryApex",
     "statusCommand":  "git -c safe.directory=D:/WebProjects/TheSolitaryApex status --short --branch",
     "validationCommands":  [
+                               "cmd /c npm.cmd run check:architecture",
                                "cmd /c npm.cmd run validate"
                            ],
     "stagingPolicy":  "ask each time",
     "commitCommand":  "",
     "pushCommand":  "git -c safe.directory=D:/WebProjects/TheSolitaryApex push -u origin HEAD",
-    "docsRequirement":  "",
+    "docsRequirement":  "Complete docs/architecture-refactor-checklist.md before code commits; update docs/research-and-config-roadmap.md when module ownership, facade boundaries, validation gates, or refactor status changes.",
     "forbiddenCommands":  ""
 }

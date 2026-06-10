@@ -7,8 +7,11 @@ This document is the working index for prototype systems, tuning entry points, a
 Run the full gate before every commit:
 
 ```bash
+npm run check:architecture
 npm run validate
 ```
+
+Architecture self-check: use `docs/architecture-refactor-checklist.md` before code commits. The project Codex hook blocks direct `git commit` / `git push`; use the wrappers documented in `.codex/project-git-workflow.md` so this check stays in the commit path.
 
 Focused checks:
 

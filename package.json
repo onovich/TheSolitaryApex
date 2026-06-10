@@ -15,6 +15,7 @@
     "report:engine:top": "node ./scripts/report-engine-structure.mjs --top 8",
     "report:levels": "node ./scripts/report-level-config.mjs",
     "report:level": "node ./scripts/report-level-config.mjs --level",
+    "check:architecture": "node ./scripts/check-architecture-workflow.mjs",
     "validate": "npm run validate:i18n && npm run validate:levels && npm run validate:gameplay && npm run build"
   },
   "dependencies": {
