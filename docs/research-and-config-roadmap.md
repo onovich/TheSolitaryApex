@@ -108,7 +108,11 @@ npm run report:engine:top
 - `src/logic/engine/fallEntrySystem.js`
   - Failure-to-fall entry, checkpoint rope-fall state creation, death-fall state creation, and checkpoint pose restoration.
 - `src/logic/engine/fallRecoverySystem.js`
-  - Rope/death fall updates and fall-mode dispatch.
+  - Fall-mode dispatch between death fall, rope catch, and hanging recovery.
+- `src/logic/engine/deathFallSystem.js`
+  - Death-fall gravity, detached limb motion, invincible stabilization handoff, and game-over finalization.
+- `src/logic/engine/ropeFallCatchSystem.js`
+  - Checkpoint rope-fall gravity, catch transition to hanging, rope particles, and rope camera follow.
 - `src/logic/engine/hangingRecoverySystem.js`
   - Hanging rope recovery ticks, reeling, rope camera movement, stamina recovery, and recovery completion back to climbing.
 - `src/logic/engine/recoveryStateSystem.js`
@@ -265,7 +269,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: protection checkpoint capture now lives in `src/logic/engine/checkpointItemSystem.js`, while rescue-target protection interactions now live in `src/logic/engine/rescueItemSystem.js`.
   - Current status: inventory count lookup, item active-state checks, and use-availability rules now live in `src/logic/engine/itemAvailabilitySystem.js`, while inventory creation, inventory UI snapshots, and checkpoint activation lookup live in `src/logic/engine/itemInventorySystem.js`.
   - Current status: active item-effect queries, per-frame decay, and refresh/stacking application now live in `src/logic/engine/itemEffectsSystem.js`.
-  - Current status: fall entry and checkpoint pose restore now live in `src/logic/engine/fallEntrySystem.js`, rope/death fall updates now live in `src/logic/engine/fallRecoverySystem.js`, and hanging rope recovery now lives in `src/logic/engine/hangingRecoverySystem.js`.
+  - Current status: fall entry and checkpoint pose restore now live in `src/logic/engine/fallEntrySystem.js`, fall-mode dispatch lives in `src/logic/engine/fallRecoverySystem.js`, death-fall updates live in `src/logic/engine/deathFallSystem.js`, rope catch updates live in `src/logic/engine/ropeFallCatchSystem.js`, and hanging rope recovery lives in `src/logic/engine/hangingRecoverySystem.js`.
   - Current status: fall/recovery state initialization, rescue-window queries, rescue stamina/wind bonuses, and per-frame rescue-window decay now live in `src/logic/engine/recoveryStateSystem.js`.
   - Current status: game-over finalization, failure-to-fall routing, and fall/dyno reset now live in `src/logic/engine/failureSystem.js`, while invincible debug toggling lives in `src/logic/engine/invincibleFailureSystem.js` and invincible attachment recovery lives in `src/logic/engine/invincibleRecoverySystem.js`.
   - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with shared tail ticks in `src/logic/engine/framePostUpdateSystem.js` and `gameEngine.js` preserving the public `updateFrame` export.
