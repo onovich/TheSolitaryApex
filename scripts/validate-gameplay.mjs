@@ -16,11 +16,13 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { isHoldAvailable } from "../src/logic/engine/attachmentSystem.js";
 import {
   getDynoChargeRatioFromRaw,
   getDynoPullVector,
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
+import { getClosestHoldIndex } from "../src/logic/engine/limbHoldLookupSystem.js";
 import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
@@ -871,6 +873,34 @@ function validateFootDragFeel() {
   return { footHoldIndex: targetHoldIndex };
 }
 
+function validateLimbHoldLookup() {
+  const state = createStableState();
+  const runtime = { isHoldAvailable };
+  const targetHoldIndex = state.holds.findIndex((hold, index) => index > 3 && !hold.hazardType && !hold.removed);
+
+  if (targetHoldIndex === -1) {
+    throw new Error("Could not find an ordinary target hold for lookup validation");
+  }
+
+  const targetHold = state.holds[targetHoldIndex];
+  targetHold.x = state.player.com.x + 16;
+  targetHold.y = state.player.com.y - 48;
+
+  const foundHoldIndex = getClosestHoldIndex(state, targetHold.x, targetHold.y, runtime, 24);
+
+  if (foundHoldIndex !== targetHoldIndex) {
+    throw new Error(`Closest hold lookup returned ${foundHoldIndex}, expected ${targetHoldIndex}`);
+  }
+
+  targetHold.removed = true;
+
+  if (getClosestHoldIndex(state, targetHold.x, targetHold.y, runtime, 24) === targetHoldIndex) {
+    throw new Error("Closest hold lookup should skip unavailable holds");
+  }
+
+  return { holdIndex: targetHoldIndex };
+}
+
 function validateFragileHoldDeparture() {
   const state = createStableState();
   const limb = state.player.limbs[0];
@@ -1581,6 +1611,7 @@ const debugRunResult = validateDebugRunOptions();
 const windDebugResult = validateWindDebugOverride();
 const invincibleResult = validateInvincibleFailureRecovery();
 const footResult = validateFootDragFeel();
+const holdLookupResult = validateLimbHoldLookup();
 const fragileResult = validateFragileHoldDeparture();
 const timedSoftResult = validateTimedSoftHoldCollapse();
 const obstacleResult = validateDrillableObstacle();
@@ -1624,6 +1655,7 @@ console.log(
     `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}/${windDebugResult.targetX.toFixed(2)}`,
     `invincibleRecovery=${invincibleResult.attachedCount}/${invincibleResult.stamina.toFixed(1)}`,
     `footHold=${footResult.footHoldIndex}`,
+    `holdLookup=${holdLookupResult.holdIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,
     `timedSoftHold=${timedSoftResult.holdIndex}`,
     `obstacle=${obstacleResult.obstacleIndex}`,
