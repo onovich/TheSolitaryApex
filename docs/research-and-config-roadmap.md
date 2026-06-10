@@ -108,7 +108,15 @@ npm run report:engine:top
 - `src/logic/engine/obstacleDrillingProgressSystem.js`
   - Sustained drilling progress, stamina cost, obstacle destruction, and drilling feedback particles.
 - `src/logic/engine/survivalResourceSystem.js`
-  - Thirst pressure ticking, resource fruit pickup detection, stamina/thirst/sensory-flow rewards, and fruit pickup feedback.
+  - Survival/resource compatibility facade for frame-update imports.
+- `src/logic/engine/survivalPressureSystem.js`
+  - Thirst pressure ticking and sensory-flow countdown.
+- `src/logic/engine/resourceFruitSystem.js`
+  - Resource fruit collection tick orchestration.
+- `src/logic/engine/resourceFruitTargetSystem.js`
+  - Resource fruit rule lookup and nearest collectable-fruit targeting.
+- `src/logic/engine/resourceFruitCollectionSystem.js`
+  - Resource fruit stamina/thirst/sensory-flow rewards, collection counts, and pickup feedback.
 - `src/logic/engine/itemFeedbackSystem.js`
   - Shared item feedback particle emission for attached-hand and player-core item effects.
 - `src/logic/engine/itemSystem.js`
@@ -358,7 +366,7 @@ These are good near-term implementation candidates because they extend existing 
   - Recommended next small implementation: tune under-covered legacy loadouts only if those loadouts become player-facing again.
 - Resource routing:
   - Current status: fruit restores stamina, relieves thirst, triggers sensory-flow visuals, and is checked by route-level density and maximum-gap validators.
-  - Current status: resource fruit pickup, thirst pressure, stamina/thirst/sensory-flow rewards, and pickup feedback now live in `src/logic/engine/survivalResourceSystem.js`.
+  - Current status: survival/resource frame-update compatibility lives in `src/logic/engine/survivalResourceSystem.js`, thirst pressure lives in `src/logic/engine/survivalPressureSystem.js`, resource fruit collection orchestration lives in `src/logic/engine/resourceFruitSystem.js`, fruit targeting lives in `src/logic/engine/resourceFruitTargetSystem.js`, and pickup rewards/feedback live in `src/logic/engine/resourceFruitCollectionSystem.js`.
   - Next step: test whether resource-reading levels need local scarcity rules, such as minimum fruit presence in route windows, optional detours, fruit corridors, or fruit decay.
   - Next step: design route-side acquisition for chalk, energy gel, and protection, such as exposed pickups, rescue rewards, obstacle caches, or post-crux rest ledges.
   - Boundary: do not turn fruit into inventory management until basic route reading proves it needs that depth.

@@ -974,6 +974,10 @@ function validateResourceFruit() {
     throw new Error("Resource fruit was not collected when a dragged limb reached it");
   }
 
+  if (fruit.hazardState !== "collected" || state.conditionState.survival.fruitCollected !== 1) {
+    throw new Error("Resource fruit collection should mark fruit state and increment collection count");
+  }
+
   if (state.conditionState.survival.thirst >= 80) {
     throw new Error("Resource fruit should relieve thirst pressure");
   }
@@ -984,6 +988,10 @@ function validateResourceFruit() {
 
   if (state.conditionState.survival.senseFrames <= 0) {
     throw new Error("Resource fruit should trigger the sensory activation window");
+  }
+
+  if (state.particles.length < 1) {
+    throw new Error("Resource fruit collection should emit pickup feedback particles");
   }
 
   return { fruitIndex };
