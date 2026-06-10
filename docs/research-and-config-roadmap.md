@@ -72,7 +72,9 @@ npm run report:engine:top
 - `src/logic/engine/pursuitSystem.js`
   - Pursuit pressure ticking, pursuit catch failure routing, invincible pursuit stabilization, and shared height calculation.
 - `src/logic/engine/ropeThreatSystem.js`
-  - Rope-threat arming, delayed checkpoint pressure, threat progress/danger state, and checkpoint break cleanup.
+  - Rope-threat delayed checkpoint pressure ticking and progress/danger threshold dispatch.
+- `src/logic/engine/ropeThreatStateSystem.js`
+  - Rope-threat reset, arming, checkpoint break cleanup, and break feedback particles.
 - `src/logic/engine/particleSystem.js`
   - Shared particle spawning and per-frame particle decay used by engine feedback, environmental events, and encounter pressure systems.
 - `src/logic/engine/holdInteractions.js`
@@ -321,7 +323,7 @@ These are good near-term implementation candidates because they extend existing 
 - Encounter pressure:
   - Current status: pursuit line, lane blockers, and rope threat exist as constrained pressure systems.
   - Current status: encounter orchestration, rescue burden, and lane-blocker runtime pressure now live in `src/logic/engine/encounterSystems.js`, while pursuit ticking and shared height calculation now live in `src/logic/engine/pursuitSystem.js`.
-  - Current status: rope-threat arming, delayed checkpoint pressure, threat progress/danger state, and checkpoint break cleanup now live in `src/logic/engine/ropeThreatSystem.js`.
+  - Current status: rope-threat delayed checkpoint pressure ticking and progress/danger threshold dispatch now live in `src/logic/engine/ropeThreatSystem.js`, while reset, arming, and checkpoint break cleanup live in `src/logic/engine/ropeThreatStateSystem.js`.
   - Next step: tune spacing and readability before adding new enemy/NPC behavior.
   - Boundary: keep them as readable pressure markers until the player can parse route priorities under stress.
 - Environmental hazards:

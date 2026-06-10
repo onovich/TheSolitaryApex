@@ -1028,6 +1028,31 @@ function validateRopeThreat() {
     throw new Error("Rope threat should not activate before a checkpoint exists");
   }
 
+  const resetState = createStableState();
+  resetState.ropeThreat = {
+    startDelayFrames: 0,
+    climbSpeed: 0.8,
+    dangerProgress: 0.5,
+    staminaPenalty: 0,
+    disableProgress: 1,
+  };
+  resetState.conditionState.encounter.ropeThreat.armed = true;
+  resetState.conditionState.encounter.ropeThreat.active = true;
+  resetState.conditionState.encounter.ropeThreat.progress = 0.7;
+  resetState.conditionState.encounter.ropeThreat.danger = true;
+  resetState.conditionState.encounter.ropeThreat.placedFrame = 0;
+
+  updateFrame(resetState, 1280, 720);
+
+  if (
+    resetState.conditionState.encounter.ropeThreat.armed ||
+    resetState.conditionState.encounter.ropeThreat.active ||
+    resetState.conditionState.encounter.ropeThreat.progress !== 0 ||
+    resetState.conditionState.encounter.ropeThreat.danger
+  ) {
+    throw new Error("Rope threat should reset when no checkpoint exists");
+  }
+
   if (!useItem(threatState, "protectionCam") || !useItem(controlState, "protectionCam")) {
     throw new Error("Protection placement failed during rope threat validation");
   }
@@ -1069,6 +1094,7 @@ function validateRopeThreat() {
   return {
     progress: threatState.conditionState.encounter.ropeThreat.progress,
     brokenCount: destroyState.conditionState.encounter.ropeThreat.checkpointBrokenCount,
+    resetCleared: !resetState.conditionState.encounter.ropeThreat.active,
   };
 }
 
@@ -1252,6 +1278,7 @@ console.log(
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
     `laneBlockerDistance=${laneBlockerResult.distance.toFixed(2)}`,
     `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
+    `ropeReset=${ropeThreatResult.resetCleared}`,
     `ropeBreaks=${ropeThreatResult.brokenCount}`,
     `spatialAngle=${spatialResult.angle.toFixed(2)}`,
     `rescuedTargets=${rescueResult.rescueCount}`,
