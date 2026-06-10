@@ -65,7 +65,17 @@ import {
 } from "../src/logic/engine/limbReachSystem.js";
 import { tickLaneBlockerState } from "../src/logic/engine/laneBlockerPressureSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
-import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
+import {
+  createSeededRandom,
+  pickHoldType,
+  randomBetween,
+  randomInt,
+  withRandomSource,
+} from "../src/logic/engine/routeRandomSystem.js";
+import {
+  clampRouteX,
+  createHold,
+} from "../src/logic/engine/routeHoldFactorySystem.js";
 import {
   startRescueBurden,
   tickRescueBurdenState,
@@ -493,6 +503,65 @@ function createSequenceRandom(values) {
   let index = 0;
 
   return () => values[index++] ?? values[values.length - 1] ?? 0;
+}
+
+function validateRoutePrimitiveSystems() {
+  const seededA = createSeededRandom("route-primitive-seed");
+  const seededB = createSeededRandom("route-primitive-seed");
+  const seededC = createSeededRandom("route-primitive-other");
+  const sequenceA = [seededA(), seededA(), seededA()];
+  const sequenceB = [seededB(), seededB(), seededB()];
+  const sequenceC = [seededC(), seededC(), seededC()];
+
+  if (sequenceA.some((value) => value < 0 || value >= 1)) {
+    throw new Error(`Seeded random values should stay in [0, 1): ${sequenceA.join(",")}`);
+  }
+
+  if (sequenceA.join(",") !== sequenceB.join(",")) {
+    throw new Error("Seeded random should be deterministic for the same seed");
+  }
+
+  if (sequenceA.join(",") === sequenceC.join(",")) {
+    throw new Error("Different route seeds should not produce the same sampled sequence");
+  }
+
+  const sampled = withRandomSource(createSequenceRandom([0.25, 0.99, 0.66]), () => ({
+    between: randomBetween(10, 20),
+    integer: randomInt(1, 3),
+    holdType: pickHoldType(["easy", "hard", "jug"]),
+  }));
+
+  if (sampled.between !== 12.5 || sampled.integer !== 3 || sampled.holdType !== "hard") {
+    throw new Error(`Route random helpers did not consume the injected random source: ${JSON.stringify(sampled)}`);
+  }
+
+  const nested = withRandomSource(createSequenceRandom([0.1, 0.2]), () => ({
+    before: randomInt(0, 9),
+    inner: withRandomSource(createSequenceRandom([0.9]), () => randomInt(0, 9)),
+    after: randomInt(0, 9),
+  }));
+
+  if (nested.before !== 1 || nested.inner !== 9 || nested.after !== 2) {
+    throw new Error(`Nested random source should restore the outer source: ${JSON.stringify(nested)}`);
+  }
+
+  const hold = createHold(10, 20, 2, { routeRole: "validation" });
+
+  if (hold.x !== 10 || hold.y !== 20 || hold.type !== 2 || hold.radius !== 10 || hold.routeRole !== "validation") {
+    throw new Error(`Hold factory should preserve coordinates, type radius, and metadata: ${JSON.stringify(hold)}`);
+  }
+
+  const routeConfig = { corridorPadding: 20 };
+
+  if (clampRouteX(100, 5, routeConfig) !== 20 || clampRouteX(100, 95, routeConfig) !== 80) {
+    throw new Error("Route corridor clamp should respect both corridor edges");
+  }
+
+  return {
+    deterministic: sequenceA.join(",") === sequenceB.join(","),
+    nestedAfter: nested.after,
+    holdRadius: hold.radius,
+  };
 }
 
 function validateRouteContentMetadata() {
@@ -2520,6 +2589,7 @@ const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const routeResult = validateRouteContent();
+const routePrimitiveResult = validateRoutePrimitiveSystems();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
@@ -2566,6 +2636,7 @@ console.log(
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
+    `routePrims=${routePrimitiveResult.deterministic}/${routePrimitiveResult.nestedAfter}/${routePrimitiveResult.holdRadius}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
