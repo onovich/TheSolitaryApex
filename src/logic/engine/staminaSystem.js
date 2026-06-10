@@ -1,6 +1,10 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getRecoveryStaminaBonus } from "./recoveryStateSystem.js";
-import { getEffectValue, hasEffectType } from "./itemEffectsSystem.js";
+import { getEffectValue } from "./itemEffectsSystem.js";
+import {
+  getClimbingPressureStaminaDelta,
+  getHoldStaminaPenalty,
+} from "./staminaPressureSystem.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
@@ -36,51 +40,14 @@ export function getClimbingStaminaChange(state, attachedLimbs, effectiveWind, cu
 
   attachedLimbs.forEach((limb) => {
     const hold = state.holds[limb.attachedHoldIndex];
-    staminaChange -= (GAME_CONFIG.holdPenaltyByType[hold.type] ?? 0) * state.loadout.modifiers.holdPenaltyMultiplier;
-
-    if (limb.isHand && hold.bloodied) {
-      const chalkMultiplier = hasEffectType(state, "staminaRecoveryBonus")
-        ? GAME_CONFIG.conditions.injury.bloodiedChalkPenaltyMultiplier
-        : 1;
-      staminaChange -= GAME_CONFIG.conditions.injury.bloodiedHoldPenalty * chalkMultiplier;
-    }
+    staminaChange -= getHoldStaminaPenalty(state, limb, hold);
   });
 
   if (restPoseMode === "supported") {
     staminaChange += GAME_CONFIG.movement.restPose.supportedRecoveryBonus;
   }
 
-  staminaChange -=
-    effectiveWind.magnitude *
-    GAME_CONFIG.conditions.weather.staminaPenaltyScale *
-    Math.max(0, 4 - attachedLimbs.length);
-
-  if (state.conditionState.injury.severity === "severe") {
-    staminaChange -= GAME_CONFIG.conditions.injury.severePenalty;
-  }
-
-  if (state.conditionState.survival.thirst > GAME_CONFIG.conditions.survival.highThirstThreshold) {
-    staminaChange -=
-      (state.conditionState.survival.thirst - GAME_CONFIG.conditions.survival.highThirstThreshold) *
-      GAME_CONFIG.conditions.survival.staminaPenaltyScale;
-  }
-
-  if (state.conditionState.encounter.danger) {
-    staminaChange -= state.pursuit?.staminaPenalty ?? 0;
-  }
-
-  if (state.conditionState.encounter.ropeThreat?.danger) {
-    staminaChange -= state.ropeThreat?.staminaPenalty ?? 0;
-  }
-
-  if (state.conditionState.encounter.rescueBurden?.active) {
-    staminaChange -= state.conditionState.encounter.rescueBurden.staminaPenalty;
-  }
-
-  if (state.conditionState.encounter.laneBlocker?.active) {
-    staminaChange -= state.conditionState.encounter.laneBlocker.staminaPenalty;
-  }
-
+  staminaChange += getClimbingPressureStaminaDelta(state, attachedLimbs.length, effectiveWind);
   staminaChange += currentRouteSegment.staminaModifier;
   staminaChange += getRecoveryStaminaBonus(state);
   staminaChange += getEffectValue(state, "staminaRecoveryBonus");

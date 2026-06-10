@@ -23,6 +23,10 @@ import {
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
 import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
 import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
+import {
+  getClimbingPressureStaminaDelta,
+  getHoldStaminaPenalty,
+} from "../src/logic/engine/staminaPressureSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
 
 function createStableState(options) {
@@ -226,6 +230,75 @@ function validateDynoChargeMetrics() {
     easedHalf: expectedHalfChargeRatio,
     reachBonus: getDynoReachRatio(state),
     pullDistance: pullVector.pullDistance,
+  };
+}
+
+function validateStaminaPressureMetrics() {
+  const holdState = createStableState();
+  const bloodiedHand = holdState.player.limbs[0];
+  const bloodiedHold = holdState.holds[bloodiedHand.attachedHoldIndex];
+  bloodiedHold.type = 1;
+  bloodiedHold.bloodied = true;
+
+  const expectedBloodiedPenalty =
+    (GAME_CONFIG.holdPenaltyByType[1] ?? 0) * holdState.loadout.modifiers.holdPenaltyMultiplier +
+    GAME_CONFIG.conditions.injury.bloodiedHoldPenalty;
+
+  if (Math.abs(getHoldStaminaPenalty(holdState, bloodiedHand, bloodiedHold) - expectedBloodiedPenalty) > 0.0001) {
+    throw new Error("Bloodied hold stamina penalty should include hold type and bloodied pressure");
+  }
+
+  const chalkedState = createStableState();
+  const chalkedHand = chalkedState.player.limbs[0];
+  const chalkedHold = chalkedState.holds[chalkedHand.attachedHoldIndex];
+  chalkedHold.type = 1;
+  chalkedHold.bloodied = true;
+  chalkedState.activeEffects.push({
+    id: "test-chalk",
+    type: "staminaRecoveryBonus",
+    value: 0.1,
+    remainingFrames: 30,
+  });
+
+  const expectedChalkedPenalty =
+    (GAME_CONFIG.holdPenaltyByType[1] ?? 0) * chalkedState.loadout.modifiers.holdPenaltyMultiplier +
+    GAME_CONFIG.conditions.injury.bloodiedHoldPenalty * GAME_CONFIG.conditions.injury.bloodiedChalkPenaltyMultiplier;
+
+  if (Math.abs(getHoldStaminaPenalty(chalkedState, chalkedHand, chalkedHold) - expectedChalkedPenalty) > 0.0001) {
+    throw new Error("Chalked bloodied hold penalty should use the chalk mitigation multiplier");
+  }
+
+  const pressureState = createStableState();
+  pressureState.conditionState.injury.severity = "severe";
+  pressureState.conditionState.survival.thirst = GAME_CONFIG.conditions.survival.highThirstThreshold + 10;
+  pressureState.conditionState.encounter.danger = true;
+  pressureState.conditionState.encounter.ropeThreat.danger = true;
+  pressureState.conditionState.encounter.rescueBurden.active = true;
+  pressureState.conditionState.encounter.rescueBurden.staminaPenalty = 0.33;
+  pressureState.conditionState.encounter.laneBlocker.active = true;
+  pressureState.conditionState.encounter.laneBlocker.staminaPenalty = 0.44;
+  pressureState.pursuit = { staminaPenalty: 0.2 };
+  pressureState.ropeThreat = { staminaPenalty: 0.3 };
+
+  const pressureDelta = getClimbingPressureStaminaDelta(pressureState, 2, { magnitude: 2 });
+  const expectedPressureDelta = -(
+    2 * GAME_CONFIG.conditions.weather.staminaPenaltyScale * 2 +
+    GAME_CONFIG.conditions.injury.severePenalty +
+    10 * GAME_CONFIG.conditions.survival.staminaPenaltyScale +
+    0.2 +
+    0.3 +
+    0.33 +
+    0.44
+  );
+
+  if (Math.abs(pressureDelta - expectedPressureDelta) > 0.0001) {
+    throw new Error(`Climbing pressure stamina delta mismatch: ${pressureDelta} vs ${expectedPressureDelta}`);
+  }
+
+  return {
+    bloodiedPenalty: expectedBloodiedPenalty,
+    chalkedPenalty: expectedChalkedPenalty,
+    pressurePenalty: -pressureDelta,
   };
 }
 
@@ -1367,6 +1440,7 @@ const playerResult = validateInitialPlayerState();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
+const staminaPressureResult = validateStaminaPressureMetrics();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
@@ -1398,6 +1472,7 @@ console.log(
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
+    `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
