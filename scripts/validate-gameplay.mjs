@@ -68,6 +68,7 @@ import {
   createDeathFallState as createDeathFallStateAction,
   createRopeFallState as createRopeFallStateAction,
 } from "../src/logic/engine/fallBeginStateSystem.js";
+import { setGameOver as setGameOverAction } from "../src/logic/engine/gameOverSystem.js";
 import {
   getRecoveryStaminaBonus,
   getRecoveryWindowRatio,
@@ -1836,6 +1837,71 @@ function validateFallEntrySystems() {
   };
 }
 
+function validateGameOverSystem() {
+  const state = createStableState();
+  state.draggedLimbIndex = 2;
+  state.itemState.channel = { itemId: "energyGel" };
+  state.feedbackState.dragRejectFrames = 9;
+  state.feedbackState.dragSnapshotActive = true;
+  state.feedbackState.dragSnapshotLimbIndex = 1;
+  state.movementState.bodyVelocity = { x: 12, y: -8 };
+  state.movementState.dyno.pointerActive = true;
+  state.fallState = {
+    active: true,
+    mode: "death-fall",
+    reason: "test",
+    anchorHoldIndex: -1,
+    anchorX: 0,
+    anchorY: 0,
+    ropeLength: 0,
+    catchLength: 0,
+    velocityX: 4,
+    velocityY: 12,
+    reeling: false,
+    deathThresholdY: 99,
+  };
+  state.recoveryState.rescuesUsed = 2;
+  state.recoveryState.rescueWindowFrames = 11;
+  state.recoveryState.rescueWindowTotalFrames = 20;
+  state.maxHeightReached = 321;
+  state.staminaCap = 76;
+
+  setGameOverAction(state, "pursuit");
+
+  if (
+    state.isPlaying ||
+    state.draggedLimbIndex !== -1 ||
+    state.itemState.channel !== null ||
+    state.feedbackState.dragRejectFrames !== 0 ||
+    state.feedbackState.dragSnapshotActive ||
+    state.feedbackState.dragSnapshotLimbIndex !== -1 ||
+    state.movementState.bodyVelocity.x !== 0 ||
+    state.movementState.bodyVelocity.y !== 0 ||
+    state.movementState.dyno.pointerActive ||
+    state.fallState.active ||
+    state.recoveryState.rescueWindowFrames !== 0 ||
+    state.recoveryState.rescueWindowTotalFrames !== 0 ||
+    state.recoveryState.lastFailureReason !== "pursuit"
+  ) {
+    throw new Error("Game-over finalization should clear transient interaction, fall, dyno, feedback, and recovery state");
+  }
+
+  if (
+    state.endMessage.reason !== "pursuit" ||
+    state.endMessage.finalHeight !== 321 ||
+    state.endMessage.rescueCount !== 2 ||
+    state.endMessage.staminaCap !== 76
+  ) {
+    throw new Error(`Game-over finalization should preserve final run summary: ${JSON.stringify(state.endMessage)}`);
+  }
+
+  return {
+    reason: state.endMessage.reason,
+    rescueCount: state.endMessage.rescueCount,
+    finalHeight: state.endMessage.finalHeight,
+  };
+}
+
 function validateDragDynoAndFalls() {
   const state = createStableState();
 
@@ -3549,6 +3615,7 @@ const dynoStateSystemResult = validateDynoStateSystems();
 const recoveryWindowResult = validateRecoveryWindowSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
+const gameOverResult = validateGameOverSystem();
 const fallResult = validateDragDynoAndFalls();
 const itemAvailabilityResult = validateItemAvailabilitySystems();
 const itemChannelResult = validateItemChannelSystems();
@@ -3605,6 +3672,7 @@ console.log(
     `recoveryWindow=${recoveryWindowResult.tickedFrames}/${recoveryWindowResult.windMultiplier.toFixed(2)}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,
+    `gameOver=${gameOverResult.reason}/${gameOverResult.rescueCount}/${gameOverResult.finalHeight}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
