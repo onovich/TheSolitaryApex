@@ -1,5 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { applyBodyVelocity, getRestPoseState, updateInjuryState } from "./bodyStateSystem.js";
+import { applyBodyVelocity, getRestPoseState } from "./bodyStateSystem.js";
+import { updateInjuryState } from "./injuryStateSystem.js";
 import { getRecoveryWindMultiplier } from "./recoveryStateSystem.js";
 import { getScaledWindVector } from "./weatherSystem.js";
 

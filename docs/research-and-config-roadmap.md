@@ -112,7 +112,9 @@ npm run report:engine:top
 - `src/logic/engine/dynoLandingTargetSystem.js`
   - Dyno landing target selection, landing hold validation, and landing particles.
 - `src/logic/engine/bodyStateSystem.js`
-  - Rest-pose detection, hand-injury progression, bloodied-hold marking, and body velocity damping.
+  - Rest-pose detection and body velocity damping.
+- `src/logic/engine/injuryStateSystem.js`
+  - Hand-injury progression, bloodied-hold marking, and injury severity updates.
 - `src/logic/engine/initialStateSystem.js`
   - Player, movement, debug, feedback, item, route, spatial-scan, fall, and recovery state factories.
 - `src/logic/engine/conditionStateSystem.js`
@@ -230,7 +232,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: dyno availability reasons, stamina-cost query, raw/eased charge ratios, reach ratio, and pull-vector calculation now live in `src/logic/engine/dynoMetricsSystem.js`.
   - Current status: dyno state initialization, reset, preparation cancellation, and flight-finish cleanup now live in `src/logic/engine/dynoStateSystem.js`.
   - Current status: dyno airborne motion and apex-to-auto-attach transition now live in `src/logic/engine/dynoFlightSystem.js`, auto-attach state interpolation and completion now live in `src/logic/engine/dynoAutoAttachSystem.js`, and landing target selection/validation now lives in `src/logic/engine/dynoLandingTargetSystem.js`.
-  - Current status: rest pose, hand injury, bloodied-hold marking, and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`.
+  - Current status: rest pose and body velocity damping now live in `src/logic/engine/bodyStateSystem.js`, while hand injury and bloodied-hold marking now live in `src/logic/engine/injuryStateSystem.js`.
   - Current status: player, movement, debug, feedback, item, route, spatial-scan, fall, and recovery state factories now live in `src/logic/engine/initialStateSystem.js`, while condition-state initialization now lives in `src/logic/engine/conditionStateSystem.js`.
   - Current status: full run initialization, debug-run event filtering, loadout inventory setup, route analysis snapshot creation, and initial aggregate game-state assembly now live in `src/logic/engine/gameStateFactory.js`.
   - Current status: limb reach profiles, dyno reach bonus, drag reach snapshots, and raw reachability checks now live in `src/logic/engine/limbReachMetricsSystem.js`, hold lookup now lives in `src/logic/engine/limbHoldLookupSystem.js`, and drag reach feedback plus attached-limb anchor sync now live in `src/logic/engine/limbReachSystem.js`.
