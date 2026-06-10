@@ -29,6 +29,11 @@ import {
   getDynoPullVector,
   getDynoReachRatio,
 } from "../src/logic/engine/dynoChargeMetricsSystem.js";
+import {
+  advanceDynoCharge as advanceDynoChargeAction,
+  beginDynoCharge as beginDynoChargeAction,
+  cancelDynoCharge as cancelDynoChargeAction,
+} from "../src/logic/engine/dynoChargeSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
 import {
   getClimbingLimbGroups,
@@ -556,6 +561,65 @@ function validateDynoChargeMetrics() {
     easedHalf: expectedHalfChargeRatio,
     reachBonus: getDynoReachRatio(state),
     pullDistance: pullVector.pullDistance,
+  };
+}
+
+function validateDynoChargeSystems() {
+  const blockedState = createStableState();
+  const runtime = {
+    pointerUpdates: 0,
+    getAttachedLimbs,
+    updatePointer(state, screenX, screenY) {
+      this.pointerUpdates += 1;
+      updatePointer(state, screenX, screenY);
+    },
+  };
+
+  if (beginDynoChargeAction(blockedState, blockedState.player.com.x, blockedState.player.com.y - blockedState.cameraY, runtime)) {
+    throw new Error("Direct dyno charge input should require an active checkpoint");
+  }
+
+  const state = createStableState();
+
+  if (!useItem(state, "protectionCam")) {
+    throw new Error("Direct dyno charge validation could not place protection");
+  }
+
+  if (!beginDynoChargeAction(state, state.player.com.x, state.player.com.y - state.cameraY, runtime)) {
+    throw new Error("Direct dyno charge input did not start with a valid checkpoint");
+  }
+
+  if (!state.movementState.dyno.pointerActive || state.movementState.dyno.holdFrames !== 0 || runtime.pointerUpdates < 1) {
+    throw new Error("Direct dyno charge input should initialize pointer-active charge state");
+  }
+
+  updatePointer(state, state.player.com.x, state.player.com.y - state.cameraY + GAME_CONFIG.movement.dyno.pullMaxDistance);
+
+  for (let index = 0; index < GAME_CONFIG.movement.dyno.holdFramesRequired + 1; index += 1) {
+    advanceDynoChargeAction(state);
+  }
+
+  if (!state.movementState.dyno.charging || state.movementState.dyno.chargeFrames <= 0) {
+    throw new Error(`Direct dyno charge tick did not activate charging: ${state.movementState.dyno.chargeFrames}`);
+  }
+
+  if (state.movementState.dyno.launchVector.y >= 0) {
+    throw new Error(`Direct dyno charge tick should prepare an upward launch vector: ${JSON.stringify(state.movementState.dyno.launchVector)}`);
+  }
+
+  const chargedFrames = state.movementState.dyno.chargeFrames;
+
+  if (!cancelDynoChargeAction(state)) {
+    throw new Error("Direct dyno charge cancellation should succeed while the pointer is active");
+  }
+
+  if (state.movementState.dyno.pointerActive || state.movementState.dyno.charging || state.movementState.dyno.chargeFrames !== 0) {
+    throw new Error("Direct dyno charge cancellation should reset charge preparation state");
+  }
+
+  return {
+    chargeFrames: chargedFrames,
+    pointerUpdates: runtime.pointerUpdates,
   };
 }
 
@@ -2046,6 +2110,7 @@ const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
+const dynoChargeSystemResult = validateDynoChargeSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -2086,6 +2151,7 @@ console.log(
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
+    `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,

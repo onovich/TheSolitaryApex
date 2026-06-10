@@ -1,0 +1,47 @@
+import { GAME_CONFIG } from "../../data/gameConfig.js";
+import { getDynoPullVector } from "./dynoChargeMetricsSystem.js";
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+export function advanceDynoCharge(state) {
+  const dynoState = state.movementState.dyno;
+
+  if (!dynoState.pointerActive) {
+    return;
+  }
+
+  dynoState.holdFrames += 1;
+
+  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
+  dynoState.pullDistance = pullDistance;
+
+  if (
+    dynoState.holdFrames < GAME_CONFIG.movement.dyno.holdFramesRequired ||
+    pullDistance < GAME_CONFIG.movement.dyno.pullMinDistance
+  ) {
+    dynoState.charging = false;
+    dynoState.chargeFrames = 0;
+    return;
+  }
+
+  const pullRatio = clamp(
+    (pullDistance - GAME_CONFIG.movement.dyno.pullMinDistance) /
+      Math.max(1, GAME_CONFIG.movement.dyno.pullMaxDistance - GAME_CONFIG.movement.dyno.pullMinDistance),
+    0,
+    1,
+  );
+
+  dynoState.charging = true;
+  dynoState.chargeFrames = Math.round(
+    GAME_CONFIG.movement.dyno.minChargeFrames +
+      (GAME_CONFIG.movement.dyno.chargeMaxFrames - GAME_CONFIG.movement.dyno.minChargeFrames) * pullRatio,
+  );
+
+  const pullLength = Math.max(1, pullDistance);
+  dynoState.launchVector = {
+    x: pullX / pullLength,
+    y: pullY / pullLength,
+  };
+}
