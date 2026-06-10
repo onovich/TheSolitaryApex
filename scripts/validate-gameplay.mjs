@@ -16,7 +16,14 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
-import { isHoldAvailable } from "../src/logic/engine/attachmentSystem.js";
+import {
+  getAttachedLimbs,
+  getCheckpointAnchorHoldIndex,
+  getCheckpointAnchorPosition,
+  isHoldAvailable,
+  isSingleHandHang,
+  releaseHoldAttachment,
+} from "../src/logic/engine/attachmentSystem.js";
 import {
   getDynoChargeRatioFromRaw,
   getDynoPullVector,
@@ -105,6 +112,80 @@ function validateInitialPlayerState() {
   return {
     limbCount: state.player.limbs.length,
     attachedCount: attachedHoldIndices.filter((holdIndex) => holdIndex !== -1).length,
+  };
+}
+
+function validateAttachmentSystems() {
+  const unavailableHoldTypes = ["obstacle", "resourceFruit", "rescueTarget", "laneBlocker"];
+
+  if (!isHoldAvailable({ hazardType: undefined, removed: false })) {
+    throw new Error("Ordinary hold should be available for attachment");
+  }
+
+  if (isHoldAvailable({ removed: true })) {
+    throw new Error("Removed hold should not be available for attachment");
+  }
+
+  for (const hazardType of unavailableHoldTypes) {
+    if (isHoldAvailable({ hazardType, removed: false })) {
+      throw new Error(`Hazard hold should not be available for attachment: ${hazardType}`);
+    }
+  }
+
+  const attachedState = createStableState();
+  attachedState.holds[attachedState.player.limbs[0].attachedHoldIndex].removed = true;
+
+  if (getAttachedLimbs(attachedState).length !== 3) {
+    throw new Error("Attached limb query should skip limbs on unavailable holds");
+  }
+
+  const hangState = createStableState();
+
+  if (isSingleHandHang(hangState)) {
+    throw new Error("Initial two-hand stance should not count as a single-hand hang");
+  }
+
+  hangState.player.limbs[1].attachedHoldIndex = -1;
+
+  if (!isSingleHandHang(hangState)) {
+    throw new Error("One attached hand plus attached feet should count as a single-hand hang");
+  }
+
+  const releaseState = createStableState();
+  const releasedLimb = releaseState.player.limbs[0];
+  releaseHoldAttachment(releaseState, releasedLimb);
+
+  if (releasedLimb.attachedHoldIndex !== -1) {
+    throw new Error("Releasing an attached limb should clear its hold index");
+  }
+
+  const anchorState = createStableState();
+  anchorState.holds[0].y = 660;
+  anchorState.holds[1].y = 640;
+  anchorState.holds[2].y = 620;
+  anchorState.holds[3].y = 480;
+
+  const anchorHoldIndex = getCheckpointAnchorHoldIndex(anchorState);
+
+  if (anchorHoldIndex !== 3) {
+    throw new Error(`Checkpoint anchor should pick the highest attached hold, got ${anchorHoldIndex}`);
+  }
+
+  const anchorPosition = getCheckpointAnchorPosition(anchorState, { anchorHoldIndex, anchorX: 0, anchorY: 0 });
+
+  if (anchorPosition.x !== anchorState.holds[anchorHoldIndex].x || anchorPosition.y !== anchorState.holds[anchorHoldIndex].y) {
+    throw new Error("Checkpoint anchor position should resolve through the anchor hold");
+  }
+
+  const fallbackAnchor = getCheckpointAnchorPosition(anchorState, { anchorHoldIndex: -1, anchorX: 123, anchorY: 456 });
+
+  if (fallbackAnchor.x !== 123 || fallbackAnchor.y !== 456) {
+    throw new Error("Checkpoint anchor position should fall back to stored coordinates");
+  }
+
+  return {
+    attachedCount: getAttachedLimbs(hangState).length,
+    anchorHoldIndex,
   };
 }
 
@@ -1644,6 +1725,7 @@ function validateRescueTarget() {
 }
 
 const playerResult = validateInitialPlayerState();
+const attachmentResult = validateAttachmentSystems();
 const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
@@ -1677,6 +1759,7 @@ console.log(
   [
     "validate-gameplay:ok",
     `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}`,
+    `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
