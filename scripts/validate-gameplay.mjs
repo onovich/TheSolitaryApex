@@ -45,6 +45,12 @@ import {
   beginFall as beginFallAction,
   restoreCheckpointPose as restoreCheckpointPoseAction,
 } from "../src/logic/engine/fallEntrySystem.js";
+import {
+  getRecoveryStaminaBonus,
+  getRecoveryWindowRatio,
+  getRecoveryWindMultiplier,
+  tickRecoveryState as tickRecoveryStateAction,
+} from "../src/logic/engine/recoveryWindowSystem.js";
 import { resetDynoState } from "../src/logic/engine/dynoStateSystem.js";
 import { createInitialMovementState } from "../src/logic/engine/initialStateSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
@@ -850,6 +856,64 @@ function validateDynoLandingSystems() {
     targets: attachableTargetCount,
     attachedCount,
     skippedRemoved: removedAttachedCount === 0,
+  };
+}
+
+function validateRecoveryWindowSystems() {
+  const state = createStableState();
+  state.recoveryState.rescueWindowFrames = 150;
+  state.recoveryState.rescueWindowTotalFrames = 100;
+
+  if (getRecoveryWindowRatio(state) !== 1) {
+    throw new Error("Recovery window ratio should clamp above one");
+  }
+
+  const halfState = createStableState();
+  halfState.recoveryState.rescueWindowFrames = 48;
+  halfState.recoveryState.rescueWindowTotalFrames = 96;
+
+  if (getRecoveryWindowRatio(halfState) !== 0.5) {
+    throw new Error(`Recovery window ratio should expose the current rescue-window progress: ${getRecoveryWindowRatio(halfState)}`);
+  }
+
+  const expectedStaminaBonus = GAME_CONFIG.recoveryLoop.rescueRecoveryBonus * 0.5;
+  const expectedWindMultiplier = 1 - (1 - GAME_CONFIG.recoveryLoop.rescueWindMultiplier) * 0.5;
+
+  if (Math.abs(getRecoveryStaminaBonus(halfState) - expectedStaminaBonus) > 0.0001) {
+    throw new Error("Recovery stamina bonus should scale with the rescue-window ratio");
+  }
+
+  if (Math.abs(getRecoveryWindMultiplier(halfState) - expectedWindMultiplier) > 0.0001) {
+    throw new Error("Recovery wind multiplier should scale with the rescue-window ratio");
+  }
+
+  tickRecoveryStateAction(halfState);
+
+  if (halfState.recoveryState.rescueWindowFrames !== 47) {
+    throw new Error(`Recovery window tick should decrement active rescue frames: ${halfState.recoveryState.rescueWindowFrames}`);
+  }
+
+  halfState.recoveryState.rescueWindowFrames = 0;
+  tickRecoveryStateAction(halfState);
+
+  if (halfState.recoveryState.rescueWindowFrames !== 0) {
+    throw new Error("Recovery window tick should not decrement below zero");
+  }
+
+  const missingState = { recoveryState: null };
+
+  if (
+    getRecoveryWindowRatio(missingState) !== 0 ||
+    getRecoveryStaminaBonus(missingState) !== 0 ||
+    getRecoveryWindMultiplier(missingState) !== 1
+  ) {
+    throw new Error("Recovery window helpers should return safe defaults without recovery state");
+  }
+
+  return {
+    ratio: getRecoveryWindowRatio(halfState),
+    windMultiplier: expectedWindMultiplier,
+    tickedFrames: 47,
   };
 }
 
@@ -2669,6 +2733,7 @@ const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
 const dynoLaunchSystemResult = validateDynoLaunchSystems();
 const dynoLandingSystemResult = validateDynoLandingSystems();
+const recoveryWindowResult = validateRecoveryWindowSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
@@ -2717,6 +2782,7 @@ console.log(
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
     `dynoLaunchCore=${dynoLaunchSystemResult.cooldown}/${dynoLaunchSystemResult.particles}`,
     `dynoLandingCore=${dynoLandingSystemResult.targets}/${dynoLandingSystemResult.attachedCount}/${dynoLandingSystemResult.skippedRemoved}`,
+    `recoveryWindow=${recoveryWindowResult.tickedFrames}/${recoveryWindowResult.windMultiplier.toFixed(2)}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
