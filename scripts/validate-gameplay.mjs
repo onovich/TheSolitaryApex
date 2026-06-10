@@ -427,6 +427,43 @@ function validateLoadouts() {
   };
 }
 
+function validateUiSnapshotAssembly() {
+  const state = createStableState();
+  state.conditionState.weather.debugOverrideActive = true;
+  state.conditionState.weather.debugOverrideForce = 0.42;
+  state.conditionState.weather.debugOverrideAngle = 135;
+  state.conditionState.encounter.ropeThreat.active = false;
+
+  const snapshot = getUiSnapshot(state, 42);
+
+  if (snapshot.frame !== 42) {
+    throw new Error(`UI snapshot should preserve the requested frame: ${snapshot.frame}`);
+  }
+
+  if (snapshot.movement.dyno.availability !== "checkpoint" || snapshot.movement.dyno.available) {
+    throw new Error(`Initial dyno UI availability mismatch: ${JSON.stringify(snapshot.movement.dyno)}`);
+  }
+
+  if (
+    !snapshot.conditions.weather.debugOverrideActive ||
+    snapshot.conditions.weather.debugOverrideForce !== 0.42 ||
+    snapshot.conditions.weather.debugOverrideAngle !== 135
+  ) {
+    throw new Error("UI snapshot should expose weather debug override fields");
+  }
+
+  snapshot.conditions.encounter.ropeThreat.active = true;
+
+  if (state.conditionState.encounter.ropeThreat.active) {
+    throw new Error("UI snapshot should clone nested encounter condition state");
+  }
+
+  return {
+    dynoAvailability: snapshot.movement.dyno.availability,
+    conditionClone: !state.conditionState.encounter.ropeThreat.active,
+  };
+}
+
 function validateLevelTemplates() {
   const levelIds = LEVEL_CONFIGS.map((levelConfig) => levelConfig.id);
 
@@ -1223,6 +1260,7 @@ const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
+const uiSnapshotResult = validateUiSnapshotAssembly();
 const levelTemplateResult = validateLevelTemplates();
 const debugRunResult = validateDebugRunOptions();
 const windDebugResult = validateWindDebugOverride();
@@ -1257,6 +1295,8 @@ console.log(
     `zeroProtectionDisabled=${itemResult.zeroProtectionDisabled}`,
     `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,
     `rescueDynoCost=${loadoutResult.rescueSupportDynoCost.toFixed(2)}`,
+    `uiDyno=${uiSnapshotResult.dynoAvailability}`,
+    `uiClone=${uiSnapshotResult.conditionClone}`,
     `levels=${levelTemplateResult.levelCount}`,
     `pursuitCruxSegments=${levelTemplateResult.pursuitCruxSegments}`,
     `rescueTargets=${levelTemplateResult.rescueTargets}`,

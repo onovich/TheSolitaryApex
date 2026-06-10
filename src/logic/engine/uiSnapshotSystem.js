@@ -1,12 +1,11 @@
 import { cloneLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
-import {
-  getDynoAvailabilityReason,
-  getDynoChargeRatio,
-  getDynoReachRatio,
-  getDynoStaminaCost,
-} from "./dynoMetricsSystem.js";
+import { getDynoAvailabilityReason } from "./dynoMetricsSystem.js";
 import { getRecoveryWindowRatio } from "./recoveryStateSystem.js";
 import { getInventoryUiState } from "./itemInventorySystem.js";
+import {
+  buildConditionsSnapshot,
+  buildMovementSnapshot,
+} from "./uiSnapshotSections.js";
 
 export function buildUiSnapshot(state, frame, runtime) {
   const dynoAvailability = getDynoAvailabilityReason(state, runtime.getDynoRuntime());
@@ -49,40 +48,8 @@ export function buildUiSnapshot(state, frame, runtime) {
       holdIndex: state.feedbackState.holdIndex,
     },
     spatialScan: { ...state.spatialScan },
-    movement: {
-      dyno: {
-        charging: state.movementState.dyno.charging,
-        active: state.movementState.dyno.flightActive || state.movementState.dyno.autoAttachActive,
-        preparing: state.movementState.dyno.pointerActive && !state.movementState.dyno.charging,
-        chargeRatio: getDynoChargeRatio(state),
-        cooldownFrames: state.movementState.dyno.cooldownFrames,
-        reachBonusRatio: getDynoReachRatio(state),
-        available: dynoAvailability === "ready",
-        availability: dynoAvailability,
-        staminaCost: getDynoStaminaCost(state),
-      },
-      restPose: { ...state.movementState.restPose },
-    },
-    conditions: {
-      weather: {
-        windForce: state.conditionState.weather.windForce,
-        windAngle: state.conditionState.weather.windAngle,
-        windX: state.conditionState.weather.windX,
-        windY: state.conditionState.weather.windY,
-        debugOverrideActive: state.conditionState.weather.debugOverrideActive,
-        debugOverrideForce: state.conditionState.weather.debugOverrideForce,
-        debugOverrideAngle: state.conditionState.weather.debugOverrideAngle,
-      },
-      injury: { ...state.conditionState.injury },
-      survival: { ...state.conditionState.survival },
-      environment: { ...state.conditionState.environment },
-      encounter: {
-        ...state.conditionState.encounter,
-        rescueBurden: { ...state.conditionState.encounter.rescueBurden },
-        laneBlocker: { ...state.conditionState.encounter.laneBlocker },
-        ropeThreat: { ...state.conditionState.encounter.ropeThreat },
-      },
-    },
+    movement: buildMovementSnapshot(state, dynoAvailability),
+    conditions: buildConditionsSnapshot(state),
     debug: {
       invincible: state.debugState.invincible,
       windLine: { ...state.debugState.windLine },

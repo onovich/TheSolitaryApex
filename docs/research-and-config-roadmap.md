@@ -172,7 +172,9 @@ npm run report:engine:top
 - `src/logic/engine/feedbackSystem.js`
   - Drag rejection feedback, drag constraint snapshot clearing, and per-frame feedback countdown state shared by drag, fall, and game-over flows.
 - `src/logic/engine/uiSnapshotSystem.js`
-  - Runtime-to-UI snapshot assembly for stamina, route, recovery, fall, feedback, movement, condition, debug, level analysis, tutorial, and end-message fields.
+  - Runtime-to-UI snapshot assembly for top-level stamina, route, recovery, fall, feedback, debug, level analysis, tutorial, and end-message fields.
+- `src/logic/engine/uiSnapshotSections.js`
+  - Runtime-to-UI movement and condition snapshot section builders with nested encounter-state cloning.
 - `src/logic/engine/staminaSystem.js`
   - Stamina clamping, stamina restoration, and per-frame climbing stamina delta from rest pose, hold penalties, bloodied holds, wind, injury, thirst, encounters, recovery, route modifiers, and active item effects.
 - `src/logic/engine/climbingMotionSystem.js`
@@ -266,7 +268,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: body long-press action routing between hanging reeling and dyno charge/release/cancel preparation flows now lives in `src/logic/engine/bodyActionSystem.js`.
   - Current status: hold availability, limb attachment release, attached-limb queries, and checkpoint anchors now live in `src/logic/engine/attachmentSystem.js`, while detached/suspended limb pose updates live in `src/logic/engine/limbAttachmentMotionSystem.js`.
   - Current status: drag rejection feedback, drag constraint snapshot clearing, and feedback countdown ticks now live in `src/logic/engine/feedbackSystem.js`.
-  - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, with `gameEngine.js` preserving the public `getUiSnapshot` export.
+  - Current status: runtime-to-UI snapshot assembly now lives in `src/logic/engine/uiSnapshotSystem.js`, movement and condition section builders live in `src/logic/engine/uiSnapshotSections.js`, and `gameEngine.js` preserves the public `getUiSnapshot` export.
   - Current status: stamina clamping, restoration, and per-frame climbing stamina delta now live in `src/logic/engine/staminaSystem.js`.
   - Current status: attached/detached limb grouping, body motion, rest-pose/injury refresh, climbing wind, and detached-limb follow motion now live in `src/logic/engine/climbingMotionSystem.js`.
   - Current status: closest Golden Path stance lookup, route state updates, height tracking, and camera follow now live in `src/logic/engine/routeProgressSystem.js`.
