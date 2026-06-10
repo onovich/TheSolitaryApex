@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
-import { getCurrentHeight } from "./encounterSystems.js";
+import { getCurrentHeight } from "./pursuitHeightSystem.js";
 import { getRouteSegmentForStance } from "./routeGeneration.js";
 
 function getClosestGoldenStanceIndex(state) {

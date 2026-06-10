@@ -1,7 +1,16 @@
-import { GAME_CONFIG } from "../../data/gameConfig.js";
+import {
+  resolvePursuitCatch,
+  updatePursuitDangerState,
+} from "./pursuitCatchSystem.js";
 
-export function getCurrentHeight(state, viewportHeight) {
-  return Math.max(0, Math.floor((viewportHeight - state.player.com.y) / GAME_CONFIG.heightScale));
+export { getCurrentHeight } from "./pursuitHeightSystem.js";
+
+function completePursuitState(pursuitState) {
+  pursuitState.pursuitPhase = "complete";
+  pursuitState.pursuitCompleted = true;
+  pursuitState.pursuitActive = false;
+  pursuitState.danger = false;
+  pursuitState.gap = Infinity;
 }
 
 export function tickPursuitState(state, viewportHeight, runtime) {
@@ -35,11 +44,7 @@ export function tickPursuitState(state, viewportHeight, runtime) {
       if (retreatSpeed > 0) {
         pursuitState.pursuitPhase = "retreating";
       } else {
-        pursuitState.pursuitPhase = "complete";
-        pursuitState.pursuitCompleted = true;
-        pursuitState.pursuitActive = false;
-        pursuitState.danger = false;
-        pursuitState.gap = Infinity;
+        completePursuitState(pursuitState);
         return;
       }
     }
@@ -49,28 +54,13 @@ export function tickPursuitState(state, viewportHeight, runtime) {
 
     if (pursuitState.threatHeight <= 0.001) {
       pursuitState.threatHeight = 0;
-      pursuitState.pursuitPhase = "complete";
-      pursuitState.pursuitCompleted = true;
-      pursuitState.pursuitActive = false;
-      pursuitState.danger = false;
-      pursuitState.gap = Infinity;
+      completePursuitState(pursuitState);
       return;
     }
   } else {
     return;
   }
 
-  pursuitState.gap = getCurrentHeight(state, viewportHeight) - pursuitState.threatHeight;
-  pursuitState.danger = pursuitState.gap <= pursuitConfig.dangerGap;
-
-  if (pursuitState.gap <= 0) {
-    if (runtime.isInvincibleEnabled(state)) {
-      pursuitState.threatHeight = Math.max(0, getCurrentHeight(state, viewportHeight) - 0.25);
-      pursuitState.gap = 0.25;
-      pursuitState.danger = true;
-      return;
-    }
-
-    runtime.setGameOver(state, "pursuit");
-  }
+  updatePursuitDangerState(state, viewportHeight, pursuitConfig.dangerGap);
+  resolvePursuitCatch(state, viewportHeight, runtime);
 }

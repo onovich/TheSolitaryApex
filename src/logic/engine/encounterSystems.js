@@ -3,7 +3,7 @@ import { tickPursuitState } from "./pursuitSystem.js";
 import { tickRescueBurdenState } from "./rescueBurdenSystem.js";
 import { tickRopeThreatState } from "./ropeThreatSystem.js";
 
-export { getCurrentHeight } from "./pursuitSystem.js";
+export { getCurrentHeight } from "./pursuitHeightSystem.js";
 export { startRescueBurden, tickRescueBurdenState } from "./rescueBurdenSystem.js";
 export { tickLaneBlockerState } from "./laneBlockerPressureSystem.js";
 export { armRopeThreatState } from "./ropeThreatSystem.js";

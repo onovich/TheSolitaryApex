@@ -1186,7 +1186,33 @@ function validatePursuitPressure() {
     throw new Error("Pursuit should end the run when the threat catches the player");
   }
 
-  return { gap: pursuitState.conditionState.encounter.gap };
+  const invincibleCaughtState = createStableState();
+  setInvincibleDebug(invincibleCaughtState, true);
+  invincibleCaughtState.pursuit = {
+    startFrame: 1,
+    speed: 100,
+    durationFrames: 120,
+    retreatSpeed: 100,
+    dangerGap: 10,
+    staminaPenalty: 0.5,
+  };
+
+  updateFrame(invincibleCaughtState, 1280, 720);
+
+  const invinciblePursuitState = invincibleCaughtState.conditionState.encounter;
+
+  if (!invincibleCaughtState.isPlaying || invincibleCaughtState.endMessage) {
+    throw new Error("Invincible pursuit catch should keep the run alive");
+  }
+
+  if (invinciblePursuitState.gap !== 0.25 || !invinciblePursuitState.danger) {
+    throw new Error(`Invincible pursuit catch should stabilize below the player: ${invinciblePursuitState.gap}`);
+  }
+
+  return {
+    gap: pursuitState.conditionState.encounter.gap,
+    invincibleGap: invinciblePursuitState.gap,
+  };
 }
 
 function validateEncounterSubsystemTicks() {
@@ -1584,6 +1610,7 @@ console.log(
     `quakeEnded=${earthquakeResult.ended}`,
     `avalancheAltered=${avalancheResult.alteredCount}`,
     `pursuitGap=${pursuitResult.gap.toFixed(2)}`,
+    `pursuitInvincibleGap=${pursuitResult.invincibleGap.toFixed(2)}`,
     `encounterTicks=${encounterSubsystemResult.rescueEnded}/${encounterSubsystemResult.laneDistance}`,
     `laneBlockerDistance=${laneBlockerResult.distance.toFixed(2)}`,
     `ropeThreat=${ropeThreatResult.progress.toFixed(2)}`,
