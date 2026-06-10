@@ -35,6 +35,10 @@ import {
   cancelDynoCharge as cancelDynoChargeAction,
 } from "../src/logic/engine/dynoChargeSystem.js";
 import {
+  getDynoLaunchParameters,
+  releaseDynoCharge as releaseDynoChargeAction,
+} from "../src/logic/engine/dynoLaunchSystem.js";
+import {
   beginFall as beginFallAction,
   restoreCheckpointPose as restoreCheckpointPoseAction,
 } from "../src/logic/engine/fallEntrySystem.js";
@@ -627,6 +631,67 @@ function validateDynoChargeSystems() {
   return {
     chargeFrames: chargedFrames,
     pointerUpdates: runtime.pointerUpdates,
+  };
+}
+
+function validateDynoLaunchSystems() {
+  const runtime = { releaseHoldAttachment };
+  const primingState = createStableState();
+  primingState.movementState.dyno.pointerActive = true;
+  primingState.movementState.dyno.charging = false;
+
+  if (releaseDynoChargeAction(primingState, runtime)) {
+    throw new Error("Direct dyno launch should not release while the dyno is only priming");
+  }
+
+  if (primingState.movementState.dyno.pointerActive) {
+    throw new Error("Direct dyno launch should cancel priming state when released before charging");
+  }
+
+  const launchState = createStableState();
+  const dynoState = launchState.movementState.dyno;
+  dynoState.pointerActive = true;
+  dynoState.charging = true;
+  dynoState.chargeFrames = GAME_CONFIG.movement.dyno.minChargeFrames;
+  launchState.pointer.x = launchState.player.com.x - 32;
+  launchState.pointer.y = launchState.player.com.y - launchState.cameraY + 210;
+
+  const particlesBefore = launchState.particles.length;
+  const staminaBefore = launchState.stamina;
+  const launchParameters = getDynoLaunchParameters(launchState);
+
+  if (launchParameters.effectiveChargeRatio <= 0 || launchParameters.normalizedDirectionY >= 0) {
+    throw new Error(`Direct dyno launch parameters should describe an upward launch: ${JSON.stringify(launchParameters)}`);
+  }
+
+  if (!releaseDynoChargeAction(launchState, runtime)) {
+    throw new Error("Direct dyno launch should release from an active charged state");
+  }
+
+  if (
+    !dynoState.flightActive ||
+    dynoState.pointerActive ||
+    dynoState.cooldownFrames !== GAME_CONFIG.movement.dyno.cooldownFrames ||
+    dynoState.originalLimbPositions.length !== launchState.player.limbs.length
+  ) {
+    throw new Error(`Direct dyno launch should enter flight and preserve launch metadata: ${JSON.stringify(dynoState)}`);
+  }
+
+  if (launchState.player.limbs.some((limb) => limb.attachedHoldIndex !== -1)) {
+    throw new Error("Direct dyno launch should release all limb attachments");
+  }
+
+  if (launchState.movementState.bodyVelocity.y >= 0 || launchState.stamina >= staminaBefore) {
+    throw new Error("Direct dyno launch should apply upward velocity and spend stamina");
+  }
+
+  if (launchState.particles.length <= particlesBefore) {
+    throw new Error("Direct dyno launch should emit feedback particles");
+  }
+
+  return {
+    cooldown: dynoState.cooldownFrames,
+    particles: launchState.particles.length - particlesBefore,
   };
 }
 
@@ -2309,6 +2374,7 @@ const routeResult = validateRouteContent();
 const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
+const dynoLaunchSystemResult = validateDynoLaunchSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
@@ -2352,6 +2418,7 @@ console.log(
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
+    `dynoLaunchCore=${dynoLaunchSystemResult.cooldown}/${dynoLaunchSystemResult.particles}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,

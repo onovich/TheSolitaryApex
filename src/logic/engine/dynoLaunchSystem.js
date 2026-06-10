@@ -4,12 +4,25 @@ import {
   getDynoPullVector,
   getRawDynoChargeRatio,
 } from "./dynoChargeMetricsSystem.js";
-import { getDynoStaminaCost } from "./dynoMetricsSystem.js";
 import { cancelDynoPreparation } from "./dynoStateSystem.js";
-import { pushParticles } from "./particleSystem.js";
+import { applyDynoLaunchState } from "./dynoLaunchApplySystem.js";
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
+}
+
+export function getDynoLaunchParameters(state) {
+  const minimumRatio = GAME_CONFIG.movement.dyno.minChargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames;
+  const chargeRatio = clamp(Math.max(getRawDynoChargeRatio(state), minimumRatio), 0, 1);
+  const effectiveChargeRatio = getDynoChargeRatioFromRaw(chargeRatio);
+  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
+  const directionLength = Math.max(1, pullDistance);
+
+  return {
+    effectiveChargeRatio,
+    normalizedDirectionX: pullX / directionLength,
+    normalizedDirectionY: pullY / directionLength,
+  };
 }
 
 export function releaseDynoCharge(state, runtime) {
@@ -28,37 +41,6 @@ export function releaseDynoCharge(state, runtime) {
     return false;
   }
 
-  const minimumRatio = GAME_CONFIG.movement.dyno.minChargeFrames / GAME_CONFIG.movement.dyno.chargeMaxFrames;
-  const chargeRatio = clamp(Math.max(getRawDynoChargeRatio(state), minimumRatio), 0, 1);
-  const effectiveChargeRatio = getDynoChargeRatioFromRaw(chargeRatio);
-  const { pullX, pullY, pullDistance } = getDynoPullVector(state);
-  const directionLength = Math.max(1, pullDistance);
-  const normalizedDirectionX = pullX / directionLength;
-  const normalizedDirectionY = pullY / directionLength;
-
-  cancelDynoPreparation(state);
-  dynoState.flightActive = true;
-  dynoState.activeFrames = 0;
-  dynoState.cooldownFrames = GAME_CONFIG.movement.dyno.cooldownFrames;
-  dynoState.reachBonusRatio = effectiveChargeRatio;
-  dynoState.originalLimbPositions = state.player.limbs.map((limb) => ({ x: limb.x, y: limb.y }));
-  dynoState.launchVector = {
-    x: normalizedDirectionX,
-    y: normalizedDirectionY,
-  };
-
-  state.player.limbs.forEach((limb) => {
-    runtime.releaseHoldAttachment(state, limb);
-  });
-
-  state.movementState.bodyVelocity.x =
-    normalizedDirectionX * GAME_CONFIG.movement.dyno.launchVelocity.x * effectiveChargeRatio * state.loadout.modifiers.dynoLaunchMultiplier;
-  state.movementState.bodyVelocity.y =
-    Math.min(normalizedDirectionY, -0.35) *
-    GAME_CONFIG.movement.dyno.launchVelocity.y *
-    effectiveChargeRatio *
-    state.loadout.modifiers.dynoLaunchMultiplier;
-  state.stamina = clamp(state.stamina - getDynoStaminaCost(state), 0, state.staminaCap);
-  pushParticles(state, state.player.com.x, state.player.com.y - state.cameraY, 14, "#f0d58a");
+  applyDynoLaunchState(state, runtime, getDynoLaunchParameters(state));
   return true;
 }
