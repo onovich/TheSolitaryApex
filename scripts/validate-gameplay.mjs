@@ -80,6 +80,15 @@ import {
   startChannelItem,
   tickChannelItem as tickChannelItemAction,
 } from "../src/logic/engine/itemChannelSystem.js";
+import {
+  canSatisfyItemActivation,
+  hasConflictingChannelItem,
+} from "../src/logic/engine/itemActivationAvailabilitySystem.js";
+import {
+  canUseItem as canUseItemAction,
+  getInventoryCount,
+  getItemActiveState,
+} from "../src/logic/engine/itemAvailabilitySystem.js";
 import { createGameRuntimeInteractionAdapters } from "../src/logic/engine/gameRuntimeInteractionAdapters.js";
 import { applyWindDebugOverrideTarget } from "../src/logic/engine/weatherDebugOverrideSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
@@ -1167,6 +1176,89 @@ function validateItems() {
     chalkParticles,
     gelDelta,
     zeroProtectionDisabled: emptyProtection.disabled,
+  };
+}
+
+function validateItemAvailabilitySystems() {
+  const runtime = {
+    getAttachedLimbs,
+    isSingleHandHang,
+  };
+  const baseState = createStableState();
+
+  if (getInventoryCount(baseState, "missingItem") !== 0) {
+    throw new Error("Unknown inventory items should report a zero count");
+  }
+
+  if (!canSatisfyItemActivation(baseState, ITEM_CATALOG.protectionCam, runtime)) {
+    throw new Error("Checkpoint activation should be available with the initial four-limb stance");
+  }
+
+  const underAttachedState = createStableState();
+  underAttachedState.player.limbs[0].attachedHoldIndex = -1;
+  underAttachedState.player.limbs[1].attachedHoldIndex = -1;
+
+  if (canSatisfyItemActivation(underAttachedState, ITEM_CATALOG.protectionCam, runtime)) {
+    throw new Error("Checkpoint activation should require enough attached limbs");
+  }
+
+  const channelReadyState = createStableState();
+
+  if (canSatisfyItemActivation(channelReadyState, ITEM_CATALOG.energyGel, runtime)) {
+    throw new Error("Energy gel activation should require a single-hand hang");
+  }
+
+  channelReadyState.player.limbs[1].attachedHoldIndex = -1;
+
+  if (!canSatisfyItemActivation(channelReadyState, ITEM_CATALOG.energyGel, runtime)) {
+    throw new Error("Energy gel activation should be available during a single-hand hang");
+  }
+
+  startChannelItem(channelReadyState, ITEM_CATALOG.energyGel);
+
+  if (canSatisfyItemActivation(channelReadyState, ITEM_CATALOG.energyGel, runtime)) {
+    throw new Error("A channel item should not be activatable while already channeling");
+  }
+
+  if (!hasConflictingChannelItem(channelReadyState, ITEM_CATALOG.chalk)) {
+    throw new Error("A different item should conflict with an active channel item");
+  }
+
+  if (hasConflictingChannelItem(channelReadyState, ITEM_CATALOG.energyGel)) {
+    throw new Error("The active channel item should not count as a different-item channel conflict");
+  }
+
+  const activeCheckpointState = createStableState();
+  activeCheckpointState.itemState.checkpoint = { itemId: "protectionCam" };
+
+  if (!getItemActiveState(activeCheckpointState, ITEM_CATALOG.protectionCam)) {
+    throw new Error("Checkpoint item active state should read the current checkpoint");
+  }
+
+  const activeEffectState = createStableState();
+  activeEffectState.activeEffects.push({ sourceItemId: "chalk" });
+
+  if (!getItemActiveState(activeEffectState, ITEM_CATALOG.chalk)) {
+    throw new Error("Timed item active state should read active effects");
+  }
+
+  const stoppedState = createStableState();
+  stoppedState.isPlaying = false;
+
+  if (canUseItemAction(stoppedState, ITEM_CATALOG.protectionCam, runtime)) {
+    throw new Error("Items should not be usable after play has stopped");
+  }
+
+  const emptyState = createStableState();
+  emptyState.inventory.protectionCam.count = 0;
+
+  if (canUseItemAction(emptyState, ITEM_CATALOG.protectionCam, runtime)) {
+    throw new Error("Items should not be usable with zero inventory count");
+  }
+
+  return {
+    channelReady: !canSatisfyItemActivation(channelReadyState, ITEM_CATALOG.energyGel, runtime),
+    zeroCountBlocked: !canUseItemAction(emptyState, ITEM_CATALOG.protectionCam, runtime),
   };
 }
 
@@ -2435,6 +2527,7 @@ const dynoLaunchSystemResult = validateDynoLaunchSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
+const itemAvailabilityResult = validateItemAvailabilitySystems();
 const itemChannelResult = validateItemChannelSystems();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
@@ -2483,6 +2576,7 @@ console.log(
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
     `rescues=${fallResult.rescueCount}`,
+    `itemAvailability=${itemAvailabilityResult.channelReady}/${itemAvailabilityResult.zeroCountBlocked}`,
     `itemChannel=${itemChannelResult.completedStamina.toFixed(0)}/${itemChannelResult.canceled}`,
     `chalkParticles=${itemResult.chalkParticles}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
