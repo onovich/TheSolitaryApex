@@ -106,6 +106,11 @@ import {
   createHold,
 } from "../src/logic/engine/routeHoldFactorySystem.js";
 import {
+  createGoldenPath,
+  createGoldenStance,
+  createSpawnHolds,
+} from "../src/logic/engine/routePathGeneration.js";
+import {
   startRescueBurden,
   tickRescueBurdenState,
 } from "../src/logic/engine/rescueBurdenSystem.js";
@@ -685,10 +690,71 @@ function validateRoutePrimitiveSystems() {
     throw new Error("Route corridor clamp should respect both corridor edges");
   }
 
+  const spawnHolds = createSpawnHolds(200, 300);
+
+  if (
+    spawnHolds.length !== 4 ||
+    spawnHolds[0].x !== 160 ||
+    spawnHolds[1].y !== 180 ||
+    spawnHolds.some((hold) => hold.routeRole !== "spawn" || hold.routeZone !== "recovery")
+  ) {
+    throw new Error(`Spawn holds should preserve the starting hand/foot anchor layout: ${JSON.stringify(spawnHolds)}`);
+  }
+
+  const pathRouteConfig = {
+    centerDrift: 0,
+    corridorPadding: 40,
+    stepYMin: 100,
+    stepYMax: 100,
+    handSpreadMin: 50,
+    handSpreadMax: 50,
+    footSpreadMin: 60,
+    footSpreadMax: 60,
+    handOffsetYMin: 40,
+    handOffsetYMax: 40,
+    footOffsetYMin: 30,
+    footOffsetYMax: 30,
+    spatialExperiment: {
+      goldenLaneDepths: {
+        leftHand: -0.25,
+        rightHand: 0.25,
+        leftFoot: -0.15,
+        rightFoot: 0.15,
+      },
+    },
+  };
+  const goldenStance = withRandomSource(createSequenceRandom([0.5]), () =>
+    createGoldenStance(500, 300, 7, "crux", { routeHoldTypes: [2] }, pathRouteConfig),
+  );
+
+  if (
+    goldenStance.holds.length !== 4 ||
+    goldenStance.holds[0].lane !== "leftHand" ||
+    goldenStance.holds[0].x !== 450 ||
+    goldenStance.holds[2].y !== 330 ||
+    goldenStance.holds.some((hold) => hold.type !== 2 || hold.routeRole !== "golden" || hold.stanceIndex !== 7)
+  ) {
+    throw new Error(`Golden stance should preserve lane geometry and hold metadata: ${JSON.stringify(goldenStance)}`);
+  }
+
+  const goldenPath = withRandomSource(createSequenceRandom([0.5]), () =>
+    createGoldenPath(800, 300, { wallHeight: 260, routeGeneration: pathRouteConfig }),
+  );
+
+  if (
+    goldenPath.length !== 4 ||
+    goldenPath[0].baseY !== 20 ||
+    goldenPath[3].baseY !== -280 ||
+    goldenPath.some((stance, index) => stance.stanceIndex !== index || stance.centerX !== 400 || stance.zoneKey !== "recovery")
+  ) {
+    throw new Error(`Golden path should preserve deterministic recovery scaffold generation: ${JSON.stringify(goldenPath)}`);
+  }
+
   return {
     deterministic: sequenceA.join(",") === sequenceB.join(","),
     nestedAfter: nested.after,
     holdRadius: hold.radius,
+    pathLength: goldenPath.length,
   };
 }
 
@@ -3081,7 +3147,7 @@ console.log(
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
-    `routePrims=${routePrimitiveResult.deterministic}/${routePrimitiveResult.nestedAfter}/${routePrimitiveResult.holdRadius}`,
+    `routePrims=${routePrimitiveResult.deterministic}/${routePrimitiveResult.nestedAfter}/${routePrimitiveResult.holdRadius}/${routePrimitiveResult.pathLength}`,
     `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
