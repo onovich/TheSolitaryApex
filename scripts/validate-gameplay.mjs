@@ -17,6 +17,7 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { createInitialRunContent } from "../src/logic/engine/gameInitialRunContent.js";
 import { updatePointer as updatePointerAction } from "../src/logic/engine/dragPointerSystem.js";
 import { setSpatialScan as setSpatialScanAction } from "../src/logic/engine/spatialScanInteractionSystem.js";
 import {
@@ -177,6 +178,19 @@ function attachAnyCheckpointHold(state, candidateHoldIndices) {
 function validateInitialPlayerState() {
   const state = createStableState();
   const attachedHoldIndices = state.player.limbs.map((limb) => limb.attachedHoldIndex);
+  const filteredRunContent = createInitialRunContent(1280, 720, {
+    levelId: "solitary-apex-prototype",
+    debugRunConfig: {
+      enabledEvents: {
+        earthquake: false,
+        avalanche: false,
+        rescueTargets: false,
+        laneBlockers: false,
+        pursuit: false,
+        ropeThreat: false,
+      },
+    },
+  });
 
   if (state.player.limbs.length !== 4) {
     throw new Error(`Expected four initial limbs, got ${state.player.limbs.length}`);
@@ -198,9 +212,21 @@ function validateInitialPlayerState() {
     throw new Error(`Initial player center mismatch: ${state.player.com.x},${state.player.com.y}`);
   }
 
+  if (
+    filteredRunContent.holds.length >= filteredRunContent.generatedHolds.length ||
+    filteredRunContent.holds.some((hold) => hold.hazardType === "rescueTarget" || hold.hazardType === "laneBlocker") ||
+    filteredRunContent.environmentEvents.length !== 0 ||
+    filteredRunContent.pursuit !== null ||
+    filteredRunContent.ropeThreat !== null ||
+    !filteredRunContent.levelAnalysis
+  ) {
+    throw new Error("Initial run content should apply debug filtering before analysis and state assembly");
+  }
+
   return {
     limbCount: state.player.limbs.length,
     attachedCount: attachedHoldIndices.filter((holdIndex) => holdIndex !== -1).length,
+    filteredHolds: filteredRunContent.holds.length,
   };
 }
 
@@ -3137,7 +3163,7 @@ const rescueResult = validateRescueTarget();
 console.log(
   [
     "validate-gameplay:ok",
-    `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}`,
+    `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}/${playerResult.filteredHolds}`,
     `attachments=${attachmentResult.attachedCount}@${attachmentResult.anchorHoldIndex}`,
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,

@@ -1,10 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getLevelConfig } from "../../data/levelConfig.js";
-import { createLevelAnalysisSnapshot } from "../analysis/levelAnalysis.js";
-import {
-  filterGeneratedRunContent,
-  resolveGameStartOptions,
-} from "./gameRunDebugSystem.js";
+import { createInitialRunContent } from "./gameInitialRunContent.js";
 import {
   createInitialConditionState,
   createInitialDebugState,
@@ -18,37 +14,23 @@ import {
   createPlayer,
 } from "./initialStateSystem.js";
 import { createInitialInventory } from "./itemInventorySystem.js";
-import { generateWall } from "./routeGeneration.js";
 
 export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
-  const { activeLevelId, loadout, runDebugConfig } = resolveGameStartOptions(levelId);
   const {
+    generatedHolds,
     holds,
     goldenPath,
     routeSegments,
     levelId: resolvedLevelId,
     levelLabel,
+    loadout,
+    runDebugConfig,
     mechanicRules,
     environmentEvents,
     pursuit,
     ropeThreat,
-  } = generateWall(viewportWidth, viewportHeight, activeLevelId);
-  const {
-    filteredHolds,
-    filteredEnvironmentEvents,
-    filteredPursuit,
-    filteredRopeThreat,
-  } = filterGeneratedRunContent({ holds, environmentEvents, pursuit, ropeThreat }, runDebugConfig);
-  const levelConfig = getLevelConfig(resolvedLevelId);
-  const levelAnalysis = createLevelAnalysisSnapshot({
-    levelConfig,
-    holds: filteredHolds,
-    goldenPath,
-    routeSegments,
-    environmentEvents: filteredEnvironmentEvents,
-    pursuit: filteredPursuit,
-    ropeThreat: filteredRopeThreat,
-  });
+    levelAnalysis,
+  } = createInitialRunContent(viewportWidth, viewportHeight, levelId);
 
   return {
     isPlaying: true,
@@ -56,17 +38,17 @@ export function createInitialGameState(viewportWidth, viewportHeight, levelId) {
     levelLabel,
     loadout,
     mechanicRules,
-    environmentEvents: filteredEnvironmentEvents,
-    pursuit: filteredPursuit,
-    ropeThreat: filteredRopeThreat,
+    environmentEvents,
+    pursuit,
+    ropeThreat,
     stamina: GAME_CONFIG.maxStamina,
     staminaCap: GAME_CONFIG.maxStamina,
     cameraY: 0,
     maxHeightReached: 0,
-    holds: filteredHolds,
+    holds,
     goldenPath,
     routeSegments,
-    player: createPlayer(holds, viewportWidth, viewportHeight),
+    player: createPlayer(generatedHolds, viewportWidth, viewportHeight),
     draggedLimbIndex: -1,
     pointer: {
       x: viewportWidth / 2,
