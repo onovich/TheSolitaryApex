@@ -54,6 +54,36 @@ function attachAnyCheckpointHold(state, candidateHoldIndices) {
   return null;
 }
 
+function validateInitialPlayerState() {
+  const state = createStableState();
+  const attachedHoldIndices = state.player.limbs.map((limb) => limb.attachedHoldIndex);
+
+  if (state.player.limbs.length !== 4) {
+    throw new Error(`Expected four initial limbs, got ${state.player.limbs.length}`);
+  }
+
+  if (attachedHoldIndices.join(",") !== "0,1,2,3") {
+    throw new Error(`Initial player limbs should attach to the first four holds: ${attachedHoldIndices.join(",")}`);
+  }
+
+  state.player.limbs.forEach((limb) => {
+    const hold = state.holds[limb.attachedHoldIndex];
+
+    if (!hold || limb.x !== hold.x || limb.y !== hold.y) {
+      throw new Error(`Initial limb ${limb.name} is not anchored to its hold`);
+    }
+  });
+
+  if (state.player.com.x !== 640 || state.player.com.y !== 660) {
+    throw new Error(`Initial player center mismatch: ${state.player.com.x},${state.player.com.y}`);
+  }
+
+  return {
+    limbCount: state.player.limbs.length,
+    attachedCount: attachedHoldIndices.filter((holdIndex) => holdIndex !== -1).length,
+  };
+}
+
 function validateRouteContent() {
   const state = createStableState();
   const zoneKeys = [...new Set(state.routeSegments.map((segment) => segment.zoneKey))];
@@ -1149,6 +1179,7 @@ function validateRescueTarget() {
   };
 }
 
+const playerResult = validateInitialPlayerState();
 const routeResult = validateRouteContent();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
@@ -1174,6 +1205,7 @@ const rescueResult = validateRescueTarget();
 console.log(
   [
     "validate-gameplay:ok",
+    `playerLimbs=${playerResult.attachedCount}/${playerResult.limbCount}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
