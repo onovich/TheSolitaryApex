@@ -27,6 +27,7 @@ import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
 } from "../src/logic/engine/staminaPressureSystem.js";
+import { applyWindDebugOverrideTarget } from "../src/logic/engine/weatherDebugOverrideSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
 
 function createStableState(options) {
@@ -747,6 +748,14 @@ function validateWindDebugOverride() {
     throw new Error(`Wind debug override did not sync the derived vector fields: ${JSON.stringify(weatherState)}`);
   }
 
+  weatherState.debugOverrideForce = 0.12;
+  weatherState.debugOverrideAngle = 180;
+  applyWindDebugOverrideTarget(weatherState);
+
+  if (Math.abs(weatherState.targetWindX + 0.12) > 0.001 || Math.abs(weatherState.targetWindY) > 0.001) {
+    throw new Error(`Wind debug target helper did not apply the expected target vector: ${JSON.stringify(weatherState)}`);
+  }
+
   if (setWindDebugOverride({}, true)) {
     throw new Error("Wind debug override should reject a missing weather state");
   }
@@ -754,6 +763,7 @@ function validateWindDebugOverride() {
   return {
     force: weatherState.windForce,
     angle: weatherState.windAngle,
+    targetX: weatherState.targetWindX,
   };
 }
 
@@ -1489,7 +1499,7 @@ console.log(
     `rescueTargets=${levelTemplateResult.rescueTargets}`,
     `debugChalk=${debugRunResult.chalk}`,
     `debugEvents=${debugRunResult.environmentEvents}`,
-    `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}`,
+    `windDebug=${windDebugResult.force.toFixed(2)}@${windDebugResult.angle}/${windDebugResult.targetX.toFixed(2)}`,
     `invincibleRecovery=${invincibleResult.attachedCount}/${invincibleResult.stamina.toFixed(1)}`,
     `footHold=${footResult.footHoldIndex}`,
     `fragileHold=${fragileResult.holdIndex}`,

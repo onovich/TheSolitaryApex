@@ -1,13 +1,12 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import {
-  clampWindDebugForce,
   getScaledWindVector,
-  getWindVectorFromPolar,
-  normalizeDegrees,
   syncWeatherDerivedState,
 } from "./windVectorSystem.js";
+import { applyWindDebugOverrideTarget } from "./weatherDebugOverrideSystem.js";
 
 export { getScaledWindVector };
+export { setWindDebugOverride } from "./weatherDebugOverrideSystem.js";
 
 function randomBetween(min, max) {
   return Math.random() * (max - min) + min;
@@ -35,9 +34,7 @@ export function updateWeatherState(state) {
   weatherState.windDirectionPhase += GAME_CONFIG.conditions.weather.windPhaseSpeed * 0.42;
 
   if (weatherState.debugOverrideActive) {
-    const debugTarget = getWindVectorFromPolar(weatherState.debugOverrideForce, weatherState.debugOverrideAngle);
-    weatherState.targetWindX = debugTarget.x;
-    weatherState.targetWindY = debugTarget.y;
+    applyWindDebugOverrideTarget(weatherState);
   } else {
     weatherState.targetWindX =
       Math.sin(weatherState.windPhase) * GAME_CONFIG.conditions.weather.baseForce +
@@ -56,28 +53,4 @@ export function updateWeatherState(state) {
   }
 
   syncWeatherDerivedState(weatherState);
-}
-
-export function setWindDebugOverride(state, enabled, force = 0, angle = state.conditionState?.weather?.debugOverrideAngle ?? 0) {
-  const weatherState = state.conditionState?.weather;
-
-  if (!weatherState) {
-    return false;
-  }
-
-  const normalizedForce = clampWindDebugForce(force);
-  weatherState.debugOverrideActive = Boolean(enabled);
-  weatherState.debugOverrideForce = normalizedForce;
-  weatherState.debugOverrideAngle = normalizeDegrees(angle);
-
-  if (weatherState.debugOverrideActive) {
-    const debugVector = getWindVectorFromPolar(normalizedForce, weatherState.debugOverrideAngle);
-    weatherState.targetWindX = debugVector.x;
-    weatherState.targetWindY = debugVector.y;
-    weatherState.windX = debugVector.x;
-    weatherState.windY = debugVector.y;
-    syncWeatherDerivedState(weatherState);
-  }
-
-  return true;
 }
