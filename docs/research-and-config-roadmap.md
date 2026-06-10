@@ -126,7 +126,9 @@ npm run report:engine:top
 - `src/logic/engine/itemFeedbackSystem.js`
   - Shared item feedback particle emission for attached-hand and player-core item effects.
 - `src/logic/engine/itemSystem.js`
-  - Item activation orchestration and channel item ticks.
+  - Item activation orchestration and activation-type dispatch.
+- `src/logic/engine/itemChannelSystem.js`
+  - Channel item startup, countdown completion, cancellation, stamina restore, and feedback.
 - `src/logic/engine/checkpointItemSystem.js`
   - Protection checkpoint snapshot capture and rope-threat arming.
 - `src/logic/engine/rescueItemSystem.js`
@@ -351,7 +353,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: `npm run validate:logic` runs the high-signal level and gameplay checks used between engine refactor slices.
   - Current status: `npm run report:engine` prints engine module size and export/import counts, while `npm run report:engine:top` prints the largest modules for low-token refactor planning.
   - Current status: shared visual-feedback helpers now live in `src/logic/engine/particleSystem.js`, reducing repeated helper code across engine modules.
-  - Current status: item activation orchestration and channel item ticks now live in `src/logic/engine/itemSystem.js`, while shared item feedback particle emission lives in `src/logic/engine/itemFeedbackSystem.js`.
+  - Current status: item activation orchestration lives in `src/logic/engine/itemSystem.js`, channel item startup and ticks live in `src/logic/engine/itemChannelSystem.js`, and shared item feedback particle emission lives in `src/logic/engine/itemFeedbackSystem.js`.
   - Current status: protection checkpoint capture now lives in `src/logic/engine/checkpointItemSystem.js`, while rescue-target protection interactions now live in `src/logic/engine/rescueItemSystem.js`.
   - Current status: inventory count lookup, item active-state checks, and use-availability rules now live in `src/logic/engine/itemAvailabilitySystem.js`, while inventory creation, inventory UI snapshots, and checkpoint activation lookup live in `src/logic/engine/itemInventorySystem.js`.
   - Current status: active item-effect queries, per-frame decay, and refresh/stacking application now live in `src/logic/engine/itemEffectsSystem.js`.

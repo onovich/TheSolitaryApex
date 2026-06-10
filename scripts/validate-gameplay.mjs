@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from "../src/data/gameConfig.js";
+import { ITEM_CATALOG } from "../src/data/itemCatalog.js";
 import { LEVEL_CONFIGS } from "../src/data/levelConfig.js";
 import {
   beginBodyAction,
@@ -74,6 +75,11 @@ import {
   getClimbingPressureStaminaDelta,
   getHoldStaminaPenalty,
 } from "../src/logic/engine/staminaPressureSystem.js";
+import { restoreStamina } from "../src/logic/engine/staminaSystem.js";
+import {
+  startChannelItem,
+  tickChannelItem as tickChannelItemAction,
+} from "../src/logic/engine/itemChannelSystem.js";
 import { createGameRuntimeInteractionAdapters } from "../src/logic/engine/gameRuntimeInteractionAdapters.js";
 import { applyWindDebugOverrideTarget } from "../src/logic/engine/weatherDebugOverrideSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
@@ -1161,6 +1167,57 @@ function validateItems() {
     chalkParticles,
     gelDelta,
     zeroProtectionDisabled: emptyProtection.disabled,
+  };
+}
+
+function validateItemChannelSystems() {
+  const runtime = {
+    isSingleHandHang,
+    restoreStamina,
+  };
+  const completeState = createStableState();
+  completeState.stamina = 50;
+  completeState.player.limbs[1].attachedHoldIndex = -1;
+
+  startChannelItem(completeState, ITEM_CATALOG.energyGel);
+
+  if (
+    completeState.itemState.channel.itemId !== "energyGel" ||
+    completeState.itemState.channel.remainingFrames !== ITEM_CATALOG.energyGel.activation.channelFrames
+  ) {
+    throw new Error(`Channel item did not start with expected state: ${JSON.stringify(completeState.itemState.channel)}`);
+  }
+
+  const particlesBefore = completeState.particles.length;
+
+  for (let index = 0; index < ITEM_CATALOG.energyGel.activation.channelFrames; index += 1) {
+    tickChannelItemAction(completeState, runtime);
+  }
+
+  if (completeState.itemState.channel !== null) {
+    throw new Error("Direct channel item tick should complete after its configured frame count");
+  }
+
+  if (completeState.stamina <= 50 || completeState.particles.length <= particlesBefore) {
+    throw new Error("Direct channel item completion should restore stamina and emit feedback");
+  }
+
+  const cancelState = createStableState();
+  cancelState.stamina = 50;
+  startChannelItem(cancelState, ITEM_CATALOG.energyGel);
+  tickChannelItemAction(cancelState, runtime);
+
+  if (cancelState.itemState.channel !== null) {
+    throw new Error("Channel item should cancel when its single-hand hang requirement is no longer satisfied");
+  }
+
+  if (cancelState.stamina !== 50) {
+    throw new Error("Canceled channel item should not restore stamina");
+  }
+
+  return {
+    completedStamina: completeState.stamina,
+    canceled: cancelState.itemState.channel === null,
   };
 }
 
@@ -2378,6 +2435,7 @@ const dynoLaunchSystemResult = validateDynoLaunchSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
+const itemChannelResult = validateItemChannelSystems();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
 const uiSnapshotResult = validateUiSnapshotAssembly();
@@ -2425,6 +2483,7 @@ console.log(
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
     `rescues=${fallResult.rescueCount}`,
+    `itemChannel=${itemChannelResult.completedStamina.toFixed(0)}/${itemChannelResult.canceled}`,
     `chalkParticles=${itemResult.chalkParticles}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `zeroProtectionDisabled=${itemResult.zeroProtectionDisabled}`,
