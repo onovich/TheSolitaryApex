@@ -286,6 +286,19 @@ function validateItems() {
     throw new Error("Inventory UI should disable a checkpoint item with zero count");
   }
 
+  const chalkFeedbackState = createStableState();
+  const particlesBeforeChalk = chalkFeedbackState.particles.length;
+
+  if (!useItem(chalkFeedbackState, "chalk")) {
+    throw new Error("Failed to use chalk for item feedback validation");
+  }
+
+  const chalkParticles = chalkFeedbackState.particles.length - particlesBeforeChalk;
+
+  if (chalkParticles <= 0) {
+    throw new Error("Chalk use should emit attached-hand item feedback particles");
+  }
+
   const gelState = createStableState();
   const controlState = createStableState();
 
@@ -320,6 +333,7 @@ function validateItems() {
   }
 
   return {
+    chalkParticles,
     gelDelta,
     zeroProtectionDisabled: emptyProtection.disabled,
   };
@@ -1158,6 +1172,7 @@ console.log(
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `rescues=${fallResult.rescueCount}`,
+    `chalkParticles=${itemResult.chalkParticles}`,
     `gelDelta=${itemResult.gelDelta.toFixed(2)}`,
     `zeroProtectionDisabled=${itemResult.zeroProtectionDisabled}`,
     `boldDynoCost=${loadoutResult.boldDynoCost.toFixed(2)}`,

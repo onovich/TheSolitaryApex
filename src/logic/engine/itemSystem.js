@@ -2,42 +2,11 @@ import { ITEM_CATALOG } from "../../data/itemCatalog.js";
 import { canUseItem } from "./itemAvailabilitySystem.js";
 import { captureCheckpoint } from "./checkpointItemSystem.js";
 import { applyItemEffects } from "./itemEffectsSystem.js";
-import { pushParticles } from "./particleSystem.js";
+import { emitItemFeedback } from "./itemFeedbackSystem.js";
 import { attachProtectionToRescueTarget } from "./rescueItemSystem.js";
 
 export { getEffectValue, hasEffectType, tickActiveEffects } from "./itemEffectsSystem.js";
 export { createInitialInventory, getCheckpointActivation, getInventoryUiState } from "./itemInventorySystem.js";
-
-function emitItemFeedback(state, itemDefinition) {
-  if (!itemDefinition.feedback) {
-    return;
-  }
-
-  if (itemDefinition.feedback.target === "attachedHands") {
-    state.player.limbs.forEach((limb) => {
-      if (limb.isHand && limb.attachedHoldIndex !== -1) {
-        pushParticles(
-          state,
-          limb.x,
-          limb.y - state.cameraY,
-          itemDefinition.feedback.particleCount,
-          itemDefinition.feedback.particleColor,
-        );
-      }
-    });
-    return;
-  }
-
-  if (itemDefinition.feedback.target === "playerCore") {
-    pushParticles(
-      state,
-      state.player.com.x,
-      state.player.com.y - state.cameraY,
-      itemDefinition.feedback.particleCount,
-      itemDefinition.feedback.particleColor,
-    );
-  }
-}
 
 export function tickChannelItem(state, runtime) {
   const channelState = state.itemState.channel;
