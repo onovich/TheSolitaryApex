@@ -96,7 +96,9 @@ npm run report:engine:top
 - `src/logic/engine/invincibleFailureSystem.js`
   - Invincible debug toggling and invincible-state landing stabilization after balance/exhaustion failures.
 - `src/logic/engine/frameUpdateSystem.js`
-  - Per-frame engine orchestration for particles, feedback, weather, hazards, fall recovery, dyno flight, route progress, stamina, item channels, recovery windows, and camera updates.
+  - Per-frame engine orchestration for particles, feedback, weather, hazards, fall recovery, dyno flight, route progress, stamina, and failure branches.
+- `src/logic/engine/framePostUpdateSystem.js`
+  - Shared per-frame tail ticks for active effects, dyno decay, channel items, recovery windows, stamina application, and camera updates.
 - `src/logic/engine/dynoSystem.js`
   - Dyno begin/cancel actions, charge ticking, cooldown decay, and public dyno facade exports.
 - `src/logic/engine/dynoLaunchSystem.js`
@@ -226,7 +228,7 @@ These tasks are the top priority because every new mechanic increases route-conf
   - Current status: fall entry and checkpoint pose restore now live in `src/logic/engine/fallEntrySystem.js`, rope/death fall updates now live in `src/logic/engine/fallRecoverySystem.js`, and hanging rope recovery now lives in `src/logic/engine/hangingRecoverySystem.js`.
   - Current status: fall/recovery state initialization, rescue-window queries, rescue stamina/wind bonuses, and per-frame rescue-window decay now live in `src/logic/engine/recoveryStateSystem.js`.
   - Current status: game-over finalization, failure-to-fall routing, and fall/dyno reset now live in `src/logic/engine/failureSystem.js`, while invincible debug toggling and landing stabilization now live in `src/logic/engine/invincibleFailureSystem.js`.
-  - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with `gameEngine.js` preserving the public `updateFrame` export.
+  - Current status: per-frame engine orchestration now lives in `src/logic/engine/frameUpdateSystem.js`, with shared tail ticks in `src/logic/engine/framePostUpdateSystem.js` and `gameEngine.js` preserving the public `updateFrame` export.
   - Current status: cross-system runtime adapter wiring now lives in `src/logic/engine/gameEngineRuntime.js`, with concrete runtime dependency bundles split between `src/logic/engine/gameRuntimeAdapters.js`, `src/logic/engine/gameRuntimeInteractionAdapters.js`, and `src/logic/engine/gameRuntimeFallAdapters.js`, keeping `gameEngine.js` focused on stable public facade exports.
   - Current status: dyno begin/cancel actions, charge ticking, cooldown decay, and public facade exports now live in `src/logic/engine/dynoSystem.js`, while dyno release/launch application now lives in `src/logic/engine/dynoLaunchSystem.js`.
   - Current status: dyno availability reasons, stamina-cost query, raw/eased charge ratios, reach ratio, and pull-vector calculation now live in `src/logic/engine/dynoMetricsSystem.js`.

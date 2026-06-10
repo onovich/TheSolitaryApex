@@ -1,22 +1,20 @@
 import { getClimbingLimbGroups, updateClimbingBodyMotion } from "./climbingMotionSystem.js";
 import { tickEncounterPressureSystems } from "./encounterSystems.js";
 import { tickEnvironmentEvents } from "./environmentEvents.js";
-import { advanceDynoCharge, decayDynoState } from "./dynoSystem.js";
+import { advanceDynoCharge } from "./dynoSystem.js";
 import { updateDynoAutoAttachState } from "./dynoAutoAttachSystem.js";
 import { updateDynoFlightState } from "./dynoFlightSystem.js";
 import { updateFallState } from "./fallRecoverySystem.js";
-import { tickRecoveryState } from "./recoveryStateSystem.js";
 import { tickFeedbackState } from "./feedbackSystem.js";
+import { tickAirborneFrameTail, tickClimbingFrameTail } from "./framePostUpdateSystem.js";
 import {
   tickObstacleDrilling,
   tickTimedSoftHolds,
 } from "./holdInteractions.js";
-import { tickActiveEffects } from "./itemEffectsSystem.js";
-import { tickChannelItem } from "./itemSystem.js";
 import { syncAttachedLimbAnchors } from "./limbReachSystem.js";
 import { updateParticles } from "./particleSystem.js";
 import { updateHeightAndCamera, updateRouteState } from "./routeProgressSystem.js";
-import { applyStaminaDelta, getClimbingStaminaChange } from "./staminaSystem.js";
+import { getClimbingStaminaChange } from "./staminaSystem.js";
 import { tickResourceCollection, tickSurvivalPressure } from "./survivalResourceSystem.js";
 import { updateWeatherState } from "./weatherSystem.js";
 
@@ -60,11 +58,7 @@ export function updateFrame(state, viewportWidth, viewportHeight, runtime) {
       getLimbReachRuntime: runtime.getLimbReachRuntime,
       resolveFailure: runtime.resolveFailure,
     });
-    tickActiveEffects(state);
-    decayDynoState(state);
-    tickChannelItem(state, runtime.getItemRuntime());
-    tickRecoveryState(state);
-    updateHeightAndCamera(state, viewportHeight);
+    tickAirborneFrameTail(state, viewportHeight, runtime);
     return;
   }
 
@@ -73,11 +67,7 @@ export function updateFrame(state, viewportWidth, viewportHeight, runtime) {
       getLimbReachRuntime: runtime.getLimbReachRuntime,
       resolveFailure: runtime.resolveFailure,
     });
-    tickActiveEffects(state);
-    decayDynoState(state);
-    tickChannelItem(state, runtime.getItemRuntime());
-    tickRecoveryState(state);
-    updateHeightAndCamera(state, viewportHeight);
+    tickAirborneFrameTail(state, viewportHeight, runtime);
     return;
   }
 
@@ -99,12 +89,7 @@ export function updateFrame(state, viewportWidth, viewportHeight, runtime) {
 
   const staminaChange = getClimbingStaminaChange(state, attachedLimbs, effectiveWind, currentRouteSegment);
 
-  tickActiveEffects(state);
-  decayDynoState(state);
-
-  applyStaminaDelta(state, staminaChange);
-  tickChannelItem(state, runtime.getItemRuntime());
-  tickRecoveryState(state);
+  tickClimbingFrameTail(state, staminaChange, runtime);
 
   if (state.stamina <= 0) {
     runtime.resolveFailure(state, "exhaustion", viewportHeight);
