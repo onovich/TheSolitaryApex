@@ -16,6 +16,8 @@ import {
   updatePointer,
   useItem,
 } from "../src/logic/engine/gameEngine.js";
+import { createNoiseHoldHazardMeta } from "../src/logic/engine/routeContentMetadata.js";
+import { withRandomSource } from "../src/logic/engine/routeGenerationPrimitives.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
 
 function createStableState(options) {
@@ -119,6 +121,68 @@ function validateRouteContent() {
   }
 
   return { recoveryAvg, cruxAvg, zoneKeys };
+}
+
+function createSequenceRandom(values) {
+  let index = 0;
+
+  return () => values[index++] ?? values[values.length - 1] ?? 0;
+}
+
+function validateRouteContentMetadata() {
+  const routeConfig = {
+    mechanicRules: {
+      timedSoft: {
+        collapseFramesMin: 150,
+        collapseFramesMax: 240,
+      },
+      obstacle: {
+        radiusMin: 14,
+        radiusMax: 24,
+      },
+      resourceFruit: {
+        radius: 7,
+      },
+    },
+  };
+
+  const createMeta = (mechanicBudget, randomValues) => withRandomSource(
+    createSequenceRandom(randomValues),
+    () => createNoiseHoldHazardMeta({ mechanicBudget }, routeConfig),
+  );
+
+  const fragile = createMeta({ fragile: 1 }, [0.5]);
+  const timedSoft = createMeta({ timedSoft: 1 }, [0.5, 0.25]);
+  const obstacle = createMeta({ obstacle: 1 }, [0.5, 0.25]);
+  const resourceFruit = createMeta({ resource: 1 }, [0.5]);
+  const empty = createMeta({}, [0.5]);
+
+  if (fragile.hazardType !== "fragile" || fragile.hazardState !== "intact") {
+    throw new Error("Noise metadata should create fragile hazard metadata");
+  }
+
+  if (timedSoft.hazardType !== "timedSoft" || timedSoft.collapseFrames !== 172) {
+    throw new Error(`Noise metadata should create timed-soft collapse frames, got ${timedSoft.collapseFrames}`);
+  }
+
+  if (obstacle.hazardType !== "obstacle" || obstacle.radius !== 16.5 || obstacle.drillFrames !== 0) {
+    throw new Error(`Noise metadata should create drillable obstacle metadata, got ${JSON.stringify(obstacle)}`);
+  }
+
+  if (resourceFruit.hazardType !== "resourceFruit" || resourceFruit.radius !== 7) {
+    throw new Error("Noise metadata should create resource fruit metadata");
+  }
+
+  if (Object.keys(empty).length !== 0) {
+    throw new Error("Noise metadata should stay empty without mechanic budget");
+  }
+
+  return {
+    fragile: fragile.hazardType,
+    timedSoft: timedSoft.collapseFrames,
+    obstacle: obstacle.radius,
+    resourceFruit: resourceFruit.radius,
+  };
 }
 
 function validateDragDynoAndFalls() {
@@ -1257,6 +1321,7 @@ function validateRescueTarget() {
 
 const playerResult = validateInitialPlayerState();
 const routeResult = validateRouteContent();
+const routeMetaResult = validateRouteContentMetadata();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
@@ -1286,6 +1351,7 @@ console.log(
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
     `cruxAvg=${routeResult.cruxAvg.toFixed(2)}`,
+    `routeMeta=${routeMetaResult.fragile}/${routeMetaResult.timedSoft}/${routeMetaResult.obstacle}/${routeMetaResult.resourceFruit}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
