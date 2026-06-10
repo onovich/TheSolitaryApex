@@ -120,6 +120,7 @@ import {
 } from "../src/logic/engine/routePathGeneration.js";
 import { buildRouteBlueprintPathContent } from "../src/logic/engine/routeBlueprintPathAssembly.js";
 import { tickAirborneFrameState } from "../src/logic/engine/frameAirborneUpdateSystem.js";
+import { tickClimbingFrameState } from "../src/logic/engine/frameClimbingUpdateSystem.js";
 import {
   startRescueBurden,
   tickRescueBurdenState,
@@ -669,6 +670,51 @@ function validateFrameAirborneUpdateSystem() {
   return {
     handled: flightState.movementState.dyno.flightActive,
     bodyDelta: previousBodyY - flightState.player.com.y,
+  };
+}
+
+function validateFrameClimbingUpdateSystem() {
+  let failureReason = null;
+  const runtime = {
+    getItemRuntime: () => ({}),
+    getLimbReachRuntime: () => ({
+      isHoldAvailable: () => true,
+      releaseHoldAttachment: () => {
+        throw new Error("Frame climbing helper should not release reachable holds in this contract state");
+      },
+    }),
+    resolveFailure: (state, reason) => {
+      failureReason = reason;
+      state.resolvedFailureReason = reason;
+    },
+  };
+
+  const climbingState = createStableState();
+  const previousCameraY = climbingState.cameraY;
+
+  if (!tickClimbingFrameState(climbingState, { windMultiplier: 1, staminaModifier: 0 }, 720, runtime)) {
+    throw new Error("Frame climbing helper should complete a stable climbing frame");
+  }
+
+  if (failureReason || climbingState.cameraY <= previousCameraY || climbingState.player.limbs.some((limb) => limb.attachedHoldIndex === -1)) {
+    throw new Error("Frame climbing helper should update camera and preserve stable attachments without failure");
+  }
+
+  const exhaustedState = createStableState();
+  exhaustedState.stamina = 0;
+  failureReason = null;
+
+  if (tickClimbingFrameState(exhaustedState, { windMultiplier: 1, staminaModifier: 0 }, 720, runtime)) {
+    throw new Error("Frame climbing helper should stop after exhaustion failure");
+  }
+
+  if (failureReason !== "exhaustion") {
+    throw new Error(`Frame climbing helper should route exhaustion failures, got ${failureReason}`);
+  }
+
+  return {
+    completed: true,
+    failureReason,
   };
 }
 
@@ -3250,6 +3296,7 @@ const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
 const runtimeFallResult = validateRuntimeFallAdapters();
 const frameAirborneResult = validateFrameAirborneUpdateSystem();
+const frameClimbingResult = validateFrameClimbingUpdateSystem();
 const dragInteractionResult = validateDragInteractionSystems();
 const routeResult = validateRouteContent();
 const routePrimitiveResult = validateRoutePrimitiveSystems();
@@ -3302,6 +3349,7 @@ console.log(
     `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
     `fallRuntimeAdapters=${runtimeFallResult.adapterCount}/${runtimeFallResult.attachedCount}`,
     `frameAirborne=${frameAirborneResult.handled}/${frameAirborneResult.bodyDelta.toFixed(2)}`,
+    `frameClimbing=${frameClimbingResult.completed}/${frameClimbingResult.failureReason}`,
     `dragCore=${dragInteractionResult.pointerX}/${dragInteractionResult.spatialAngle}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
