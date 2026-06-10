@@ -18,6 +18,15 @@ import {
   useItem,
 } from "../src/logic/engine/gameEngine.js";
 import {
+  buildDebugSnapshot,
+  buildFallSnapshot,
+  buildFeedbackSnapshot,
+  buildLevelAnalysisSnapshot,
+  buildLoadoutSnapshot,
+  buildRecoverySnapshot,
+  buildRouteSnapshot,
+} from "../src/logic/engine/uiSnapshotCoreSections.js";
+import {
   getAttachedLimbs,
   getCheckpointAnchorHoldIndex,
   getCheckpointAnchorPosition,
@@ -1564,11 +1573,62 @@ function validateUiSnapshotAssembly() {
   state.conditionState.weather.debugOverrideForce = 0.42;
   state.conditionState.weather.debugOverrideAngle = 135;
   state.conditionState.encounter.ropeThreat.active = false;
+  state.debugState.invincible = true;
+
+  const sectionState = createStableState();
+  sectionState.recoveryState.rescuesUsed = 1;
+  sectionState.recoveryState.rescueWindowFrames = 24;
+  sectionState.recoveryState.rescueWindowTotalFrames = 48;
+  sectionState.recoveryState.lastFailureReason = "balance";
+  sectionState.fallState.active = true;
+  sectionState.fallState.mode = "rope-fall";
+  sectionState.fallState.reeling = true;
+  sectionState.fallState.anchorHoldIndex = 3;
+  sectionState.feedbackState.dragRejectFrames = 6;
+  sectionState.feedbackState.limbIndex = 2;
+  sectionState.feedbackState.holdIndex = 17;
+  sectionState.debugState.invincible = true;
 
   const snapshot = getUiSnapshot(state, 42);
+  const loadoutSnapshot = buildLoadoutSnapshot(state);
+  const routeSnapshot = buildRouteSnapshot(state);
+  const sectionSnapshot = getUiSnapshot(sectionState, 7);
+  const recoverySnapshot = buildRecoverySnapshot(sectionState);
+  const fallSnapshot = buildFallSnapshot(sectionState);
+  const feedbackSnapshot = buildFeedbackSnapshot(sectionState);
+  const debugSnapshot = buildDebugSnapshot(sectionState);
+  const levelAnalysisSnapshot = buildLevelAnalysisSnapshot(state);
 
   if (snapshot.frame !== 42) {
     throw new Error(`UI snapshot should preserve the requested frame: ${snapshot.frame}`);
+  }
+
+  if (loadoutSnapshot.id !== state.loadout.id || snapshot.loadout.id !== loadoutSnapshot.id) {
+    throw new Error(`UI snapshot should expose loadout identity: ${JSON.stringify(snapshot.loadout)}`);
+  }
+
+  if (routeSnapshot.zoneKey !== state.routeState.currentZoneKey || snapshot.route.zoneKey !== routeSnapshot.zoneKey) {
+    throw new Error(`UI snapshot should expose route progress: ${JSON.stringify(snapshot.route)}`);
+  }
+
+  if (
+    !sectionSnapshot.recovery.active ||
+    recoverySnapshot.rescueWindowRatio !== 0.5 ||
+    sectionSnapshot.recovery.rescueWindowRatio !== recoverySnapshot.rescueWindowRatio
+  ) {
+    throw new Error(`UI snapshot should expose recovery window state: ${JSON.stringify(sectionSnapshot.recovery)}`);
+  }
+
+  if (!fallSnapshot.active || sectionSnapshot.fall.mode !== "rope-fall" || sectionSnapshot.fall.anchorHoldIndex !== 3) {
+    throw new Error(`UI snapshot should expose fall state: ${JSON.stringify(sectionSnapshot.fall)}`);
+  }
+
+  if (feedbackSnapshot.dragRejectFrames !== 6 || sectionSnapshot.feedback.holdIndex !== 17) {
+    throw new Error(`UI snapshot should expose feedback state: ${JSON.stringify(sectionSnapshot.feedback)}`);
+  }
+
+  if (!debugSnapshot.invincible || !sectionSnapshot.debug.invincible || !snapshot.debug.invincible) {
+    throw new Error(`UI snapshot should expose debug state: ${JSON.stringify(sectionSnapshot.debug)}`);
   }
 
   if (snapshot.movement.dyno.availability !== "checkpoint" || snapshot.movement.dyno.available) {
@@ -1584,14 +1644,20 @@ function validateUiSnapshotAssembly() {
   }
 
   snapshot.conditions.encounter.ropeThreat.active = true;
+  snapshot.debug.windLine.length = -1;
+  levelAnalysisSnapshot.holdCount = -1;
 
-  if (state.conditionState.encounter.ropeThreat.active) {
-    throw new Error("UI snapshot should clone nested encounter condition state");
+  if (
+    state.conditionState.encounter.ropeThreat.active ||
+    state.debugState.windLine.length === -1 ||
+    state.levelAnalysis.holdCount === -1
+  ) {
+    throw new Error("UI snapshot should clone nested condition, debug, and analysis state");
   }
 
   return {
     dynoAvailability: snapshot.movement.dyno.availability,
-    conditionClone: !state.conditionState.encounter.ropeThreat.active,
+    conditionClone: !state.conditionState.encounter.ropeThreat.active && state.levelAnalysis.holdCount !== -1,
   };
 }
 
