@@ -1,54 +1,18 @@
-import {
-  getAttachedLimbs,
-  getCheckpointAnchorPosition,
-  releaseHoldAttachment,
-} from "./attachmentSystem.js";
-import { resetDynoState } from "./dynoStateSystem.js";
-import { clearDragRejectFeedback } from "./feedbackSystem.js";
-import {
-  isInvincibleEnabled,
-  resetFallAndDynoState,
-  setGameOver,
-} from "./failureSystem.js";
-import { createInitialMovementState } from "./initialStateSystem.js";
-import {
-  updateDetachedLimbs,
-  updateSuspendedLimbs,
-} from "./limbAttachmentMotionSystem.js";
-import { restoreStamina } from "./staminaSystem.js";
+import { createEncounterRuntime } from "./gameRuntimeEncounterAdapter.js";
+import { createFailureRuntime } from "./gameRuntimeFailureAdapter.js";
+import { createFallRecoveryRuntime } from "./gameRuntimeFallRecoveryAdapter.js";
 
 export function createGameRuntimeFallAdapters(actions, runtime) {
   function getEncounterRuntime() {
-    return {
-      getCheckpointAnchorPosition,
-      isInvincibleEnabled,
-      resetFallAndDynoState,
-      setGameOver,
-    };
+    return createEncounterRuntime();
   }
 
   function getFallRecoveryRuntime() {
-    return {
-      clearDragRejectFeedback,
-      createInitialMovementState,
-      getAttachedLimbs,
-      getCheckpointAnchorPosition,
-      isInvincibleEnabled,
-      releaseHoldAttachment,
-      resetDynoState,
-      restoreStamina,
-      setGameOver,
-      stabilizeInvincibleState: actions.stabilizeInvincibleState,
-      updateDetachedLimbs,
-      updateSuspendedLimbs,
-    };
+    return createFallRecoveryRuntime(actions);
   }
 
   function getFailureRuntime() {
-    return {
-      getFallRecoveryRuntime,
-      getLimbReachRuntime: runtime.getLimbReachRuntime,
-    };
+    return createFailureRuntime(getFallRecoveryRuntime, runtime);
   }
 
   return {

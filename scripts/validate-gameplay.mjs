@@ -128,6 +128,7 @@ import {
   getInventoryCount,
   getItemActiveState,
 } from "../src/logic/engine/itemAvailabilitySystem.js";
+import { createGameRuntimeFallAdapters } from "../src/logic/engine/gameRuntimeFallAdapters.js";
 import { createGameRuntimeInteractionAdapters } from "../src/logic/engine/gameRuntimeInteractionAdapters.js";
 import { applyWindDebugOverrideTarget } from "../src/logic/engine/weatherDebugOverrideSystem.js";
 import { getHoldAnchorPosition } from "../src/logic/spatialProjection.js";
@@ -488,6 +489,50 @@ function validateRuntimeInteractionAdapters() {
   return {
     adapterCount: Object.keys(adapters).length,
     bodyForwarded: bodyActionRuntime.beginDynoCharge(),
+  };
+}
+
+function validateRuntimeFallAdapters() {
+  const actions = {
+    stabilizeInvincibleState: () => "stable",
+  };
+  const limbReachRuntime = {
+    canLimbReachTarget: () => true,
+  };
+  const adapters = createGameRuntimeFallAdapters(actions, {
+    getLimbReachRuntime: () => limbReachRuntime,
+  });
+  const stableState = createStableState();
+  const encounterRuntime = adapters.getEncounterRuntime();
+  const fallRecoveryRuntime = adapters.getFallRecoveryRuntime();
+  const failureRuntime = adapters.getFailureRuntime();
+
+  if (
+    encounterRuntime.getCheckpointAnchorPosition !== getCheckpointAnchorPosition ||
+    typeof encounterRuntime.resetFallAndDynoState !== "function"
+  ) {
+    throw new Error("Encounter runtime should expose checkpoint and failure-state helpers");
+  }
+
+  if (
+    fallRecoveryRuntime.stabilizeInvincibleState() !== "stable" ||
+    fallRecoveryRuntime.getAttachedLimbs(stableState).length !== 4 ||
+    typeof fallRecoveryRuntime.resetDynoState !== "function" ||
+    typeof fallRecoveryRuntime.updateSuspendedLimbs !== "function"
+  ) {
+    throw new Error("Fall recovery runtime should expose recovery helper dependencies");
+  }
+
+  if (
+    failureRuntime.getFallRecoveryRuntime().stabilizeInvincibleState() !== "stable" ||
+    failureRuntime.getLimbReachRuntime() !== limbReachRuntime
+  ) {
+    throw new Error("Failure runtime should bridge fall recovery and limb reach runtimes");
+  }
+
+  return {
+    adapterCount: Object.keys(adapters).length,
+    attachedCount: fallRecoveryRuntime.getAttachedLimbs(stableState).length,
   };
 }
 
@@ -2981,6 +3026,7 @@ const attachmentResult = validateAttachmentSystems();
 const bodyStateResult = validateBodyStateSystems();
 const climbingMotionResult = validateClimbingMotionSystems();
 const runtimeInteractionResult = validateRuntimeInteractionAdapters();
+const runtimeFallResult = validateRuntimeFallAdapters();
 const dragInteractionResult = validateDragInteractionSystems();
 const routeResult = validateRouteContent();
 const routePrimitiveResult = validateRoutePrimitiveSystems();
@@ -3030,6 +3076,7 @@ console.log(
     `bodyState=${bodyStateResult.restMode}/${bodyStateResult.dampedVelocityX}`,
     `climbMotion=${climbingMotionResult.detachedCount}/${climbingMotionResult.centerX.toFixed(2)}`,
     `runtimeAdapters=${runtimeInteractionResult.adapterCount}/${runtimeInteractionResult.bodyForwarded}`,
+    `fallRuntimeAdapters=${runtimeFallResult.adapterCount}/${runtimeFallResult.attachedCount}`,
     `dragCore=${dragInteractionResult.pointerX}/${dragInteractionResult.spatialAngle}`,
     `zones=${routeResult.zoneKeys.join(",")}`,
     `recoveryAvg=${routeResult.recoveryAvg.toFixed(2)}`,
