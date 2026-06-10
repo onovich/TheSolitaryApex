@@ -34,6 +34,12 @@ import {
   beginDynoCharge as beginDynoChargeAction,
   cancelDynoCharge as cancelDynoChargeAction,
 } from "../src/logic/engine/dynoChargeSystem.js";
+import {
+  beginFall as beginFallAction,
+  restoreCheckpointPose as restoreCheckpointPoseAction,
+} from "../src/logic/engine/fallEntrySystem.js";
+import { resetDynoState } from "../src/logic/engine/dynoStateSystem.js";
+import { createInitialMovementState } from "../src/logic/engine/initialStateSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
 import {
   getClimbingLimbGroups,
@@ -689,6 +695,138 @@ function validateStaminaPressureMetrics() {
     bloodiedPenalty: expectedBloodiedPenalty,
     chalkedPenalty: expectedChalkedPenalty,
     pressurePenalty: -pressureDelta,
+  };
+}
+
+function validateFallEntrySystems() {
+  const runtime = {
+    clearCount: 0,
+    getCheckpointAnchorPosition,
+    releaseHoldAttachment,
+    resetDynoState,
+    createInitialMovementState,
+    clearDragRejectFeedback(state) {
+      this.clearCount += 1;
+      state.feedbackState.dragRejectFrames = 0;
+    },
+  };
+
+  const deathState = createStableState();
+  deathState.draggedLimbIndex = 1;
+  deathState.itemState.channel = { itemId: "chalk" };
+  deathState.activeEffects.push({ id: "test", type: "staminaRecoveryBonus", value: 0.1, remainingFrames: 10 });
+  deathState.feedbackState.dragRejectFrames = 5;
+  deathState.movementState.dyno.pointerActive = true;
+  deathState.movementState.bodyVelocity = { x: 8, y: 3 };
+  deathState.movementState.restPose = {
+    ...deathState.movementState.restPose,
+    active: true,
+    mode: "stable",
+    stabilityFrames: 12,
+  };
+
+  beginFallAction(deathState, "direct-death", 720, runtime);
+
+  if (!deathState.fallState.active || deathState.fallState.mode !== "death-fall" || deathState.fallState.reason !== "direct-death") {
+    throw new Error(`Direct death-fall entry produced the wrong fall state: ${JSON.stringify(deathState.fallState)}`);
+  }
+
+  if (
+    deathState.draggedLimbIndex !== -1 ||
+    deathState.itemState.channel !== null ||
+    deathState.activeEffects.length !== 0 ||
+    deathState.feedbackState.dragRejectFrames !== 0 ||
+    deathState.movementState.dyno.pointerActive ||
+    deathState.movementState.restPose.active
+  ) {
+    throw new Error("Direct death-fall entry should clear transient input, effects, feedback, dyno, and rest-pose state");
+  }
+
+  if (deathState.player.limbs.some((limb) => limb.attachedHoldIndex !== -1)) {
+    throw new Error("Direct death-fall entry should release all attached limbs");
+  }
+
+  const ropeState = createStableState();
+
+  if (!useItem(ropeState, "protectionCam")) {
+    throw new Error("Direct rope-fall validation could not create a checkpoint");
+  }
+
+  const checkpoint = ropeState.itemState.checkpoint;
+  ropeState.movementState.bodyVelocity = { x: 10, y: 4 };
+  beginFallAction(ropeState, "direct-rope", 720, runtime);
+
+  if (
+    !ropeState.fallState.active ||
+    ropeState.fallState.mode !== "rope-fall" ||
+    ropeState.fallState.anchorHoldIndex !== checkpoint.anchorHoldIndex ||
+    ropeState.recoveryState.rescuesUsed !== 1
+  ) {
+    throw new Error(`Direct rope-fall entry produced the wrong state: ${JSON.stringify(ropeState.fallState)}`);
+  }
+
+  const restoreState = createStableState();
+
+  if (restoreCheckpointPoseAction(restoreState, runtime)) {
+    throw new Error("Checkpoint pose restore should fail without a checkpoint");
+  }
+
+  if (!useItem(restoreState, "protectionCam")) {
+    throw new Error("Direct checkpoint restore validation could not create a checkpoint");
+  }
+
+  const restoreCheckpoint = restoreState.itemState.checkpoint;
+  restoreState.player.com = { x: restoreCheckpoint.com.x + 99, y: restoreCheckpoint.com.y + 111 };
+  restoreState.player.limbs.forEach((limb) => {
+    limb.attachedHoldIndex = -1;
+    limb.x += 33;
+    limb.y += 44;
+  });
+  restoreState.cameraY = restoreCheckpoint.cameraY + 50;
+  restoreState.draggedLimbIndex = 2;
+  restoreState.fallState = { active: true, mode: "hanging", reason: "test" };
+  restoreState.movementState.dyno.pointerActive = true;
+
+  if (!restoreCheckpointPoseAction(restoreState, runtime)) {
+    throw new Error("Checkpoint pose restore should succeed with a checkpoint");
+  }
+
+  if (
+    restoreState.player.com.x !== restoreCheckpoint.com.x ||
+    restoreState.player.com.y !== restoreCheckpoint.com.y ||
+    restoreState.cameraY !== restoreCheckpoint.cameraY ||
+    restoreState.draggedLimbIndex !== -1 ||
+    restoreState.fallState.active ||
+    restoreState.movementState.dyno.pointerActive
+  ) {
+    throw new Error("Checkpoint pose restore should restore body, camera, fall, drag, and movement state");
+  }
+
+  const limbsRestored = restoreState.player.limbs.every((limb, index) => {
+    const checkpointLimb = restoreCheckpoint.limbs[index];
+    return (
+      limb.attachedHoldIndex === checkpointLimb.attachedHoldIndex &&
+      limb.x === checkpointLimb.x &&
+      limb.y === checkpointLimb.y
+    );
+  });
+
+  if (!limbsRestored) {
+    throw new Error("Checkpoint pose restore should restore all limb anchors and positions");
+  }
+
+  if (
+    restoreState.recoveryState.rescueWindowFrames !== GAME_CONFIG.recoveryLoop.rescueWindowFrames ||
+    restoreState.recoveryState.rescueWindowTotalFrames !== GAME_CONFIG.recoveryLoop.rescueWindowFrames
+  ) {
+    throw new Error("Checkpoint pose restore should refresh the rescue window");
+  }
+
+  return {
+    deathMode: deathState.fallState.mode,
+    ropeMode: ropeState.fallState.mode,
+    restoreWindow: restoreState.recoveryState.rescueWindowFrames,
+    clearCount: runtime.clearCount,
   };
 }
 
@@ -2112,6 +2250,7 @@ const routeMetaResult = validateRouteContentMetadata();
 const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
+const fallEntryResult = validateFallEntrySystems();
 const fallResult = validateDragDynoAndFalls();
 const itemResult = validateItems();
 const loadoutResult = validateLoadouts();
@@ -2153,6 +2292,7 @@ console.log(
     `dynoMetrics=${dynoMetricsResult.easedHalf.toFixed(3)}/${dynoMetricsResult.reachBonus}/${dynoMetricsResult.pullDistance}`,
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
+    `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,
     `dynoCharge=${fallResult.dynoChargeFrames}`,
     `dynoVy=${fallResult.dynoVelocityY.toFixed(2)}`,
     `airborneLimbs=${fallResult.airborneLimbMoved}`,
