@@ -1,5 +1,5 @@
 import { canStartDyno } from "./dynoMetricsSystem.js";
-import { cancelDynoPreparation } from "./dynoStateSystem.js";
+import { cancelDynoPreparation } from "./dynoLifecycleSystem.js";
 
 export function beginDynoCharge(state, screenX, screenY, runtime) {
   if (!state.isPlaying || state.fallState?.active || state.movementState?.dyno?.autoAttachActive || !canStartDyno(state, runtime)) {

@@ -1,7 +1,7 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { advanceDynoAutoAttachMotion } from "./dynoAutoAttachMotionSystem.js";
 import { attachDynoLandingTargets, createDynoLandingTargets } from "./dynoLandingTargetSystem.js";
-import { finishDynoFlight } from "./dynoStateSystem.js";
+import { finishDynoFlight } from "./dynoLifecycleSystem.js";
 
 export function beginDynoAutoAttach(state, runtime) {
   const dynoState = state.movementState.dyno;

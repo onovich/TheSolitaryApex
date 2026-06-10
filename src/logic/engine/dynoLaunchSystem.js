@@ -4,7 +4,7 @@ import {
   getDynoPullVector,
   getRawDynoChargeRatio,
 } from "./dynoChargeMetricsSystem.js";
-import { cancelDynoPreparation } from "./dynoStateSystem.js";
+import { cancelDynoPreparation } from "./dynoLifecycleSystem.js";
 import { applyDynoLaunchState } from "./dynoLaunchApplySystem.js";
 
 function clamp(value, min, max) {

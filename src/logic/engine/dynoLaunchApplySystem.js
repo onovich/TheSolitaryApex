@@ -1,6 +1,6 @@
 import { GAME_CONFIG } from "../../data/gameConfig.js";
 import { getDynoStaminaCost } from "./dynoMetricsSystem.js";
-import { cancelDynoPreparation } from "./dynoStateSystem.js";
+import { cancelDynoPreparation } from "./dynoLifecycleSystem.js";
 import { pushParticles } from "./particleSystem.js";
 
 function clamp(value, min, max) {

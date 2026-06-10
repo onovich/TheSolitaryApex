@@ -51,6 +51,10 @@ import {
 import { createDynoLandingTargets } from "../src/logic/engine/dynoLandingTargetSystem.js";
 import { attachDynoLandingTargets as attachDynoLandingTargetsAction } from "../src/logic/engine/dynoLandingAttachSystem.js";
 import {
+  cancelDynoPreparation as cancelDynoPreparationAction,
+  finishDynoFlight as finishDynoFlightAction,
+} from "../src/logic/engine/dynoLifecycleSystem.js";
+import {
   beginFall as beginFallAction,
   restoreCheckpointPose as restoreCheckpointPoseAction,
 } from "../src/logic/engine/fallEntrySystem.js";
@@ -60,7 +64,7 @@ import {
   getRecoveryWindMultiplier,
   tickRecoveryState as tickRecoveryStateAction,
 } from "../src/logic/engine/recoveryWindowSystem.js";
-import { resetDynoState } from "../src/logic/engine/dynoStateSystem.js";
+import { createInitialDynoState, resetDynoState } from "../src/logic/engine/dynoStateSystem.js";
 import { createInitialMovementState } from "../src/logic/engine/initialStateSystem.js";
 import { applyBodyVelocity, getRestPoseState } from "../src/logic/engine/bodyStateSystem.js";
 import {
@@ -865,6 +869,103 @@ function validateDynoLandingSystems() {
     targets: attachableTargetCount,
     attachedCount,
     skippedRemoved: removedAttachedCount === 0,
+  };
+}
+
+function validateDynoStateSystems() {
+  const initialA = createInitialDynoState();
+  const initialB = createInitialDynoState();
+
+  initialA.pendingLandingTargets.push({ targetHoldIndex: 1 });
+  initialA.originalLimbPositions.push({ x: 1, y: 2 });
+  initialA.autoAttachBodyPosition.x = 99;
+
+  if (
+    initialB.pendingLandingTargets.length !== 0 ||
+    initialB.originalLimbPositions.length !== 0 ||
+    initialB.autoAttachBodyPosition.x !== 0 ||
+    initialB.launchVector.y !== -1
+  ) {
+    throw new Error("Initial dyno state should create independent nested runtime containers");
+  }
+
+  const resetState = createInitialDynoState();
+  resetState.charging = true;
+  resetState.flightActive = true;
+  resetState.pendingLandingTargets = [{ targetHoldIndex: 3 }];
+  resetState.launchVector = { x: 0.5, y: -0.25 };
+  resetDynoState(resetState);
+
+  if (
+    resetState.charging ||
+    resetState.flightActive ||
+    resetState.pendingLandingTargets.length !== 0 ||
+    resetState.launchVector.x !== 0 ||
+    resetState.launchVector.y !== -1
+  ) {
+    throw new Error(`Dyno reset should restore default state fields: ${JSON.stringify(resetState)}`);
+  }
+
+  const preparationState = createStableState();
+  const preparationDyno = preparationState.movementState.dyno;
+  preparationDyno.pointerActive = true;
+  preparationDyno.holdFrames = 9;
+  preparationDyno.pullDistance = 80;
+  preparationDyno.charging = true;
+  preparationDyno.chargeFrames = 18;
+  preparationDyno.cooldownFrames = 22;
+  preparationDyno.flightActive = true;
+  preparationDyno.launchVector = { x: 0.25, y: -0.75 };
+  cancelDynoPreparationAction(preparationState);
+
+  if (
+    preparationDyno.pointerActive ||
+    preparationDyno.holdFrames !== 0 ||
+    preparationDyno.pullDistance !== 0 ||
+    preparationDyno.charging ||
+    preparationDyno.chargeFrames !== 0 ||
+    preparationDyno.launchVector.y !== -1 ||
+    preparationDyno.cooldownFrames !== 22 ||
+    !preparationDyno.flightActive
+  ) {
+    throw new Error(`Dyno preparation cancellation should only clear preparation fields: ${JSON.stringify(preparationDyno)}`);
+  }
+
+  const flightState = createStableState();
+  const flightDyno = flightState.movementState.dyno;
+  flightDyno.flightActive = true;
+  flightDyno.autoAttachActive = true;
+  flightDyno.autoAttachFrame = 3;
+  flightDyno.autoAttachFrames = 12;
+  flightDyno.reachBonusRatio = 0.7;
+  flightDyno.pullDistance = 120;
+  flightDyno.activeFrames = 8;
+  flightDyno.originalLimbPositions = [{ x: 1, y: 2 }];
+  flightDyno.autoAttachBodyPosition = { x: 22, y: 44 };
+  flightDyno.pendingLandingTargets = [{ limbIndex: 0, targetHoldIndex: 4 }];
+  flightDyno.launchVector = { x: 0.4, y: -0.6 };
+  finishDynoFlightAction(flightState);
+
+  if (
+    flightDyno.flightActive ||
+    flightDyno.autoAttachActive ||
+    flightDyno.autoAttachFrame !== 0 ||
+    flightDyno.autoAttachFrames !== 0 ||
+    flightDyno.reachBonusRatio !== 0 ||
+    flightDyno.pullDistance !== 0 ||
+    flightDyno.activeFrames !== 0 ||
+    flightDyno.originalLimbPositions.length !== 0 ||
+    flightDyno.pendingLandingTargets.length !== 0 ||
+    flightDyno.autoAttachBodyPosition.x !== 0 ||
+    flightDyno.autoAttachBodyPosition.y !== 0 ||
+    flightDyno.launchVector.y !== -1
+  ) {
+    throw new Error(`Dyno flight finish should clear flight metadata: ${JSON.stringify(flightDyno)}`);
+  }
+
+  return {
+    resetTargets: resetState.pendingLandingTargets.length,
+    flightVectorY: flightDyno.launchVector.y,
   };
 }
 
@@ -2799,6 +2900,7 @@ const dynoMetricsResult = validateDynoChargeMetrics();
 const dynoChargeSystemResult = validateDynoChargeSystems();
 const dynoLaunchSystemResult = validateDynoLaunchSystems();
 const dynoLandingSystemResult = validateDynoLandingSystems();
+const dynoStateSystemResult = validateDynoStateSystems();
 const recoveryWindowResult = validateRecoveryWindowSystems();
 const staminaPressureResult = validateStaminaPressureMetrics();
 const fallEntryResult = validateFallEntrySystems();
@@ -2848,6 +2950,7 @@ console.log(
     `dynoChargeCore=${dynoChargeSystemResult.chargeFrames}/${dynoChargeSystemResult.pointerUpdates}`,
     `dynoLaunchCore=${dynoLaunchSystemResult.cooldown}/${dynoLaunchSystemResult.particles}`,
     `dynoLandingCore=${dynoLandingSystemResult.targets}/${dynoLandingSystemResult.attachedCount}/${dynoLandingSystemResult.skippedRemoved}`,
+    `dynoStateCore=${dynoStateSystemResult.resetTargets}/${dynoStateSystemResult.flightVectorY}`,
     `recoveryWindow=${recoveryWindowResult.tickedFrames}/${recoveryWindowResult.windMultiplier.toFixed(2)}`,
     `staminaPressure=${staminaPressureResult.bloodiedPenalty.toFixed(3)}/${staminaPressureResult.chalkedPenalty.toFixed(3)}/${staminaPressureResult.pressurePenalty.toFixed(3)}`,
     `fallEntry=${fallEntryResult.deathMode}/${fallEntryResult.ropeMode}/${fallEntryResult.restoreWindow}`,

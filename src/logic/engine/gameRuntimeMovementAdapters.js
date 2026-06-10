@@ -3,7 +3,7 @@ import {
   isHoldAvailable,
   releaseHoldAttachment,
 } from "./attachmentSystem.js";
-import { cancelDynoPreparation } from "./dynoStateSystem.js";
+import { cancelDynoPreparation } from "./dynoLifecycleSystem.js";
 import { clearDragRejectFeedback, setDragRejectFeedback } from "./feedbackSystem.js";
 
 export function createDynoRuntime(actions) {
