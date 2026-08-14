@@ -1,111 +1,64 @@
-# The Solitary Apex | 孤崖
+# TheSolitaryApex
 
-A hard climbing game prototype about grip, fatigue, and the fear of losing your last stable hold.
+[简体中文](README.zh-CN.md)
 
-孤崖是一款硬核 2D 攀岩游戏原型。你要逐一拖拽四肢寻找落点，在耐力被泵感吞噬之前继续向上。每一次错误转移，都会把你推向坠落。
+[Play online](https://blog.onovich.com/TheSolitaryApex/)
 
-## Play Online
+TheSolitaryApex is a hard 2D climbing prototype about moving four limbs independently, protecting the last stable hold, and managing stamina as the wall becomes less forgiving.
 
-- Live demo: http://blog.onovich.com/TheSolitaryApex/
+![TheSolitaryApex cover](docs/cover.png)
 
-## What Kind of Game Is This?
+## How to play
 
-The Solitary Apex is built around a simple but brutal loop: read the wall, move one limb, protect your balance, and fight the slow collapse of your stamina.
+- Drag a hand or foot toward a reachable hold.
+- Release near the hold to attach that limb.
+- Keep enough points of contact to protect balance.
+- Use chalk and other limited items before fatigue becomes unrecoverable.
+- After placing protection, pull the climber downward and release to commit to a longer dyno.
+- Reach the top, or restart after a fall and try a different route.
 
-这不是靠跳跃和冲刺取胜的攀爬游戏。你的每一米高度，都来自对手脚位置、身体伸展距离和耐力消耗的精确判断。
+Mouse and touch use the same direct limb controls.
 
-## Core Features
+## Features
 
-- Independent control for both hands and both feet
-- Golden-path wall generation with readable trap holds around a guaranteed route
-- Four official route templates for mixed, resource-reading, pursuit-crux, and rescue-encounter pacing
-- Route content zoning that alternates recovery, reading, exposure, and crux sections along the ascent
-- Limb-specific reach constraints with asymmetric hand and foot movement envelopes
-- Stamina pressure that turns small mistakes into fatal ones
-- A small survival rack: chalk, protection placements, and single-hand energy gel channels
-- Charge-and-release dyno window for committing to longer moves
-- Rest pose detection for wide foot locks and hands-off recovery windows
-- Wind pressure and hand injury systems that steadily destabilize bad decisions
-- Bloodied regrip holds that punish repeated hand strain on poorer holds, with chalk mitigation
-- Fragile noise holds that collapse after the player leaves them
-- Timed soft holds that collapse while loaded, forcing a faster transfer
-- Drillable obstacle stones that can block decoy space until broken at stamina cost
-- Collectible fruit resources that relieve thirst pressure and restore stamina
-- A restrained sensory-flow overlay that briefly activates after fruit collection
-- Configured earthquake events that destabilize decoy holds without breaking the golden path
-- Configured avalanche events that remove bounded decoy holds without touching the golden path
-- Configured lane blockers that create local enemy pressure without pathfinding AI
-- A configurable pursuit pressure line that rewards sustained upward movement
-- A configurable rope threat that climbs placed protection and can disable stale checkpoints
-- An optional spatial-scan experiment for visual-only pseudo-3D route reading
-- Rescue targets that let protection placements act as collaboration tools with temporary burden pressure
-- Five-language UI switching for Chinese, English, Japanese, Spanish, and Brazilian Portuguese
-- Two clear failure states: losing balance or climbing to exhaustion
-- Minimal, oppressive presentation focused on isolation and height
+- Independent control for both hands and both feet.
+- Guaranteed-solvable route generation with multiple authored route templates.
+- Reach, balance, stamina, rest, wind, injury, and fall systems.
+- Chalk, protection, energy gel, collectible resources, and checkpoint recovery.
+- Fragile holds, timed holds, obstacles, pursuit pressure, earthquakes, avalanches, and rescue encounters.
+- English, Chinese, Japanese, Spanish, and Brazilian Portuguese interfaces.
+- Developer tools for route seeds, run configuration, level inspection, and tuning export.
 
-## How to Play
+## Development
 
-- Drag a hand or foot toward a higher hold
-- Release near a hold to latch onto it
-- Try to keep at least three points of contact
-- Use chalk before your stamina bar collapses
-- Climb as high as you can
-
-## Controls
-
-- Mouse or touch: drag each limb ring to a new hold
-- Click or tap the chalk button: consume one chalk charge
-- After placing protection, hold the climber body and pull downward to charge a dyno, then release to commit
-- Restart after a fall to begin another ascent
-
-## Why It Feels Different
-
-Most climbing games sell momentum. The Solitary Apex sells hesitation.
-
-你看到的不是轻快征服，而是一次次艰难挪移。高度越高，容错越低，呼吸越重，继续往上就越像一场和自己身体对抗的赌博。
-
-## Local Development
-
-Windows manual test launchers:
-
-```bat
-StartLocalTest.cmd
-OpenOnlineTest.cmd
-```
-
-`StartLocalTest.cmd` starts the Vite dev server, automatically chooses a fallback port if the preferred port is busy, and opens the local test URL. `OpenOnlineTest.cmd` opens the live demo URL from this repository.
+Install dependencies and start the Vite app:
 
 ```bash
 npm install
 npm run dev
 ```
 
-For a quick regression check covering i18n dictionaries, level config, gameplay behavior, and production build:
+On Windows, `StartLocalTest.cmd` opens a local test build and `OpenOnlineTest.cmd` opens the published game.
+
+Run the main i18n, level, gameplay, and production-build checks:
 
 ```bash
 npm run validate
 ```
 
-For the short manual local and online smoke pass, see `docs/manual-smoke-checklist.md`.
-
-To create a production build:
+Useful authoring reports:
 
 ```bash
-npm run build
+npm run report:levels
+npm run report:level -- pursuit-crux-ascent
 ```
 
 ## Status
 
-The current repository contains the playable web prototype of The Solitary Apex.
+The current web build is playable and contains a large set of route, movement, survival, encounter, item, and developer-authoring systems. It is still a prototype under active tuning: content balance, onboarding, device coverage, and the dedicated level editor are not complete.
 
-The current web build now includes guaranteed-solvable route generation, four official route templates, a first-pass route content layer, limb-specific reach rules, a reusable multi-item framework, checkpoint recovery windows, rescue summaries, energy gel channeling, a dyno action, rest pose recovery, wind pressure, hand injury escalation, bloodied regrip holds with chalk mitigation, fragile hold collapse, timed soft holds, drillable obstacles, collectible fruit resources, a fruit-triggered sensory-flow overlay, first earthquake and avalanche event prototypes, a pursuit pressure prototype, lane blocker encounter markers, a rope threat prototype, an optional pseudo-3D spatial scan, and rescue targets with temporary burden pressure.
+Detailed level-authoring and maintenance notes live in `docs/level-config-maintenance.md` and `docs/level-editor-plan.md`.
 
-For dyno feel work, the in-game `DEV` panel can tune launch, charge, reach bonus, gravity, and stamina-cost values at runtime. `Save local` persists test values in the browser, while `Copy config` exports the chosen numbers for `src/data/gameConfig.js`.
+## License
 
-Route and level pacing live in `src/data/levelConfig.js`. Each level has authoring metadata that separates authored controls from randomized controls, content targets for generated mechanic counts, pressure targets for route feel, resource-pressure targets for recovery and thirst pressure, Golden Path hazard-isolation rules, plus pressure rules for event spacing, major encounter density, wider pressure-event density, resource-fruit density, and maximum resource gaps. Each level also has a stable `seed` so route changes are reproducible while tuning. The player HUD no longer exposes route type or strategy selection; instead, the in-game `DEV` panel owns run debugging through route preset choice, starting inventory overrides, event toggles, run-config JSON import/export, and level-config copy/export support. Use `npm run validate:levels` to check level definitions, content targets, Golden Path safety, pressure targets, resource-pressure targets, pressure rules, generated-route coverage, seed repeatability, and a short per-template pressure summary before committing route template changes.
-
-For a readable tuning handoff, `npm run report:levels` prints a Markdown report with each level's route shape, encounters, generated content counts, Golden Path safety, pressure summary, resource-pressure summary, event-density summary, and configured pressure targets. To focus on one route while tuning, run `npm run report:level -- pursuit-crux-ascent`.
-
-For the field-by-field level tuning workflow, see `docs/level-config-maintenance.md`.
-
-The current build now includes a first-pass dedicated level-config screen, opened from the `DEV` panel. It separates start-state editing, route inspection, event inspection, shared event-timeline tuning, draft JSON editing, partial direct field editing, live draft-analysis preview, config-fragment export, and validation summary from the player HUD. The longer-term structure for that editor still lives in `docs/level-editor-plan.md`.
+No open-source license is currently included in this repository.
