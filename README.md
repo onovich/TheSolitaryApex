@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-[Play online](https://blog.onovich.com/TheSolitaryApex/)
+[Play online](https://game.onovich.com/TheSolitaryApex/)
 
 TheSolitaryApex is a hard 2D climbing prototype about moving four limbs independently, protecting the last stable hold, and managing stamina as the wall becomes less forgiving.
 
