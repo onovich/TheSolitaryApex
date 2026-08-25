@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-[在线试玩](https://blog.onovich.com/TheSolitaryApex/)
+[在线试玩](https://game.onovich.com/TheSolitaryApex/)
 
 TheSolitaryApex 是一个硬核 2D 攀岩原型。玩家需要分别移动四肢、保护最后一个稳定支点，并在岩壁越来越不留情时管理耐力。
 
