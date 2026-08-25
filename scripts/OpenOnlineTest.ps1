@@ -1,5 +1,5 @@
 param(
-    [string] $Url = "http://blog.onovich.com/TheSolitaryApex/",
+    [string] $Url = "http://game.onovich.com/TheSolitaryApex/",
     [switch] $DryRun
 )
 
